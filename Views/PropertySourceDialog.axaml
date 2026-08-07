@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="380"
+        x:Class="SC4ModdingSuite.Views.PropertySourceDialog"
+        x:DataType="vm:PropertySourceDialogViewModel"
+        Title="Exemplar Property Database"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="480" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+    <StackPanel Margin="16" Spacing="10">
+
+        <TextBlock Text="Which Exemplar property database do you want to use?"
+                   FontWeight="Bold" TextWrapping="Wrap" />
+        <TextBlock TextWrapping="Wrap" Foreground="Gray" FontSize="12"
+                   Text="Used to show readable property names and types when editing an Exemplar/Cohort. You can change this at any time from Options." />
+
+        <StackPanel Margin="0,8,0,0" Spacing="4">
+            <RadioButton Content="NAM Team (vanilla / BSC experience)"
+                         GroupName="source"
+                         IsChecked="{Binding NamTeamSelected}" />
+            <RadioButton Content="UlisseWolf Patches (CAM-compatible, updates more often)"
+                         GroupName="source"
+                         IsChecked="{Binding UlisseWolfSelected}" />
+            <RadioButton Content="{Binding LocalOverridePath, StringFormat='Custom local file ({0})'}"
+                         GroupName="source"
+                         IsChecked="{Binding UseLocalOverride}"
+                         IsVisible="{Binding HasLocalOverride}" />
+        </StackPanel>
+
+        <CheckBox Content="Check for updates online now"
+                  IsChecked="{Binding CheckForUpdates}"
+                  IsVisible="{Binding !UseLocalOverride}"
+                  Margin="0,8,0,0" />
+
+        <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="#33FF66" MinHeight="20" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <Button Content="Continue" Command="{Binding ContinueCommand}" IsDefault="True"
+                    IsEnabled="{Binding !IsBusy}" MinWidth="90" HorizontalContentAlignment="Center" />
+        </StackPanel>
+
+    </StackPanel>
+
+</Window>

@@ -1,0 +1,25 @@
+# Tema "Synthwave - Miami 1984": estetica Outrun classica — cielo notturno viola/indaco,
+# ciano e magenta al neon, rosso tramonto per gli allarmi. Il colore #FF3864 ("sunset red")
+# e' un riferimento diretto alla palette del celebre tema "Synthwave '84".
+
+name = "Synthwave - Miami 1984"
+
+window_background = "#1A0B2E"
+window_foreground = "#00F0FF"
+border = "#FF2E97"
+
+button_background = "#240B36"
+button_foreground = "#FF6AD5"
+button_border = "#00F0FF"
+
+textbox_background = "#12081F"
+textbox_foreground = "#FFE7FB"
+
+selection_background = "#FF2E97"
+selection_foreground = "#12081F"
+
+listbox_background = "#1A0B2E"
+listboxitem_selected_background = "#5C2A85"
+
+status_foreground = "#00F0FF"
+danger_foreground = "#FF3864"

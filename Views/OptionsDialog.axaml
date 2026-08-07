@@ -1,0 +1,133 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="680"
+        x:Class="SC4ModdingSuite.Views.OptionsDialog"
+        x:DataType="vm:OptionsDialogViewModel"
+        Title="{Binding LocalizationService.OptionsTitle}"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="620" Height="680"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="*,Auto" Margin="16">
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Spacing="16" Margin="0,0,8,0">
+
+                <!-- Protected SC4 system files -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProtectedFiles}" FontWeight="Bold" FontSize="12" />
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Classes="status"
+                               Text="Opening these files is always possible; in-place saving is blocked automatically regardless of the paths below - they're only here for convenience/reference." />
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsSimCityLocaleLabel}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding SimCityLocalePath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseSimCityLocaleClick" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsSc4InstallFolderLabel}" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding Sc4InstallFolder}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseSc4InstallFolderClick" />
+                    </Grid>
+                </StackPanel>
+
+                <Separator />
+
+                <!-- External tools -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionExternalTools}" FontWeight="Bold" FontSize="12" />
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsPimXLabel}" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding PimXPath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowsePimXClick" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsDataNodeLabel}" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding DataNodePath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseDataNodeClick" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsMapperLabel}" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding MapperPath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseMapperClick" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsTerraformerLabel}" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding TerraformerPath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseTerraformerClick" />
+                    </Grid>
+
+                    <TextBlock Text="SC4pac Editor:" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding Sc4PacEditorPath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseSc4PacEditorClick" />
+                    </Grid>
+                </StackPanel>
+
+                <!-- Hidden developer feature: only rendered at all when the (unshipped)
+                     dev-features.toml flag file unlocks it - see Models/DevFeatureFlags.cs. -->
+                <StackPanel Spacing="6" IsVisible="{Binding IsNamDevelopmentSuiteEnabled}">
+                    <Separator />
+                    <TextBlock Text="NAM DEVELOPMENT SUITE" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="NAM Development Suite:" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding NamDevelopmentSuitePath}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseNamDevelopmentSuiteClick" />
+                    </Grid>
+                </StackPanel>
+
+                <Separator />
+
+                <!-- Exemplar property database -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProperties}" FontWeight="Bold" FontSize="12" />
+                    <Button Content="{Binding LocalizationService.OptionsChangePropertySource}" Command="{Binding ChangePropertySourceCommand}" />
+                </StackPanel>
+
+                <Separator />
+
+                <!-- Language and appearance -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionAppearance}" FontWeight="Bold" FontSize="12" />
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsLanguageLabel}" />
+                    <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding SelectedLanguage}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:LocalizationEntry">
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsThemeLabel}" Margin="0,6,0,0" />
+                    <ComboBox ItemsSource="{Binding AvailableThemes}" SelectedItem="{Binding SelectedTheme}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:ThemeChoice">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="Language and theme apply immediately as soon as you pick them."
+                               FontSize="11" Classes="status" />
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+            <Button Content="{Binding LocalizationService.OptionsClose}" Command="{Binding CloseCommand}" MinWidth="90" HorizontalContentAlignment="Center" />
+            <Button Content="{Binding LocalizationService.OptionsSave}" Command="{Binding SaveCommand}" IsDefault="True" MinWidth="90" HorizontalContentAlignment="Center" />
+        </StackPanel>
+    </Grid>
+
+</Window>

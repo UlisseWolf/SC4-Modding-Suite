@@ -1,0 +1,293 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:views="using:SC4ModdingSuite.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1320" d:DesignHeight="720"
+        x:Class="SC4ModdingSuite.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="{Binding WindowTitle}"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="1320" Height="720"
+        KeyDown="OnWindowKeyDown">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+
+        <!-- Toolbar: file operations -->
+        <Border Grid.Row="0" BorderBrush="#805000" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="6">
+                <Button Content="{Binding LocalizationService.ToolbarNew}" Click="OnNewClick" />
+                <Button Content="{Binding LocalizationService.ToolbarOpen}" Click="OnOpenClick" />
+                <Button Content="{Binding LocalizationService.ToolbarSave}" Click="OnSaveClick" IsEnabled="{Binding CanSaveInPlace}" />
+                <Button Content="{Binding LocalizationService.ToolbarSaveAs}" Click="OnSaveAsClick" IsEnabled="{Binding HasOpenFile}" />
+                <Rectangle Width="1" Margin="6,2" />
+                <Button Content="{Binding LocalizationService.ToolbarExportEntry}" Click="OnExportSelectedClick" IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Button Content="{Binding LocalizationService.ToolbarImportEntry}" Click="OnImportIntoSelectedClick" IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Button Content="{Binding LocalizationService.ToolbarExportAll}" Click="OnExportAllClick" IsEnabled="{Binding HasOpenFile}" />
+                <Rectangle Width="1" Margin="6,2" />
+                <Button Content="{Binding LocalizationService.ToolbarOptions}" Click="OnOpenOptionsClick" />
+            </StackPanel>
+        </Border>
+
+        <!-- External tools: always-visible separate box below the main toolbar -->
+        <Border Grid.Row="1" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{Binding LocalizationService.ExternalToolsHeader}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" />
+                <Button Content="SC4 PIM-X" Command="{Binding LaunchPimXCommand}" />
+                <Button Content="SC4 DataNode" Command="{Binding LaunchDataNodeCommand}" />
+                <Button Content="SC4 Mapper" Command="{Binding LaunchMapperCommand}" />
+                <Button Content="SC4 Terraformer" Command="{Binding LaunchTerraformerCommand}" />
+                <Button Content="SC4pac Editor" Command="{Binding LaunchSc4PacEditorCommand}" />
+                <Button Content="NAM Development Suite" Command="{Binding LaunchNamDevelopmentSuiteCommand}"
+                        IsVisible="{Binding IsNamDevelopmentSuiteEnabled}" />
+                <TextBlock Text="(paths configurable in Options)" FontSize="11" Classes="status" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <!-- Editors: quick format filters over the entry list ("dot buttons"), SC4 Editor
+             (no filter) is the default the moment a file is opened. -->
+        <Border Grid.Row="2" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="EDITOR:" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" />
+                <RadioButton Content="SC4 Editor" GroupName="editorMode" IsChecked="{Binding IsSc4EditorMode}" />
+                <RadioButton Content="LTEXT Editor" GroupName="editorMode" IsChecked="{Binding IsLtextEditorMode}" />
+                <RadioButton Content="S3D Editor" GroupName="editorMode" IsChecked="{Binding IsS3DEditorMode}" />
+                <RadioButton Content="LUA Editor" GroupName="editorMode" IsChecked="{Binding IsLuaEditorMode}" />
+                <RadioButton Content="UI Editor" GroupName="editorMode" IsChecked="{Binding IsUiEditorMode}" />
+                <RadioButton Content="T21 Editor" GroupName="editorMode" IsChecked="{Binding IsT21EditorMode}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Toolbar: preview controls (image zoom/selector or WAV playback), shown contextually -->
+        <Border Grid.Row="3" BorderBrush="#805000" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasImagePreview}">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="6">
+                <TextBlock Text="PREVIEW:" VerticalAlignment="Center" FontSize="11" Classes="status" />
+                <Button Content="−" FontWeight="Bold" MinWidth="32" Padding="0"
+                        Command="{Binding ZoomOutCommand}" ToolTip.Tip="Zoom out" />
+                <Button Content="{Binding ZoomFactor, StringFormat='{}{0:P0}'}" MinWidth="64"
+                        Command="{Binding ZoomResetCommand}" ToolTip.Tip="Reset zoom (click)" />
+                <Button Content="+" FontWeight="Bold" MinWidth="32" Padding="0"
+                        Command="{Binding ZoomInCommand}" ToolTip.Tip="Zoom in" />
+                <ComboBox ItemsSource="{Binding PreviewImages}" SelectedItem="{Binding SelectedPreviewImage}"
+                          MinWidth="180">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ImageItemViewModel">
+                            <TextBlock Text="{Binding Label}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Border>
+        <Border Grid.Row="3" BorderBrush="#805000" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasWavPreview}">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="6">
+                <TextBlock Text="WAV AUDIO:" VerticalAlignment="Center" FontSize="11" Classes="status" />
+                <Button Content="▶ PLAY" Command="{Binding PlayWavCommand}" />
+                <Button Content="■ STOP" Command="{Binding StopWavCommand}" />
+            </StackPanel>
+        </Border>
+        <Border Grid.Row="3" BorderBrush="#805000" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasS3DPreview}">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="6">
+                <TextBlock Text="RENDER:" VerticalAlignment="Center" FontSize="11" Classes="status" />
+                <RadioButton Content="Wireframe" GroupName="s3dRender" IsChecked="{Binding IsS3DWireframe}" />
+                <RadioButton Content="Solid (textures)" GroupName="s3dRender" IsChecked="{Binding IsS3DSolid}" />
+                <Rectangle Width="1" Margin="6,2" />
+                <TextBlock Text="LIGHTING:" VerticalAlignment="Center" FontSize="11" Classes="status" />
+                <RadioButton Content="Day" GroupName="s3dLighting" IsChecked="{Binding IsS3DDay}" />
+                <RadioButton Content="Night" GroupName="s3dLighting" IsChecked="{Binding IsS3DNight}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Main content: entry list | TGI editor + details/preview | properties -->
+        <Grid Grid.Row="4" ColumnDefinitions="340,*,380" Margin="6">
+
+            <!-- Entry list -->
+            <Border Grid.Column="0" BorderThickness="1">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <Border Grid.Row="0" BorderThickness="0,0,0,1">
+                        <TextBlock Text="ENTRIES (TGI)" FontWeight="Bold" FontSize="11" Margin="6,4" />
+                    </Border>
+                    <ListBox Grid.Row="1"
+                             x:Name="EntriesListBox"
+                             ItemsSource="{Binding DisplayedEntries}"
+                             SelectedItem="{Binding SelectedEntry}"
+                             SelectionMode="Multiple"
+                             Margin="2">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EntryItemViewModel">
+                                <StackPanel Margin="2">
+                                    <TextBlock Text="{Binding EntryType}" FontWeight="Bold" FontSize="12" />
+                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
+                                        <Run Text="T:" /><Run Text="{Binding TypeHex}" />
+                                        <Run Text="  G:" /><Run Text="{Binding GroupHex}" />
+                                        <Run Text="  I:" /><Run Text="{Binding InstanceHex}" />
+                                    </TextBlock>
+                                    <TextBlock FontSize="10" Classes="status">
+                                        <Run Text="{Binding SizeBytes}" /><Run Text=" bytes · " /><Run Text="{Binding CompressionLabel}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="4">
+                        <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" />
+                        <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" />
+                        <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" />
+                        <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- TGI editor + details/preview -->
+            <Grid Grid.Column="1" Margin="6,0" RowDefinitions="Auto,Auto,*">
+
+                <!-- TGI editor -->
+                <Border Grid.Row="0" BorderThickness="1" Padding="10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="EDIT TGI — TYPE ID MANUAL ONLY — GROUP/INSTANCE MANUAL OR RANDOM"
+                                   FontWeight="Bold" FontSize="11" />
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" >
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="TYPE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding NewTypeText}" Margin="0,4" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="(always manual)" Classes="status"
+                                       VerticalAlignment="Center" FontSize="11" Margin="8,4,0,4" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="GROUP ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewGroupText}"
+                                     IsEnabled="{Binding !RandomizeGroup}" Margin="0,4" />
+                            <CheckBox Grid.Row="1" Grid.Column="2" Content="Random"
+                                      IsChecked="{Binding RandomizeGroup}" Margin="8,4,0,4" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="INSTANCE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NewInstanceText}"
+                                     IsEnabled="{Binding !RandomizeInstance}" Margin="0,4" />
+                            <CheckBox Grid.Row="2" Grid.Column="2" Content="Random"
+                                      IsChecked="{Binding RandomizeInstance}" Margin="8,4,0,4" />
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="APPLY TGI CHANGE" Command="{Binding ApplyTgiCommand}" />
+                            <Button Content="RANDOMIZE G AND I" Command="{Binding RandomizeBothCommand}" />
+                            <Button Content="DELETE ENTRY" Command="{Binding RemoveSelectedCommand}" Classes="danger" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="1" Text="IMAGE PREVIEW" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasImagePreview}" />
+                <TextBlock Grid.Row="1" Text="3D MODEL PREVIEW (S3D)" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasS3DPreview}" />
+                <TextBlock Grid.Row="1" Text="AUDIO PREVIEW (WAV)" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasWavPreview}" />
+                <TextBlock Grid.Row="1" Text="{Binding SimplePreviewLabel}" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasSimplePreview}" />
+                <TextBlock Grid.Row="1" Text="ENTRY DETAILS" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding ShowTextDetails}" />
+
+                <!-- Image viewer: PNG/FSH entries -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasImagePreview}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  Background="#0A0A0A">
+                        <Image Source="{Binding SelectedPreviewImage.Bitmap}"
+                               Stretch="None"
+                               HorizontalAlignment="Left" VerticalAlignment="Top"
+                               RenderOptions.BitmapInterpolationMode="None"
+                               RenderTransformOrigin="0,0">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
+                            </Image.RenderTransform>
+                        </Image>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- S3D wireframe viewer: drag to orbit, scroll to zoom (see S3DViewerControl) -->
+                <Grid Grid.Row="2" RowDefinitions="*,Auto" IsVisible="{Binding HasS3DPreview}">
+                    <Border Grid.Row="0" BorderThickness="1">
+                        <views:S3DViewerControl Model="{Binding SelectedS3DModel}"
+                                                 Texture="{Binding S3DTexture}"
+                                                 Solid="{Binding IsS3DSolid}"
+                                                 Night="{Binding IsS3DNight}"
+                                                 Background="#0A0A0A" />
+                    </Border>
+                    <TextBlock Grid.Row="1" Text="{Binding S3DInfo}" FontSize="11" Classes="status"
+                               TextWrapping="Wrap" Margin="0,4,0,0" />
+                </Grid>
+
+                <!-- WAV: no visual, playback is via the preview toolbar above -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasWavPreview}">
+                    <TextBlock Text="WAV audio file ready to play. Use the controls above."
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Classes="status" />
+                </Border>
+
+                <!-- Simple read-only preview: LTEXT/UI text, or hex dump for Directory/Unknown entries. No editor by design. -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasSimplePreview}">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding SimplePreviewContent}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Text details: shown for everything else -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding ShowTextDetails}">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding Details}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Exemplar/Cohort properties panel -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto" IsVisible="{Binding IsExemplarSelected}">
+                <TextBlock Grid.Row="0" Text="EXEMPLAR/COHORT PROPERTIES" FontWeight="Bold" FontSize="11" Margin="0,0,0,4" />
+
+                <Border Grid.Row="1" BorderThickness="1">
+                    <ListBox ItemsSource="{Binding Properties}"
+                             SelectedItem="{Binding SelectedProperty}"
+                             Margin="2">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PropertyItemViewModel">
+                                <StackPanel Margin="2">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" TextWrapping="Wrap" />
+                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="10" Classes="status">
+                                        <Run Text="{Binding IdHex}" /><Run Text="  [" /><Run Text="{Binding DataTypeText}" /><Run Text="]" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding ValuesText}" FontSize="11" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                    <Button Content="ADD..." Click="OnAddPropertyClick" />
+                    <Button Content="EDIT..." Click="OnEditPropertyClick"
+                            IsEnabled="{Binding SelectedProperty, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <Button Content="REMOVE" Command="{Binding RemoveSelectedPropertyCommand}" Classes="danger" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="5" BorderThickness="0,1,0,0" Padding="8,4">
+            <TextBlock Text="{Binding StatusMessage}" Classes="status" FontSize="11" />
+        </Border>
+    </Grid>
+
+</Window>

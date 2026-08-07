@@ -1,0 +1,27 @@
+# Tema accessibile per la tritanopia (assenza dei coni sensibili al blu - rara, asse
+# blu-giallo compromesso invece di quello rosso-verde). Qui la coppia blu/arancione usata
+# per protanopia/deuteranopia NON e' sicura (proprio l'asse blu-giallo e' quello
+# problematico); usa invece verde-blu e vermiglio, sicuri perche' la percezione
+# rosso-verde resta intatta nella tritanopia.
+
+name = "Colorblind - Tritanopia"
+
+window_background = "#0D0D0D"
+window_foreground = "#F0F0F0"
+border = "#D55E00"
+
+button_background = "#0D0D0D"
+button_foreground = "#F0F0F0"
+button_border = "#D55E00"
+
+textbox_background = "#1A1A1A"
+textbox_foreground = "#F0F0F0"
+
+selection_background = "#CC79A7"
+selection_foreground = "#0D0D0D"
+
+listbox_background = "#0D0D0D"
+listboxitem_selected_background = "#6B1B00"
+
+status_foreground = "#009E73"
+danger_foreground = "#D55E00"

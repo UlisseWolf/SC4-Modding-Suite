@@ -1,0 +1,36 @@
+# SC4 Modding Suite - stringhe italiane
+# File di testo semplice (TOML): puoi modificarlo e ricaricarlo senza ricompilare.
+# Ogni voce e' "chiave = "valore"". Le righe che iniziano per # sono commenti.
+
+language_name = "Italiano"
+
+# --- Finestra Opzioni ---
+options_title = "Opzioni"
+options_section_protected_files = "File di sistema SC4 (protetti)"
+options_simcitylocale_label = "Percorso SimCityLocale.DAT:"
+options_sc4_install_folder_label = "Cartella di installazione SC4:"
+options_section_external_tools = "Strumenti esterni"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_section_properties = "Database proprietà Exemplar"
+options_change_property_source = "Cambia sorgente new_properties.xml..."
+options_section_appearance = "Lingua e aspetto"
+options_language_label = "Lingua:"
+options_theme_label = "Tema:"
+options_browse = "Sfoglia..."
+options_save = "Salva"
+options_close = "Chiudi"
+
+# --- Toolbar principale ---
+toolbar_new = "NUOVO"
+toolbar_open = "APRI..."
+toolbar_save = "SALVA"
+toolbar_save_as = "SALVA CON NOME..."
+toolbar_export_entry = "ESPORTA ENTRY..."
+toolbar_import_entry = "IMPORTA IN ENTRY..."
+toolbar_export_all = "ESPORTA TUTTO..."
+toolbar_property_db = "DATABASE PROPRIETÀ..."
+toolbar_options = "OPZIONI..."
+external_tools_header = "STRUMENTI ESTERNI"

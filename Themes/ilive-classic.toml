@@ -1,0 +1,24 @@
+# Tema "Ilive Classico": grigio chiaro anni 2000, come l'interfaccia originale di Ilive
+# Reader, invece della palette scura Bloomberg Terminal.
+
+name = "Ilive Classico"
+
+window_background = "#D4D0C8"
+window_foreground = "#000000"
+border = "#808080"
+
+button_background = "#D4D0C8"
+button_foreground = "#000000"
+button_border = "#404040"
+
+textbox_background = "#FFFFFF"
+textbox_foreground = "#000000"
+
+selection_background = "#316AC5"
+selection_foreground = "#FFFFFF"
+
+listbox_background = "#FFFFFF"
+listboxitem_selected_background = "#B4CDEF"
+
+status_foreground = "#004000"
+danger_foreground = "#AA0000"

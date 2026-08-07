@@ -1,0 +1,15 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SC4ModdingSuite.App"
+             RequestedThemeVariant="Dark">
+
+    <Application.Styles>
+        <FluentTheme />
+        <!-- The active color theme (Styles/AppTheme.axaml, driven by a Themes/*.toml
+             palette) is added/removed at runtime by Models/ThemeService.cs instead of
+             being hardcoded here, so it can be switched from the Options dialog without
+             restarting the app. Nothing is added by default until App.axaml.cs applies
+             the saved (or default Bloomberg) theme during startup. -->
+    </Application.Styles>
+
+</Application>

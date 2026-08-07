@@ -1,0 +1,36 @@
+# SC4 Modding Suite - English strings
+# Plain text file (TOML): edit and reload without rebuilding.
+# Each entry is "key = "value"". Lines starting with # are comments.
+
+language_name = "English"
+
+# --- Options window ---
+options_title = "Options"
+options_section_protected_files = "SC4 system files (protected)"
+options_simcitylocale_label = "SimCityLocale.DAT path:"
+options_sc4_install_folder_label = "SC4 installation folder:"
+options_section_external_tools = "External tools"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_section_properties = "Exemplar property database"
+options_change_property_source = "Change new_properties.xml source..."
+options_section_appearance = "Language and appearance"
+options_language_label = "Language:"
+options_theme_label = "Theme:"
+options_browse = "Browse..."
+options_save = "Save"
+options_close = "Close"
+
+# --- Main toolbar ---
+toolbar_new = "NEW"
+toolbar_open = "OPEN..."
+toolbar_save = "SAVE"
+toolbar_save_as = "SAVE AS..."
+toolbar_export_entry = "EXPORT ENTRY..."
+toolbar_import_entry = "IMPORT INTO ENTRY..."
+toolbar_export_all = "EXPORT ALL..."
+toolbar_property_db = "PROPERTY DATABASE..."
+toolbar_options = "OPTIONS..."
+external_tools_header = "EXTERNAL TOOLS"

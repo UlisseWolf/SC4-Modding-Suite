@@ -1,0 +1,391 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using csDBPF;
+
+namespace SC4ModdingSuite.Models;
+
+/// <summary>
+/// Thin wrapper around csDBPF's <see cref="DBPFFile"/> that exposes only what the
+/// TGI editor UI needs: open/create/save a package, list its entries, remove an entry,
+/// and change an entry's Group/Instance IDs (optionally generating them randomly).
+/// </summary>
+public sealed class DbpfService
+{
+    /// <summary>The package currently loaded (or newly created), if any.</summary>
+    public DBPFFile? CurrentFile { get; private set; }
+
+    /// <summary>Full path of the currently loaded package, or null for an unsaved new package.</summary>
+    public string? CurrentPath { get; private set; }
+
+    public bool HasOpenFile => CurrentFile is not null;
+
+    /// <summary>All entries (subfiles) currently in the package.</summary>
+    public IReadOnlyList<DBPFEntry> Entries =>
+        CurrentFile is null ? Array.Empty<DBPFEntry>() : CurrentFile.ListOfEntries.ToList();
+
+    /// <summary>Opens an existing SC4 DBPF-format file (.dat/.sc4lot/.sc4desc/.sc4model).</summary>
+    public void Open(string path)
+    {
+        CurrentFile = new DBPFFile(path);
+        CurrentPath = path;
+    }
+
+    /// <summary>Starts a brand-new, empty package in memory.</summary>
+    public void CreateNew()
+    {
+        CurrentFile = new DBPFFile();
+        CurrentPath = null;
+    }
+
+    /// <summary>Removes the given entry from the currently open package.</summary>
+    public void RemoveEntry(DBPFEntry entry)
+    {
+        if (CurrentFile is null)
+        {
+            return;
+        }
+
+        CurrentFile.RemoveEntry(entry.TGI);
+    }
+
+    /// <summary>
+    /// Changes an entry's TGI. Type ID is set manually only (never randomized, per design:
+    /// randomizing the format identifier could easily produce a nonsensical/corrupt entry).
+    /// Group and Instance can each independently be set to an explicit value or regenerated
+    /// randomly.
+    /// </summary>
+    /// <param name="entry">Entry to modify (must belong to <see cref="CurrentFile"/>).</param>
+    /// <param name="newType">New Type ID to use. Always applied literally, never randomized.</param>
+    /// <param name="newGroup">New Group ID to use; ignored if <paramref name="randomizeGroup"/> is true.</param>
+    /// <param name="newInstance">New Instance ID to use; ignored if <paramref name="randomizeInstance"/> is true.</param>
+    /// <param name="randomizeGroup">If true, a new random Group ID is generated.</param>
+    /// <param name="randomizeInstance">If true, a new random Instance ID is generated.</param>
+    /// <returns>
+    /// The new <see cref="DBPFEntry"/> instance that replaced <paramref name="entry"/> in the
+    /// package (since TGI is read-only, changing it means swapping in a fresh entry object
+    /// with the same payload bytes but a different TGI). Callers must stop using the old
+    /// entry reference and switch to this one.
+    /// </returns>
+    public DBPFEntry ChangeEntryTgi(
+        DBPFEntry entry,
+        uint newType,
+        uint newGroup,
+        uint newInstance,
+        bool randomizeGroup,
+        bool randomizeInstance)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var current = entry.TGI;
+
+        // csDBPF's TGI(t, g, i) constructor only auto-generates a random value for Group
+        // or Instance when they are passed as 0 - Type ID is always taken literally, which
+        // is exactly the "manual-only, never random" behaviour requested for it.
+        uint groupToUse = randomizeGroup ? 0u : newGroup;
+        uint instanceToUse = randomizeInstance ? 0u : newInstance;
+
+        var updated = new TGI(newType, groupToUse, instanceToUse);
+
+        // DBPFEntry.TGI is read-only: csDBPF entries are identified by their TGI for
+        // their whole lifetime. To "change" it we recreate an entry of the same
+        // concrete type (DBPFEntryEXMP, DBPFEntryLTEXT, DBPFEntryPNG, ...) carrying the
+        // exact same raw bytes/offset/index but the new TGI, then swap it into the file.
+        // All concrete entry types share the constructor pattern
+        // (TGI tgi, uint offset, uint size, uint index, byte[] bytes), so this is done
+        // generically via reflection instead of a big type switch.
+        var entryType = entry.GetType();
+        var ctor = FindReadingConstructor(entryType);
+
+        if (ctor is null)
+        {
+            throw new NotSupportedException(
+                $"Entries of type '{entryType.Name}' do not support changing the TGI " +
+                "(this is probably the package's internal Directory entry, which has a fixed TGI).");
+        }
+
+        object[] args =
+        {
+            updated,
+            ToUInt32(entry.Offset),
+            ToUInt32(entry.GetSize()),
+            ToUInt32(entry.IndexPos),
+            entry.ByteData ?? Array.Empty<byte>(),
+        };
+
+        var newEntry = (DBPFEntry)ctor.Invoke(args);
+
+        CurrentFile.RemoveEntry(current);
+        CurrentFile.AddEntry(newEntry);
+
+        return newEntry;
+    }
+
+    /// <summary>
+    /// Finds the "reading an existing entry" constructor
+    /// <c>(TGI tgi, uint offset, uint size, uint index, byte[] bytes)</c> shared by every
+    /// concrete <see cref="DBPFEntry"/> subtype, searching <b>public and non-public</b>
+    /// constructors alike. The non-public search matters specifically for
+    /// <c>DBPFEntryUnknown</c> - csDBPF's own generic/fallback entry type for anything it
+    /// doesn't have a structured decoder for - which is an <c>internal</c> class with no
+    /// documented public constructor; without <see cref="BindingFlags.NonPublic"/>,
+    /// reflection can never find it, and every operation that needs to recreate an entry
+    /// (TGI changes, byte replacement, pasting copied entries) would silently fail for any
+    /// entry csDBPF doesn't otherwise recognize. .NET reflection is allowed to invoke
+    /// non-public constructors from outside the declaring assembly as long as the caller
+    /// explicitly asks for them this way - no special assembly attribute needed on
+    /// csDBPF's side.
+    /// </summary>
+    private static ConstructorInfo? FindReadingConstructor(Type entryType) =>
+        entryType.GetConstructor(
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+            binder: null,
+            new[] { typeof(TGI), typeof(uint), typeof(uint), typeof(uint), typeof(byte[]) },
+            modifiers: null);
+
+    /// <summary>
+    /// Creates and adds a brand-new entry (not derived from any entry already in this
+    /// package) from a TGI and raw bytes, as if it had just been read from a file with
+    /// that content - used to paste entries copied from a different package (see
+    /// <see cref="Models.EntryClipboard"/>). <paramref name="concreteTypeName"/> is the
+    /// <see cref="Type.AssemblyQualifiedName"/> of the entry's original concrete csDBPF
+    /// type (captured at copy time), resolved back via <see cref="FindReadingConstructor"/>
+    /// so the pasted entry gets exactly the same structured behavior (image decode,
+    /// LTEXT text, Exemplar properties, ...) it had in its source package.
+    /// </summary>
+    /// <returns>The new entry, or null if the type couldn't be resolved/constructed (the caller should skip it).</returns>
+    public DBPFEntry? AddEntryFromClipboard(string concreteTypeName, TGI tgi, byte[] bytes)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var entryType = Type.GetType(concreteTypeName);
+        if (entryType is null)
+        {
+            return null;
+        }
+
+        var ctor = FindReadingConstructor(entryType);
+        if (ctor is null)
+        {
+            return null;
+        }
+
+        object[] args = { tgi, 0u, (uint)bytes.Length, 0u, bytes };
+        var newEntry = (DBPFEntry)ctor.Invoke(args);
+
+        CurrentFile.AddOrUpdateEntry(newEntry);
+        return newEntry;
+    }
+
+    /// <summary>
+    /// Converts a boxed numeric csDBPF property value (which may be uint, int, long, etc.
+    /// depending on the exact declared type) to a uint for use with the reflective
+    /// constructor call above.
+    /// </summary>
+    private static uint ToUInt32(object? value) => value is null ? 0u : Convert.ToUInt32(value);
+
+    /// <summary>
+    /// Saves the package back to the file it was opened from. Writes the package with
+    /// <see cref="DbpfWriter"/> (a from-scratch, correct DBPF writer ported from Ilive
+    /// Reader) instead of csDBPF's own <c>DBPFFile.Save()</c>, which produced corrupted
+    /// files once entries had been swapped out via <see cref="ChangeEntryTgi"/>.
+    ///
+    /// Refuses to overwrite one of SC4's core game data files (see
+    /// <see cref="ProtectedFileNames"/>) even if somehow invoked - <see cref="CanSaveInPlace"/>
+    /// already keeps the "Save" button disabled for these, this is defense in depth.
+    /// </summary>
+    public void Save()
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        if (CurrentPath is null)
+        {
+            throw new InvalidOperationException("Package has no associated path; use SaveAs instead.");
+        }
+
+        if (ProtectedFileNames.IsProtected(CurrentPath))
+        {
+            throw new InvalidOperationException(
+                "This is a protected SC4 system file: use \"Save As...\" to create a new file.");
+        }
+
+        DbpfWriter.WritePackage(CurrentFile.ListOfEntries, CurrentPath);
+    }
+
+    /// <summary>
+    /// Saves the package to a new file path, creating it if needed. See <see cref="Save"/>
+    /// for why this uses <see cref="DbpfWriter"/> instead of csDBPF's own SaveAs. Unlike
+    /// <see cref="Save"/>, this is always allowed even for a package originally opened
+    /// from a protected file name - "Save As..." to a *different* file/name is
+    /// exactly the escape hatch <see cref="ProtectedFileNames"/> exists to force.
+    /// </summary>
+    public void SaveAs(string path)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        DbpfWriter.WritePackage(CurrentFile.ListOfEntries, path);
+        CurrentPath = path;
+    }
+
+    /// <summary>
+    /// True if the package can be saved directly: it has an associated path, and that path
+    /// isn't one of SC4's protected core game data files (<see cref="ProtectedFileNames"/>),
+    /// which can only ever be written to via "Save As..." to a new file.
+    /// </summary>
+    public bool CanSaveInPlace =>
+        CurrentFile is not null && CurrentPath is not null && !ProtectedFileNames.IsProtected(CurrentPath);
+
+    /// <summary>True if the currently open file is one of SC4's protected core game data files.</summary>
+    public bool IsCurrentFileProtected => ProtectedFileNames.IsProtected(CurrentPath);
+
+    /// <summary>
+    /// Replaces an entry's raw payload with <paramref name="newBytes"/> (its TGI is kept
+    /// unchanged). Used for "Import into entry..." - overwriting an existing entry's content from an
+    /// external file, mirroring Ilive Reader's own file-replace concept. Uses the same
+    /// reflective "recreate the entry with its (reading-existing) constructor" approach as
+    /// <see cref="ChangeEntryTgi"/>, since <c>DBPFEntry.ByteData</c> has no confirmed public
+    /// setter of its own - see the notes on <see cref="ChangeEntryTgi"/> for why.
+    /// </summary>
+    /// <returns>The new <see cref="DBPFEntry"/> instance that replaced <paramref name="entry"/>.</returns>
+    public DBPFEntry ReplaceEntryBytes(DBPFEntry entry, byte[] newBytes)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var tgi = entry.TGI;
+        var entryType = entry.GetType();
+        var ctor = FindReadingConstructor(entryType);
+
+        if (ctor is null)
+        {
+            throw new NotSupportedException(
+                $"Entries of type '{entryType.Name}' do not support importing new bytes.");
+        }
+
+        object[] args =
+        {
+            tgi,
+            ToUInt32(entry.Offset),
+            (uint)newBytes.Length,
+            ToUInt32(entry.IndexPos),
+            newBytes,
+        };
+
+        var newEntry = (DBPFEntry)ctor.Invoke(args);
+
+        CurrentFile.RemoveEntry(tgi);
+        CurrentFile.AddEntry(newEntry);
+
+        return newEntry;
+    }
+
+    // ---------------------------------------------------------------
+    // Exemplar/Cohort property editing (Aggiungi/Modifica/Rimuovi)
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Adds a new property to an exemplar/cohort, or updates it in place if a property with
+    /// the same ID already exists, then rebuilds the entry's raw bytes so the change is
+    /// reflected the next time the package is saved. Compression state is preserved
+    /// automatically (re-encoded with whatever <see cref="DBPFEntry.IsCompressed"/> the
+    /// entry already had), consistent with the rest of the app never requiring a manual
+    /// "recompress" step.
+    /// </summary>
+    public void AddOrUpdateProperty(DBPFEntryEXMP exemplar, DBPFProperty property)
+    {
+        exemplar.AddOrUpdateProperty(property);
+        ReencodePreservingCompression(exemplar);
+    }
+
+    /// <summary>Removes a property (if present) from an exemplar/cohort and rebuilds its raw bytes.</summary>
+    public void RemoveProperty(DBPFEntryEXMP exemplar, uint propertyId)
+    {
+        exemplar.RemoveProperty(propertyId);
+        ReencodePreservingCompression(exemplar);
+    }
+
+    private static void ReencodePreservingCompression(DBPFEntryEXMP exemplar)
+    {
+        exemplar.Encode(exemplar.IsCompressed);
+    }
+
+    // ---------------------------------------------------------------
+    // QFS (re)compression
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Sets the compression state of a single entry's payload, rebuilding its raw
+    /// <c>ByteData</c> via QFS as needed. This is what "ricompressione/QFS" refers to:
+    /// csDBPF's <c>DBPFEntry.Encode(bool compress)</c> internally calls into the QFS
+    /// (RefPack/LZ77) codec (<see cref="csDBPF.QFS"/>) to compress or decompress the
+    /// entry's serialized bytes before they are written back to disk.
+    /// </summary>
+    /// <param name="entry">Entry to (de)compress.</param>
+    /// <param name="compress"><see langword="true"/> to QFS-compress; <see langword="false"/> to store uncompressed.</param>
+    /// <returns>The entry's resulting <see cref="DBPFEntry.IsCompressed"/> state after the operation.</returns>
+    public bool? SetEntryCompression(DBPFEntry entry, bool compress)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        // Make sure the entry's decoded object model is populated before re-encoding it -
+        // Encode() serializes "the current state of the entry's data object", so a fresh
+        // Decode() first guarantees that state actually reflects the on-disk payload.
+        entry.Decode();
+        entry.Encode(compress);
+
+        return entry.IsCompressed;
+    }
+
+    /// <summary>
+    /// Applies <see cref="SetEntryCompression"/> to every entry currently in the package.
+    /// Used for "comprimi/decomprimi tutto" bulk operations. Entries that fail to decode
+    /// or encode (e.g. unsupported/corrupt payloads) are skipped and counted as failures
+    /// rather than aborting the whole batch.
+    /// </summary>
+    /// <param name="compress"><see langword="true"/> to QFS-compress every entry; <see langword="false"/> to decompress every entry.</param>
+    /// <returns>Count of entries successfully processed and count of entries that failed.</returns>
+    public (int succeeded, int failed) SetAllEntriesCompression(bool compress)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        int succeeded = 0;
+        int failed = 0;
+
+        foreach (var entry in CurrentFile.ListOfEntries.ToList())
+        {
+            try
+            {
+                entry.Decode();
+                entry.Encode(compress);
+                succeeded++;
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        return (succeeded, failed);
+    }
+}

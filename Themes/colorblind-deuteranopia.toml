@@ -1,0 +1,27 @@
+# Tema accessibile per la deuteranopia (assenza dei coni sensibili al verde - la forma piu'
+# comune di discromatopsia). Stessa logica del tema per la protanopia (entrambe sono
+# discromatopsie sull'asse rosso-verde, quindi la stessa coppia blu/arancione della
+# palette Okabe-Ito resta sicura per tutte e due), con un accento leggermente diverso per
+# distinguerli visivamente tra loro.
+
+name = "Colorblind - Deuteranopia"
+
+window_background = "#0D0D0D"
+window_foreground = "#E8E8E8"
+border = "#0072B2"
+
+button_background = "#0D0D0D"
+button_foreground = "#E8E8E8"
+button_border = "#0072B2"
+
+textbox_background = "#1A1A1A"
+textbox_foreground = "#E8E8E8"
+
+selection_background = "#56B4E9"
+selection_foreground = "#0D0D0D"
+
+listbox_background = "#0D0D0D"
+listboxitem_selected_background = "#004C73"
+
+status_foreground = "#0072B2"
+danger_foreground = "#E69F00"

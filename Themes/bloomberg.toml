@@ -1,0 +1,26 @@
+# Tema "Bloomberg Terminal": nero puro con testo ambra.
+# Ogni riga e' "chiave = "#RRGGBB"". Puoi copiare questo file, rinominarlo e cambiare i
+# colori per creare un tuo tema personalizzato: comparira' automaticamente nel selettore
+# tema in Opzioni al prossimo avvio (o riaprendo la finestra Opzioni).
+
+name = "Bloomberg Terminal"
+
+window_background = "#000000"
+window_foreground = "#FF9900"
+border = "#805000"
+
+button_background = "#000000"
+button_foreground = "#FF9900"
+button_border = "#FF9900"
+
+textbox_background = "#0A0A0A"
+textbox_foreground = "#FFCC33"
+
+selection_background = "#FF9900"
+selection_foreground = "#000000"
+
+listbox_background = "#000000"
+listboxitem_selected_background = "#332000"
+
+status_foreground = "#33FF66"
+danger_foreground = "#FF3333"

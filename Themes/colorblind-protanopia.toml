@@ -1,0 +1,27 @@
+# Tema accessibile per la protanopia (assenza dei coni sensibili al rosso). Basato sulla
+# palette Okabe-Ito (Okabe & Ito, 2008), progettata scientificamente per restare
+# distinguibile a chi non percepisce il rosso: stato positivo in blu, allarme in
+# arancione - questa coppia resta chiaramente distinguibile indipendentemente dal canale
+# rosso mancante.
+
+name = "Colorblind - Protanopia"
+
+window_background = "#0D0D0D"
+window_foreground = "#E8E8E8"
+border = "#56B4E9"
+
+button_background = "#0D0D0D"
+button_foreground = "#E8E8E8"
+button_border = "#56B4E9"
+
+textbox_background = "#1A1A1A"
+textbox_foreground = "#E8E8E8"
+
+selection_background = "#0072B2"
+selection_foreground = "#FFFFFF"
+
+listbox_background = "#0D0D0D"
+listboxitem_selected_background = "#004C73"
+
+status_foreground = "#56B4E9"
+danger_foreground = "#E69F00"

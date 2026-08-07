@@ -1,0 +1,26 @@
+# Tema accessibile per l'acromatopsia (assenza totale di visione dei colori - percezione
+# solo in scala di grigi). Nessuna coppia di colori puo' funzionare qui: la distinzione tra
+# stato positivo e allarme si basa esclusivamente sul CONTRASTO DI LUMINANZA (chiaro contro
+# scuro), non sulla tinta - l'unico canale visivo effettivamente disponibile.
+
+name = "Colorblind - Achromatopsia (grayscale)"
+
+window_background = "#000000"
+window_foreground = "#FFFFFF"
+border = "#808080"
+
+button_background = "#000000"
+button_foreground = "#FFFFFF"
+button_border = "#B0B0B0"
+
+textbox_background = "#1A1A1A"
+textbox_foreground = "#FFFFFF"
+
+selection_background = "#FFFFFF"
+selection_foreground = "#000000"
+
+listbox_background = "#000000"
+listboxitem_selected_background = "#4D4D4D"
+
+status_foreground = "#F2F2F2"
+danger_foreground = "#999999"

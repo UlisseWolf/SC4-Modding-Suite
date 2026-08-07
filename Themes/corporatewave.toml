@@ -1,0 +1,26 @@
+# Tema "Corporatewave": non il vaporwave malinconico/decadente, ma il suo sottogenere che
+# celebra con nostalgia l'ottimismo capitalista degli anni '80-'90 e le sue infomercial —
+# carta color crema, oro opaco, verde salvia/teal e mogano da sala riunioni. "Quiet
+# opulence", non neon.
+
+name = "Corporatewave"
+
+window_background = "#EDE3D3"
+window_foreground = "#3B2F2F"
+border = "#B08C6B"
+
+button_background = "#E8DCC5"
+button_foreground = "#3B2F2F"
+button_border = "#A9825C"
+
+textbox_background = "#F7F1E3"
+textbox_foreground = "#3B2F2F"
+
+selection_background = "#8FA9A0"
+selection_foreground = "#1F2D2A"
+
+listbox_background = "#F2E9D8"
+listboxitem_selected_background = "#CBB89A"
+
+status_foreground = "#3E7C74"
+danger_foreground = "#A13D3D"

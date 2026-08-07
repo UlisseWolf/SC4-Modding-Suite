@@ -1,0 +1,129 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      This is the *rendering* half of the TOML-driven theme system: every color here is a
+      {DynamicResource ThemeXxx} lookup instead of a hardcoded hex value. Models/ThemeService.cs
+      is the *data* half - it parses a Themes/<key>.toml color palette file (via
+      Models/ThemeDefinitionParser.cs) and fills in these same "ThemeXxx" resource keys on
+      Application.Resources before adding this stylesheet to Application.Styles, so switching
+      themes at runtime is just re-pointing these resource values - no XAML reload needed,
+      and anyone can add a new theme by dropping a new .toml file in Themes/, no C#/XAML
+      changes required.
+
+      This stylesheet is only added to Application.Styles when a non-"default" theme is
+      active (see ThemeService.Apply) - the "Predefinito (Fluent)" option simply never adds
+      it, leaving plain FluentTheme in charge.
+
+      Layout choices (zero corner rounding, monospace font, dense padding) stay hardcoded
+      here rather than theme-configurable: they define the "terminal/utilitarian" *shape*
+      shared by every theme in this app, while the *palette* is what themes actually vary.
+
+      As with the original hand-written Bloomberg theme this replaces, every rule below is a
+      plain property Setter (Background/Foreground/BorderBrush/...), never a template-part
+      pseudo-class selector - FluentTheme's control templates bind those properties via
+      TemplateBinding, so a direct setter always takes effect regardless of the exact
+      template internals of the Avalonia version in use, unlike template-part selectors
+      which are version-fragile.
+    -->
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource ThemeWindowBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+
+    <Style Selector="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+
+    <Style Selector="Border">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+    </Style>
+
+    <Style Selector="Separator">
+        <Setter Property="Background" Value="{DynamicResource ThemeBorder}" />
+    </Style>
+
+    <Style Selector="Rectangle">
+        <Setter Property="Fill" Value="{DynamicResource ThemeBorder}" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="Background" Value="{DynamicResource ThemeButtonBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeButtonForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeButtonBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+    <Style Selector="Button:disabled">
+        <Setter Property="Opacity" Value="0.35" />
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{DynamicResource ThemeTextboxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextboxForeground}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource ThemeTextboxForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource ThemeSelectionBackground}" />
+        <Setter Property="SelectionForegroundBrush" Value="{DynamicResource ThemeSelectionForeground}" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+
+    <Style Selector="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+
+    <Style Selector="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="4,2" />
+    </Style>
+    <Style Selector="ListBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxItemSelectedBackground}" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource ThemeTextboxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+    <Style Selector="ComboBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+        <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxItemSelectedBackground}" />
+    </Style>
+
+    <Style Selector="ScrollViewer">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Status/positive accents (entry counts, success messages). -->
+    <Style Selector="TextBlock.status">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeStatusForeground}" />
+    </Style>
+
+    <!-- Destructive actions (remove/delete) stay a clearly distinct color. -->
+    <Style Selector="Button.danger">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeDangerForeground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeDangerForeground}" />
+    </Style>
+
+</Styles>

@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\sc4msicon.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AssemblyName>SC4ModdingSuite</AssemblyName>
+    <RootNamespace>SC4ModdingSuite</RootNamespace>
+    <Product>SC4 Modding Suite</Product>
+    <AssemblyTitle>SC4 Modding Suite</AssemblyTitle>
+    <LangVersion>latest</LangVersion>
+
+    <!--
+      NU1903: Avalonia.Desktop pulls in Tmds.DBus.Protocol transitively for D-Bus desktop
+      integration (clipboard/tray) on Linux only; it is never loaded/reachable on Windows
+      or macOS. Pinning a specific patched version risks a restore failure if that exact
+      version doesn't exist on NuGet in your environment, so the (standard, low-risk)
+      choice here is to acknowledge/suppress the advisory instead. If you build/ship on
+      Linux and want to be extra safe, add a direct
+      "PackageReference Include=Tmds.DBus.Protocol" pinned to the latest patched version
+      from https://github.com/advisories/GHSA-xrw6-gwf8-vvr9 and remove the NoWarn below.
+    -->
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia UI -->
+    <PackageReference Include="Avalonia" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <!-- Only used in Debug builds for the dev-tools overlay (F12) -->
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.3" Condition="'$(Configuration)' == 'Debug'" />
+
+    <!-- csDBPF's only transitive dependency, per csDBPF.deps.json -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- csDBPF is shipped as a bare DLL (no NuGet package), stored under Libs\. -->
+    <Reference Include="csDBPF">
+      <HintPath>Libs\csDBPF.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Styles\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- These .toml files are the *built-in defaults* only: embedded into the assembly at
+         build time and extracted (once, on first run - see EmbeddedResourceSeeder) into
+         %APPDATA%\SC4ModdingSuite\Localization\ and \Themes\ - the same parent folder as
+         new_properties.xml (see PropertySourceService) - which is where they are actually
+         read from and can be freely inspected/edited/extended afterwards, without a
+         rebuild and without ever touching the copies kept here in the project. -->
+    <EmbeddedResource Include="Localization\**" />
+    <EmbeddedResource Include="Themes\**" />
+  </ItemGroup>
+
+</Project>

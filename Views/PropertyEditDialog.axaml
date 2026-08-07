@@ -1,0 +1,104 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="560"
+        x:Class="SC4ModdingSuite.Views.PropertyEditDialog"
+        x:DataType="vm:PropertyEditDialogViewModel"
+        Title="{Binding Title}"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="520" Height="560"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnDefinitions="*">
+
+        <!-- Search (add mode only) -->
+        <StackPanel Grid.Row="0" IsVisible="{Binding IsAddMode}" Spacing="4" Margin="0,0,0,8">
+            <TextBlock Text="Search property by name or ID:" FontWeight="Bold" />
+            <TextBox Text="{Binding SearchText}" Watermark="e.g. Wealth, Occupant Group, 0x27812810..." />
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="Results (select to fill in the fields below):"
+                   IsVisible="{Binding IsAddMode}" FontSize="11" Foreground="Gray" Margin="0,0,0,4" />
+
+        <Border Grid.Row="2" IsVisible="{Binding IsAddMode}" BorderThickness="1"
+                MinHeight="120" Margin="0,0,0,8">
+            <ListBox ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedDefinition}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:PropertyDefinition">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="2">
+                            <TextBlock Text="{Binding Id, StringFormat='0x{0:X8}'}"
+                                       FontFamily="Consolas,Menlo,monospace" FontSize="11" Foreground="Gray" />
+                            <TextBlock Text="{Binding Name}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <!-- Details / value editor -->
+        <StackPanel Grid.Row="3" Spacing="6" Margin="0,0,0,8">
+
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding IdText}"
+                         IsReadOnly="{Binding IsEditMode}"
+                         FontFamily="Consolas,Menlo,monospace" Margin="0,4" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Name:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ResolvedName}"
+                           VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,4" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                <ComboBox Grid.Row="2" Grid.Column="1"
+                          ItemsSource="{Binding DataTypeChoices}"
+                          SelectedItem="{Binding SelectedDataType}"
+                          Margin="0,4" HorizontalAlignment="Left" MinWidth="140" />
+            </Grid>
+
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="11"
+                       Foreground="Gray" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+            <Separator Margin="0,4" />
+
+            <!-- Value editor: for enum-like OPTION properties, a picker to ADD values one
+                 at a time (many categorical properties, Occupant Groups being the classic
+                 example, legitimately hold several values at once - so picking an option
+                 appends to the list below instead of replacing it), plus the free-text
+                 list itself, always editable directly. -->
+            <StackPanel IsVisible="{Binding HasOptions}" Spacing="4">
+                <TextBlock Text="Add value from list:" FontWeight="Bold" />
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding OptionChoices}" SelectedItem="{Binding SelectedOption}"
+                              HorizontalAlignment="Stretch" Margin="0,0,8,0">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:PropertyDefinitionOption">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Grid.Column="1" Content="Add" Command="{Binding AddOptionValueCommand}" Margin="0,0,4,0" />
+                    <Button Grid.Column="2" Content="Clear all" Command="{Binding ClearValuesCommand}" />
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Value(s) (comma-separated if more than one):" FontWeight="Bold" />
+                <TextBox Text="{Binding ValuesText}" Watermark="e.g. 1, 2, 3  or  0x0A" AcceptsReturn="False" />
+            </StackPanel>
+
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" Text="{Binding ErrorMessage}" Foreground="#FF3333" TextWrapping="Wrap"
+                   Margin="0,0,0,8" />
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" MinWidth="90" HorizontalContentAlignment="Center" />
+            <Button Content="OK" Command="{Binding OkCommand}" IsDefault="True" MinWidth="90" HorizontalContentAlignment="Center" />
+        </StackPanel>
+
+    </Grid>
+
+</Window>

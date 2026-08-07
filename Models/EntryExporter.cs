@@ -1,0 +1,116 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using csDBPF;
+
+namespace SC4ModdingSuite.Models;
+
+/// <summary>
+/// Exports entries as raw files on disk, mirroring Ilive Reader's own "Export" feature
+/// (<c>CChildFrame::OnFileExport</c> in <c>reader/ChildFrm.cpp</c>): each file is named
+/// <c>TTTTTTTT-GGGGGGGG-IIIIIIII.ext</c> (hex TGI joined by dashes, matching Ilive Reader's
+/// own <c>"%08X-%08X-%08X"</c> format string) with a companion <c>.TGI</c> text file
+/// listing the three hex IDs on separate lines - the same convention Ilive Reader uses,
+/// so an export from either tool is recognizable/re-importable by the other.
+/// </summary>
+public static class EntryExporter
+{
+    /// <summary>Base filename (without extension) for an entry, matching Ilive Reader's own format string.</summary>
+    public static string BaseFileName(DBPFEntry entry)
+    {
+        var tgi = entry.TGI;
+        return $"{tgi.TypeID:X8}-{tgi.GroupID:X8}-{tgi.InstanceID:X8}";
+    }
+
+    /// <summary>
+    /// Extension guessed from the entry's runtime type/TGI, mirroring Ilive Reader's
+    /// <c>GetExt()</c> (<c>or_dat/sim015.cpp</c>) for the handful of formats this app
+    /// specifically knows how to preview (PNG, FSH, S3D, WAV, Exemplar/Cohort, LTEXT, UI);
+    /// everything else falls back to <c>.bin</c>, matching Ilive Reader's own default.
+    ///
+    /// TGI Type ID 0x2026960B is shared between WAV, LTEXT, and XA audio (see
+    /// <see cref="EntryTypeClassifier"/>), so - matching Ilive Reader's own
+    /// <c>_entry::SetFlag</c> - the ".wav" guess additionally checks that the bytes
+    /// actually start with the RIFF magic, instead of trusting the Type ID alone; anything
+    /// else under that Type ID exports as ".ltext" (it is LTEXT in the overwhelming
+    /// majority of real packages - see <see cref="EntryTypeClassifier.TryDecodeAsLtext"/>).
+    /// Type ID 0x00000000 is the legitimate "UI" format, not a "blank/unknown" marker, so
+    /// it is not special-cased here - <see cref="DBPFEntryUI"/> covers it below.
+    /// </summary>
+    public static string ExtensionFor(DBPFEntry entry) => entry switch
+    {
+        DBPFEntryPNG => ".png",
+        DBPFEntryFSH => ".fsh",
+        DBPFEntryLTEXT => ".txt",
+        DBPFEntryUI => ".ui.txt",
+        DBPFEntryEXMP exmp => exmp.IsCohort ? ".cohort" : ".exmp",
+        _ when entry.TGI.TypeID == 0x5AD0E817 => ".s3d",
+        _ when EntryTypeClassifier.IsLtextWavXaType(entry.TGI) => IsRiffWav(entry) ? ".wav" : ".ltext",
+        _ => ".bin",
+    };
+
+    private static bool IsRiffWav(DBPFEntry entry)
+    {
+        try
+        {
+            return EntryTypeClassifier.LooksLikeRiffWav(RawEntryBytes.GetDecompressed(entry));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static string FileNameFor(DBPFEntry entry) => BaseFileName(entry) + ExtensionFor(entry);
+
+    /// <summary>Writes one entry's raw (decompressed) bytes to <paramref name="filePath"/>.</summary>
+    public static void ExportEntryTo(DBPFEntry entry, string filePath)
+    {
+        var bytes = RawEntryBytes.GetDecompressed(entry) ?? Array.Empty<byte>();
+        File.WriteAllBytes(filePath, bytes);
+    }
+
+    /// <summary>
+    /// Writes one entry's raw bytes plus its <c>.TGI</c> sidecar file into
+    /// <paramref name="folder"/>, using the standard <c>TTTTTTTT-GGGGGGGG-IIIIIIII</c> name.
+    /// </summary>
+    public static string ExportEntryWithSidecar(DBPFEntry entry, string folder)
+    {
+        var baseName = BaseFileName(entry);
+        var filePath = Path.Combine(folder, baseName + ExtensionFor(entry));
+        ExportEntryTo(entry, filePath);
+
+        var tgi = entry.TGI;
+        var tgiPath = Path.Combine(folder, baseName + ".TGI");
+        File.WriteAllText(tgiPath, $"{tgi.TypeID:X8}\r\n{tgi.GroupID:X8}\r\n{tgi.InstanceID:X8}\r\n");
+
+        return filePath;
+    }
+
+    /// <summary>
+    /// Exports every entry in <paramref name="entries"/> into <paramref name="folder"/>,
+    /// mirroring Ilive Reader's bulk "Export" ribbon button. Continues past individual
+    /// failures (e.g. an entry that fails to decompress) instead of aborting the whole
+    /// batch, returning counts of successes/failures for the caller to report.
+    /// </summary>
+    public static (int Succeeded, int Failed) ExportAll(IEnumerable<DBPFEntry> entries, string folder)
+    {
+        var succeeded = 0;
+        var failed = 0;
+
+        foreach (var entry in entries)
+        {
+            try
+            {
+                ExportEntryWithSidecar(entry, folder);
+                succeeded++;
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        return (succeeded, failed);
+    }
+}
