@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:SC4ModdingSuite.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="560"
+        x:Class="SC4ModdingSuite.Views.S3DHexEditorDialog"
+        Title="S3D Hex Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="720" Height="560"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Ilive Reader's Tab3DMHex/Tab3DMHExCont equivalent: one read-only hex-dump tab per
+         top-level S3D chunk (HEAD/VERT/INDX/PRIM/MATS/ANIM/PROP/REGP - TAB3DHEX_COL0..7),
+         via S3DParser.LocateChunks. Read-only by design, same as every other hex dump in
+         this app (Models/HexDump.cs, used for the "Text details" fallback preview too) -
+         raw byte-level editing belongs to the structured Geometry/Material/Animation/PROP/
+         UV editors, which already cover every field these bytes decode to. Opened via
+         "S3D HEX EDITOR..." next to the other S3D editors in MainWindow's third panel (S3D
+         Editor mode only). Built from a plain constructor argument (the located chunks)
+         instead of sharing MainWindowViewModel as DataContext, since it's a pure snapshot
+         view with nothing to edit or write back - no VM state needed. -->
+    <TabControl x:Name="ChunkTabs" Margin="8" />
+
+</Window>

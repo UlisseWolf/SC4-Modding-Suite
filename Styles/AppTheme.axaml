@@ -102,8 +102,21 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
         <Setter Property="CornerRadius" Value="0" />
         <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+        <!-- Plain (non-virtualizing) panel for the dropdown popup - these lists are always
+             short (languages, themes, merge candidates...), so virtualization buys nothing,
+             and its container recycling is exactly what caused stale/wrong item backgrounds
+             after a live theme switch (a recycled ComboBoxItem rendered under one theme could
+             keep its old DynamicResource-resolved Background instead of picking up the new
+             theme's when reused for a different item - visible as some rows staying on the
+             previous theme's colors after switching, e.g. to Corporatewave). -->
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate>
+                <StackPanel />
+            </ItemsPanelTemplate>
+        </Setter>
     </Style>
     <Style Selector="ComboBoxItem">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxBackground}" />
         <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
         <Setter Property="CornerRadius" Value="0" />
     </Style>
@@ -123,6 +136,13 @@
     <!-- Destructive actions (remove/delete) stay a clearly distinct color. -->
     <Style Selector="Button.danger">
         <Setter Property="BorderBrush" Value="{DynamicResource ThemeDangerForeground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeDangerForeground}" />
+    </Style>
+
+    <!-- Errors/warnings in plain text (e.g. PropertyEditDialog's validation message) - same
+         resource as Button.danger so both stay consistent across every theme, including the
+         colorblind palettes, instead of a hardcoded hex red that can clash with them. -->
+    <Style Selector="TextBlock.danger">
         <Setter Property="Foreground" Value="{DynamicResource ThemeDangerForeground}" />
     </Style>
 

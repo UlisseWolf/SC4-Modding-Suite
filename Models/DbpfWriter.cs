@@ -227,5 +227,5 @@ public static class DbpfWriter
     /// Converts a boxed numeric csDBPF return value (which may be uint, int, long, etc.)
     /// to a uint, mirroring the same helper in <see cref="DbpfService"/>.
     /// </summary>
-    private static uint ToUInt32(object? value) => value is null ? 0u : Convert.ToUInt32(value);
+    internal static uint ToUInt32(object? value) => value is null ? 0u : Convert.ToUInt32(value);
 }

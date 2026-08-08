@@ -1,0 +1,30 @@
+# Tema "Windows 95": la palette VGA a 16 colori originale del 1995 - il grigio "faccia"
+# #C0C0C0 e il blu navy #000080 della selezione, non il grigio piu' caldo #D4D0C8/blu piu'
+# chiaro #316AC5 arrivati con Windows 98/2000 (quella combinazione e' gia' coperta da
+# "Ilive Classico"). Campi di testo e liste bianchi puri, come i controlli Edit/ListBox
+# nativi dell'epoca. Il sistema di temi di questa app usa un solo colore di bordo, quindi
+# non riproduce il classico bevel 3D a due toni (chiaro in alto/a sinistra, scuro in
+# basso/a destra) dei pulsanti Win95 - qui approssimato con il grigio medio dell'ombra,
+# la parte piu' riconoscibile del bordo.
+
+name = "Windows 95"
+
+window_background = "#C0C0C0"
+window_foreground = "#000000"
+border = "#808080"
+
+button_background = "#C0C0C0"
+button_foreground = "#000000"
+button_border = "#404040"
+
+textbox_background = "#FFFFFF"
+textbox_foreground = "#000000"
+
+selection_background = "#000080"
+selection_foreground = "#FFFFFF"
+
+listbox_background = "#FFFFFF"
+listboxitem_selected_background = "#000080"
+
+status_foreground = "#006600"
+danger_foreground = "#AA0000"

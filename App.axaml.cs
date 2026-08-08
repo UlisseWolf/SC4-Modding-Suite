@@ -18,9 +18,6 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit.
-            DisableAvaloniaDataAnnotationValidation();
-
             // General app options (external tool paths, protected-file reference paths,
             // language, theme) - loaded once here and shared by reference with
             // MainWindowViewModel/OptionsDialogViewModel so a change from the Options
@@ -72,11 +69,5 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
-    }
-
-    private static void DisableAvaloniaDataAnnotationValidation()
-    {
-        // No-op placeholder kept for parity with the Avalonia MVVM template;
-        // this project does not use DataAnnotations validation.
     }
 }

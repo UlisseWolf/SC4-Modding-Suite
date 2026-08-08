@@ -95,15 +95,26 @@ public sealed class LocalizationService : INotifyPropertyChanged
     public string ToolbarOptions => Get("toolbar_options");
     public string ExternalToolsHeader => Get("external_tools_header");
 
+    public string LuaCompile => Get("lua_compile");
+    public string LuaRun => Get("lua_run");
+    public string LuaClearOutput => Get("lua_clear_output");
+    public string LuaSave => Get("lua_save");
+
     public string OptionsTitle => Get("options_title");
     public string OptionsSectionProtectedFiles => Get("options_section_protected_files");
     public string OptionsSimCityLocaleLabel => Get("options_simcitylocale_label");
     public string OptionsSc4InstallFolderLabel => Get("options_sc4_install_folder_label");
+    public string OptionsPluginsFolderLabel => Get("options_plugins_folder_label");
     public string OptionsSectionExternalTools => Get("options_section_external_tools");
     public string OptionsPimXLabel => Get("options_pimx_label");
     public string OptionsDataNodeLabel => Get("options_datanode_label");
     public string OptionsMapperLabel => Get("options_mapper_label");
     public string OptionsTerraformerLabel => Get("options_terraformer_label");
+    public string OptionsSc4PacEditorLabel => Get("options_sc4pac_editor_label");
+    public string OptionsNamDevelopmentSuiteHeader => Get("options_nam_development_suite_header");
+    public string OptionsNamDevelopmentSuiteLabel => Get("options_nam_development_suite_label");
+    public string OptionsProtectedFilesNote => Get("options_protected_files_note");
+    public string OptionsAppearanceNote => Get("options_appearance_note");
     public string OptionsSectionProperties => Get("options_section_properties");
     public string OptionsChangePropertySource => Get("options_change_property_source");
     public string OptionsSectionAppearance => Get("options_section_appearance");

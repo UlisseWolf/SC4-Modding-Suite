@@ -56,14 +56,6 @@ public static class WavPlayer
     private static Process? _currentProcess;
     private static string? _currentTempFile;
 
-    /// <summary>
-    /// Always true: every platform has at least one playback strategy attempted. Actual
-    /// success also depends on a compatible player being present on Linux - if none is
-    /// found, <see cref="Play"/> returns <see langword="false"/> so the caller can inform
-    /// the person (e.g. suggest installing <c>paplay</c> or <c>aplay</c>).
-    /// </summary>
-    public static bool IsSupportedPlatform => true;
-
     /// <summary>Starts playing <paramref name="wavData"/> asynchronously (returns immediately).</summary>
     public static bool Play(byte[] wavData)
     {

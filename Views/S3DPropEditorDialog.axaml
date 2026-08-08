@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="480"
+        x:Class="SC4ModdingSuite.Views.S3DPropEditorDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="S3D PROP Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="640" Height="480"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Ilive Reader's Tab3DMProp equivalent (reader/Tab3DMProp.cpp): a flat grid of the
+         PROP chunk's arbitrary key/value string pairs, each attached to a mesh index +
+         frame number (TAB3DPROP_COL0..4). Opened via "PROP EDITOR..." next to Geometry/
+         Material/Animation Editor in MainWindow's third panel (S3D Editor mode only).
+         Shares MainWindowViewModel as DataContext, same convention as the other S3D editor
+         windows - see MainWindowViewModel's "PROP Editor" region and
+         ViewModels/S3DPropRowViewModel.cs for the actual logic. -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto">
+        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+            <Button Content="ADD" Command="{Binding AddS3DPropCommand}" Margin="0,0,6,0"
+                    ToolTip.Tip="Append an empty PROP entry" />
+            <Button Content="DELETE" Click="OnDeletePropsClick"
+                    ToolTip.Tip="Delete the selected row(s) - Ctrl/Shift-click to select multiple" />
+        </WrapPanel>
+
+        <Border Grid.Row="1" BorderThickness="1">
+            <DataGrid x:Name="PropGrid" ItemsSource="{Binding S3DPropRows}"
+                      AutoGenerateColumns="True" CanUserReorderColumns="False"
+                      SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+        </Border>
+
+        <Border Grid.Row="2" BorderThickness="1" Margin="0,8,0,0" Padding="8,6">
+            <Button Content="APPLY / SAVE MODEL" Command="{Binding ApplyS3DCommand}" FontWeight="Bold"
+                    ToolTip.Tip="Write the current model (incl. every PROP change above) back into the entry" />
+        </Border>
+    </Grid>
+
+</Window>

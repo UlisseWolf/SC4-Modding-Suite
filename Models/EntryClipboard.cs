@@ -129,7 +129,8 @@ public static class EntryClipboard
         }
     }
 
-    private static uint ParseHex(string text)
+    /// <summary>Parses a hex string (optionally "0x"-prefixed); an empty string parses as 0. Shared by the TGI-editing and property-editing dialogs.</summary>
+    public static uint ParseHex(string text)
     {
         text = text.Trim();
         if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))

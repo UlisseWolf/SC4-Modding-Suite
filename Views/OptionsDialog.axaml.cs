@@ -92,9 +92,22 @@ public partial class OptionsDialog : Window
         }
     }
 
-    private Task BrowseForExecutableAsync(string title, Action<string> onSelected) => BrowseCoreAsync(title, onSelected);
+    private async void OnBrowsePluginsFolderClick(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select the SC4 Plugins folder",
+            AllowMultiple = false,
+        });
 
-    private async Task BrowseCoreAsync(string title, Action<string> onSelected)
+        var path = folders.FirstOrDefault()?.TryGetLocalPath();
+        if (path is not null)
+        {
+            ViewModel.PluginsFolder = path;
+        }
+    }
+
+    private async Task BrowseForExecutableAsync(string title, Action<string> onSelected)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {

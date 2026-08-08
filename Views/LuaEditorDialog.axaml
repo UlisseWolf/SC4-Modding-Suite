@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="640"
+        x:Class="SC4ModdingSuite.Views.LuaEditorDialog"
+        x:DataType="vm:LuaEditorDialogViewModel"
+        Title="{Binding Title}"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="640"
+        MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto,150,Auto">
+
+        <!-- Toolbar: mirrors Ilive Reader's own script editor toolbar (FrameScript.cpp:
+             Save/Go/Stop/Compile). "Stop" is omitted - scripts run synchronously in-process
+             via MoonSharp (Models/LuaScriptRunner.cs) instead of Ilive Reader's separate
+             native Lua VM/pipe setup, so there is no background run to interrupt. -->
+        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+            <Button Content="COMPILE" Command="{Binding CompileCommand}" Margin="0,0,8,0"
+                    ToolTip.Tip="Syntax-check the script without running it" />
+            <Button Content="▶ RUN" Command="{Binding RunCommand}" Margin="0,0,8,0"
+                    ToolTip.Tip="Execute the script and show its print() output below" />
+            <Button Content="CLEAR OUTPUT" Command="{Binding ClearOutputCommand}" Margin="0,0,8,0" />
+            <Rectangle Width="1" Margin="0,2,8,2" />
+            <Button Content="SAVE" Command="{Binding SaveCommand}" FontWeight="Bold" Margin="0,0,8,0"
+                    ToolTip.Tip="Save this script back into the selected entry (still needs the main Save/Save As to write the package to disk)" />
+            <Button Content="CLOSE" Command="{Binding CloseCommand}" />
+        </WrapPanel>
+
+        <!-- Code editor -->
+        <Border Grid.Row="1" BorderThickness="1">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding Code}"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         FontFamily="Consolas,Menlo,monospace"
+                         FontSize="13"
+                         BorderThickness="0"
+                         Margin="6" />
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="2" Text="OUTPUT (compile/run log)" FontWeight="Bold" FontSize="11" Margin="0,8,0,4" />
+
+        <!-- Output / compile+run log -->
+        <Border Grid.Row="3" BorderThickness="1">
+            <ScrollViewer>
+                <TextBox Text="{Binding Output}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Consolas,Menlo,monospace"
+                         FontSize="12"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         Margin="6" />
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="4"
+                    Text="Runs via MoonSharp (a managed Lua interpreter) for syntax-checking and execution - not SC4's own in-game Lua runtime, so game-injected APIs aren't available here."
+                    FontSize="10" Classes="status" TextWrapping="Wrap" Margin="0,6,0,0" />
+    </Grid>
+
+</Window>

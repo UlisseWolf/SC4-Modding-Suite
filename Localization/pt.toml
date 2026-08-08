@@ -1,0 +1,53 @@
+# SC4 Modding Suite - textos em português
+# Arquivo de texto simples (TOML): pode ser editado e recarregado sem recompilar.
+# Cada entrada é "chave = "valor"". Linhas que começam com # são comentários.
+
+language_name = "Português"
+
+# --- Janela de Opções ---
+options_title = "Opções"
+options_section_protected_files = "Arquivos de sistema do SC4 (protegidos)"
+options_simcitylocale_label = "Caminho do SimCityLocale.DAT:"
+options_sc4_install_folder_label = "Pasta de instalação do SC4:"
+options_plugins_folder_label = "Pasta de Plugins (usada por padrão ao abrir arquivos):"
+options_section_external_tools = "Ferramentas externas"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Abrir esses arquivos é sempre possível; o salvamento direto é bloqueado automaticamente independentemente dos caminhos abaixo - eles estão aqui apenas para conveniência/referência."
+options_appearance_note = "O idioma e o tema são aplicados imediatamente assim que você os escolhe."
+options_section_properties = "Banco de dados de propriedades Exemplar"
+options_change_property_source = "Alterar a origem do new_properties.xml..."
+options_section_appearance = "Idioma e aparência"
+options_language_label = "Idioma:"
+options_theme_label = "Tema:"
+options_browse = "Procurar..."
+options_save = "Salvar"
+options_close = "Fechar"
+
+# --- Barra de ferramentas principal ---
+toolbar_new = "NOVO"
+toolbar_open = "ABRIR..."
+toolbar_save = "SALVAR"
+toolbar_save_as = "SALVAR COMO..."
+toolbar_export_entry = "EXPORTAR ENTRADA..."
+toolbar_import_entry = "IMPORTAR NA ENTRADA..."
+toolbar_export_all = "EXPORTAR TUDO..."
+toolbar_options = "OPÇÕES..."
+external_tools_header = "FERRAMENTAS EXTERNAS"
+
+# NOTA: propositalmente sem a chave "toolbar_property_db" aqui - o antigo botão
+# independente "PROPERTY DATABASE..." da barra de ferramentas foi substituído por
+# "Alterar a origem do new_properties.xml..." dentro de Opções (veja
+# options_change_property_source acima, ligado a
+# OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- Editor LUA ---
+lua_compile = "COMPILAR"
+lua_run = "▶ EXECUTAR"
+lua_clear_output = "LIMPAR SAÍDA"
+lua_save = "SALVAR"

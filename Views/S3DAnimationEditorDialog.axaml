@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="600"
+        x:Class="SC4ModdingSuite.Views.S3DAnimationEditorDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="S3D Animation Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="600"
+        MinWidth="620" MinHeight="480"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Ilive Reader's Tab3DMAnim equivalent (reader/Tab3DMAnim.cpp): header fields
+         (FrameRate/AnimMode/Displacement/FrameCount) plus Tab3DMAnim's tree grid, flattened
+         here into a mesh list (left) and a per-mesh frame list (right) - the mesh's
+         VERT/INDX/PRIM/MATS block mapping for each animation keyframe. Opened via
+         "ANIMATION EDITOR..." next to Geometry/Material Editor in MainWindow's third panel
+         (S3D Editor mode only). Shares MainWindowViewModel as DataContext, same convention
+         as the other two S3D editor windows - see MainWindowViewModel's "Animation Editor"
+         region and ViewModels/S3DAnimRowViewModels.cs for the actual logic. -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto">
+
+        <Border Grid.Row="0" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
+            <WrapPanel>
+                <TextBlock Text="Frame rate:" VerticalAlignment="Center" Margin="0,0,4,4" />
+                <NumericUpDown Value="{Binding S3DAnimFrameRate}" Minimum="0" Maximum="65535" FormatString="0" Width="110" Margin="0,0,16,4" />
+
+                <TextBlock Text="Mode:" VerticalAlignment="Center" Margin="0,0,4,4" />
+                <ComboBox ItemsSource="{x:Static vm:S3DAnimModeOptions.Values}" SelectedItem="{Binding S3DAnimModeOption}" Width="140" Margin="0,0,16,4" />
+
+                <TextBlock Text="Displacement:" VerticalAlignment="Center" Margin="0,0,4,4" />
+                <NumericUpDown Value="{Binding S3DAnimDisplacement}" Increment="0.1" FormatString="0.####" Width="120" Margin="0,0,16,4" />
+
+                <TextBlock Text="Frame count:" VerticalAlignment="Center" Margin="0,0,4,4" />
+                <NumericUpDown Value="{Binding S3DAnimFrameCount}" Minimum="0" Maximum="65535" FormatString="0" Width="110" Margin="0,0,4,4"
+                               ToolTip.Tip="Changing this pads or truncates every mesh's frame list to match" />
+            </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+
+            <!-- Mesh list -->
+            <Grid Grid.Column="0" Margin="0,0,10,0" RowDefinitions="Auto,*,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="MESHES" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
+                <Border Grid.Row="1" BorderThickness="1">
+                    <ListBox ItemsSource="{Binding S3DAnimMeshes}" SelectedItem="{Binding SelectedS3DAnimMesh}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:S3DAnimMeshRowViewModel">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" />
+                                    <TextBlock FontSize="10" Classes="status">
+                                        <Run Text="{Binding FrameCount}" /><Run Text=" frame(s) · " /><Run Text="{Binding FlagsHex}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <StackPanel Grid.Row="2" Spacing="4" Margin="0,6,0,0" IsEnabled="{Binding SelectedS3DAnimMesh, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Name:" FontSize="11" Classes="status" />
+                    <TextBox Text="{Binding SelectedS3DAnimMesh.Name}" />
+                    <TextBlock Text="Flags (hex):" FontSize="11" Classes="status" />
+                    <TextBox Text="{Binding SelectedS3DAnimMesh.FlagsHex}" />
+                </StackPanel>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                    <Button Content="ADD GROUP" Command="{Binding AddS3DAnimMeshCommand}" />
+                    <Button Content="DEL GROUP" Command="{Binding DeleteS3DAnimMeshCommand}" Classes="danger" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Frames of the selected mesh -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Row="0" Text="FRAMES (VERT / INDX / PRIM / MATS block per keyframe)" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
+                <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+                    <Button Content="ADD ANIM" Command="{Binding AddS3DAnimFrameCommand}" Margin="0,0,6,0"
+                            ToolTip.Tip="Append a zero-initialized frame to the selected mesh" />
+                    <Button Content="DELETE ANIM" Click="OnDeleteAnimFramesClick"
+                            ToolTip.Tip="Delete the selected frame row(s) - Ctrl/Shift-click to select multiple" />
+                </WrapPanel>
+                <Border Grid.Row="2" BorderThickness="1">
+                    <DataGrid x:Name="FrameGrid" ItemsSource="{Binding S3DAnimFrames}"
+                              AutoGenerateColumns="True" CanUserReorderColumns="False"
+                              SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="2" BorderThickness="1" Margin="0,8,0,0" Padding="8,6">
+            <Button Content="APPLY / SAVE MODEL" Command="{Binding ApplyS3DCommand}" FontWeight="Bold"
+                    ToolTip.Tip="Write the current model (incl. every animation change above) back into the entry" />
+        </Border>
+    </Grid>
+
+</Window>
