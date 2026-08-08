@@ -11,6 +11,15 @@ public sealed class AppOptions
     /// <summary>SC4 installation folder - used as the starting folder when opening files.</summary>
     public string? Sc4InstallFolder { get; set; }
 
+    /// <summary>
+    /// The user's SC4 Plugins folder (typically <c>Documents\SimCity 4\Plugins</c>) - where
+    /// custom/downloaded mod files actually live, as opposed to <see cref="Sc4InstallFolder"/>
+    /// (the base game's own install folder). Preferred over <see cref="Sc4InstallFolder"/> as
+    /// the starting folder when opening files, since that's what someone using this app to
+    /// edit their own mods will need most often.
+    /// </summary>
+    public string? PluginsFolder { get; set; }
+
     public string? PimXPath { get; set; }
     public string? DataNodePath { get; set; }
     public string? MapperPath { get; set; }

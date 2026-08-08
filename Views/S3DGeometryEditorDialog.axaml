@@ -1,0 +1,89 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
+        x:Class="SC4ModdingSuite.Views.S3DGeometryEditorDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="S3D Geometry Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="560"
+        MinWidth="680" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Moved out of MainWindow's inline S3D preview panel into its own window - same
+         bindings/commands (all live on MainWindowViewModel, shared as this dialog's
+         DataContext), just opened via the "GEOMETRY EDITOR..." button in the third panel
+         instead of always sitting inline. "Editing group" selects which VERT/INDX/PRIM
+         block the three grids and the Add/Delete/Flip/Remap tools operate on - independent
+         of the animation playback/visibility controls back in the main window, which work
+         per animation mesh instead. Selecting a row in the Indices grid highlights that
+         triangle in the 3D viewer back on MainWindow; clicking a triangle there selects/
+         scrolls to its row here (see S3DViewerControl's HighlightTriangle/PickCommand). -->
+    <Grid Margin="10" RowDefinitions="Auto,Auto,*">
+        <TextBlock Grid.Row="0" Text="{Binding S3DInfo}" FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,6" />
+
+        <WrapPanel Grid.Row="1">
+            <TextBlock Text="Editing group:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,4,4" />
+            <NumericUpDown Value="{Binding S3DEditGroupIndex}" Minimum="0" Maximum="{Binding S3DEditGroupMaxIndex}"
+                           Increment="1" FormatString="0" Width="100" Margin="0,0,12,4"
+                           ToolTip.Tip="Which VERT/INDX/PRIM group the grids below (and Add/Flip/Remap) operate on" />
+            <TextBlock Text="Add count (N):" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,4,4" />
+            <NumericUpDown Value="{Binding S3DAddCount}" Minimum="1" Increment="1" FormatString="0" Width="90" Margin="0,0,12,4"
+                           ToolTip.Tip="How many points/triangle rows/primitive rows the Add buttons below append at once" />
+            <Button Content="Flip XY" Command="{Binding FlipS3DXyCommand}" Margin="0,0,6,4"
+                    ToolTip.Tip="Swap the X/Y coordinate of every vertex in every group" />
+            <Button Content="Flip XZ" Command="{Binding FlipS3DXzCommand}" Margin="0,0,6,4"
+                    ToolTip.Tip="Swap the X/Z coordinate of every vertex in every group" />
+            <Button Content="Flip YZ" Command="{Binding FlipS3DYzCommand}" Margin="0,0,6,4"
+                    ToolTip.Tip="Swap the Y/Z coordinate of every vertex in every group" />
+            <Button Content="Remap Indices" Command="{Binding RemapS3DIndicesCommand}" Margin="0,0,6,4"
+                    ToolTip.Tip="Clamp any index in the current group that points past its vertex count back into range" />
+            <Button Content="Add Group" Command="{Binding AddS3DGroupCommand}" Margin="0,0,6,4"
+                    ToolTip.Tip="Append a new empty VERT+INDX+PRIM group" />
+            <Button Content="Delete Group" Command="{Binding DeleteS3DGroupCommand}" Margin="0,0,0,4"
+                    ToolTip.Tip="Remove the group currently selected above (VERT+INDX+PRIM)" />
+        </WrapPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,*,*">
+            <StackPanel Grid.Column="0" Margin="0,0,4,0" Spacing="4">
+                <TextBlock Text="Vertices" FontWeight="Bold" FontSize="11" Classes="status" />
+                <WrapPanel>
+                    <Button Content="Add" Command="{Binding AddS3DVertexCommand}" Margin="0,0,4,4"
+                            ToolTip.Tip="Add N zero-initialized point(s) to the editing group" />
+                    <Button Content="Delete Sel." Click="OnDeleteS3DVertexRowsClick" Margin="0,0,0,4"
+                            ToolTip.Tip="Delete the selected point(s) - Ctrl/Shift-click to select multiple" />
+                </WrapPanel>
+                <DataGrid x:Name="VertexGrid" ItemsSource="{Binding S3DVertexRows}"
+                          AutoGenerateColumns="True" CanUserReorderColumns="False"
+                          SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,4,0" Spacing="4">
+                <TextBlock Text="Indices (triangles)" FontWeight="Bold" FontSize="11" Classes="status" />
+                <WrapPanel>
+                    <Button Content="Add" Command="{Binding AddS3DIndexCommand}" Margin="0,0,4,4"
+                            ToolTip.Tip="Add N zero-index triangle row(s) to the editing group" />
+                    <Button Content="Delete Sel." Click="OnDeleteS3DIndexRowsClick" Margin="0,0,0,4"
+                            ToolTip.Tip="Delete the selected triangle row(s) - Ctrl/Shift-click to select multiple" />
+                </WrapPanel>
+                <DataGrid x:Name="IndexGrid" ItemsSource="{Binding S3DIndexRows}" SelectedItem="{Binding SelectedS3DIndexRow}"
+                          AutoGenerateColumns="True" CanUserReorderColumns="False"
+                          SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="4,0,0,0" Spacing="4">
+                <TextBlock Text="Primitives" FontWeight="Bold" FontSize="11" Classes="status" />
+                <WrapPanel>
+                    <Button Content="Add" Command="{Binding AddS3DPrimCommand}" Margin="0,0,4,4"
+                            ToolTip.Tip="Add N default primitive row(s) (type/first/count all editable) to the editing group" />
+                    <Button Content="Delete Sel." Click="OnDeleteS3DPrimRowsClick" Margin="0,0,0,4"
+                            ToolTip.Tip="Delete the selected primitive row(s) - Ctrl/Shift-click to select multiple" />
+                </WrapPanel>
+                <DataGrid x:Name="PrimGrid" ItemsSource="{Binding S3DPrimRows}"
+                          AutoGenerateColumns="True" CanUserReorderColumns="False"
+                          SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+
+</Window>

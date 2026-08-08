@@ -1,0 +1,78 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="580"
+        x:Class="SC4ModdingSuite.Views.S3DRegPointEditorDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="S3D Registration Point Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="580"
+        MinWidth="620" MinHeight="460"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- REGP chunk editor. Neither Ilive Reader nor SC4ModdingSuite had a working editor for
+         this chunk before - Ilive's own Tab3DMRegp.cpp exists but was never wired into
+         Form3DM's tab list (dead code, never actually ran), so there's no original UI to
+         port. Fresh editor, same "master list -> selection -> detail list" shape as the
+         Animation Editor (a registration point is structurally the same thing as an
+         animation mesh: a name plus one transform per frame) - see MainWindowViewModel's
+         "REGP Editor" region and ViewModels/S3DRegPointRowViewModels.cs. Opened via "REGP
+         EDITOR..." next to the other S3D editors in MainWindow's third panel (S3D Editor
+         mode only). -->
+    <Grid Margin="10" RowDefinitions="*,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="260,*">
+
+            <!-- Registration point list -->
+            <Grid Grid.Column="0" Margin="0,0,10,0" RowDefinitions="Auto,*,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="REGISTRATION POINTS" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
+                <Border Grid.Row="1" BorderThickness="1">
+                    <ListBox ItemsSource="{Binding S3DRegPoints}" SelectedItem="{Binding SelectedS3DRegPoint}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:S3DRegPointRowViewModel">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" />
+                                    <TextBlock FontSize="10" Classes="status">
+                                        <Run Text="{Binding TransformCount}" /><Run Text=" transform(s)" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <StackPanel Grid.Row="2" Spacing="4" Margin="0,6,0,0" IsEnabled="{Binding SelectedS3DRegPoint, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Name:" FontSize="11" Classes="status" />
+                    <TextBox Text="{Binding SelectedS3DRegPoint.Name}" />
+                </StackPanel>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                    <Button Content="ADD" Command="{Binding AddS3DRegPointCommand}" />
+                    <Button Content="DELETE" Command="{Binding DeleteS3DRegPointCommand}" Classes="danger" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Transforms of the selected registration point -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Row="0" Text="TRANSFORMS (translation X/Y/Z + orientation quaternion QX/QY/QZ/QW, one per animation frame)"
+                           FontWeight="Bold" FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,4" />
+                <WrapPanel Grid.Row="1" Margin="0,0,0,4">
+                    <Button Content="ADD" Command="{Binding AddS3DRegPointTransformCommand}" Margin="0,0,6,0"
+                            ToolTip.Tip="Append an identity transform (translation 0,0,0 - orientation 0,0,0,1) to the selected registration point" />
+                    <Button Content="DELETE" Click="OnDeleteTransformsClick"
+                            ToolTip.Tip="Delete the selected transform row(s) - Ctrl/Shift-click to select multiple" />
+                </WrapPanel>
+                <Border Grid.Row="2" BorderThickness="1">
+                    <DataGrid x:Name="TransformGrid" ItemsSource="{Binding S3DRegPointTransforms}"
+                              AutoGenerateColumns="True" CanUserReorderColumns="False"
+                              SelectionMode="Extended" GridLinesVisibility="All" FontSize="11" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="1" BorderThickness="1" Margin="0,8,0,0" Padding="8,6">
+            <Button Content="APPLY / SAVE MODEL" Command="{Binding ApplyS3DCommand}" FontWeight="Bold"
+                    ToolTip.Tip="Write the current model (incl. every registration point change above) back into the entry" />
+        </Border>
+    </Grid>
+
+</Window>

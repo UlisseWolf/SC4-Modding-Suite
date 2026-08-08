@@ -1,0 +1,52 @@
+# SC4 Modding Suite - chaînes françaises
+# Fichier texte simple (TOML) : modifiable et rechargeable sans recompilation.
+# Chaque entrée est "clé = "valeur"". Les lignes commençant par # sont des commentaires.
+
+language_name = "Français"
+
+# --- Fenêtre Options ---
+options_title = "Options"
+options_section_protected_files = "Fichiers système SC4 (protégés)"
+options_simcitylocale_label = "Chemin de SimCityLocale.DAT :"
+options_sc4_install_folder_label = "Dossier d'installation de SC4 :"
+options_plugins_folder_label = "Dossier Plugins (utilisé par défaut à l'ouverture des fichiers) :"
+options_section_external_tools = "Outils externes"
+options_pimx_label = "SC4 PIM-X :"
+options_datanode_label = "SC4 DataNode :"
+options_mapper_label = "SC4 Mapper :"
+options_terraformer_label = "SC4 Terraformer :"
+options_sc4pac_editor_label = "SC4pac Editor :"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite :"
+options_protected_files_note = "L'ouverture de ces fichiers est toujours possible ; l'enregistrement direct est automatiquement bloqué quels que soient les chemins ci-dessous - ils sont indiqués ici uniquement à titre pratique/de référence."
+options_appearance_note = "La langue et le thème s'appliquent immédiatement dès que vous les choisissez."
+options_section_properties = "Base de données des propriétés Exemplar"
+options_change_property_source = "Changer la source de new_properties.xml..."
+options_section_appearance = "Langue et apparence"
+options_language_label = "Langue :"
+options_theme_label = "Thème :"
+options_browse = "Parcourir..."
+options_save = "Enregistrer"
+options_close = "Fermer"
+
+# --- Barre d'outils principale ---
+toolbar_new = "NOUVEAU"
+toolbar_open = "OUVRIR..."
+toolbar_save = "ENREGISTRER"
+toolbar_save_as = "ENREGISTRER SOUS..."
+toolbar_export_entry = "EXPORTER L'ENTRÉE..."
+toolbar_import_entry = "IMPORTER DANS L'ENTRÉE..."
+toolbar_export_all = "TOUT EXPORTER..."
+toolbar_options = "OPTIONS..."
+external_tools_header = "OUTILS EXTERNES"
+
+# NOTE : pas de clé "toolbar_property_db" ici, volontairement - l'ancien bouton autonome
+# "PROPERTY DATABASE..." de la barre d'outils a été remplacé par "Changer la source de
+# new_properties.xml..." dans Options (voir options_change_property_source ci-dessus,
+# relié à OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- Éditeur LUA ---
+lua_compile = "COMPILER"
+lua_run = "▶ EXÉCUTER"
+lua_clear_output = "EFFACER LA SORTIE"
+lua_save = "ENREGISTRER"

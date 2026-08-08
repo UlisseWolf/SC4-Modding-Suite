@@ -9,11 +9,17 @@ options_title = "Opzioni"
 options_section_protected_files = "File di sistema SC4 (protetti)"
 options_simcitylocale_label = "Percorso SimCityLocale.DAT:"
 options_sc4_install_folder_label = "Cartella di installazione SC4:"
+options_plugins_folder_label = "Cartella Plugins (usata come predefinita all'apertura dei file):"
 options_section_external_tools = "Strumenti esterni"
 options_pimx_label = "SC4 PIM-X:"
 options_datanode_label = "SC4 DataNode:"
 options_mapper_label = "SC4 Mapper:"
 options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Aprire questi file è sempre possibile; il salvataggio diretto è bloccato automaticamente a prescindere dai percorsi sottostanti - sono qui solo per comodità/riferimento."
+options_appearance_note = "Lingua e tema vengono applicati immediatamente non appena selezionati."
 options_section_properties = "Database proprietà Exemplar"
 options_change_property_source = "Cambia sorgente new_properties.xml..."
 options_section_appearance = "Lingua e aspetto"
@@ -31,6 +37,16 @@ toolbar_save_as = "SALVA CON NOME..."
 toolbar_export_entry = "ESPORTA ENTRY..."
 toolbar_import_entry = "IMPORTA IN ENTRY..."
 toolbar_export_all = "ESPORTA TUTTO..."
-toolbar_property_db = "DATABASE PROPRIETÀ..."
 toolbar_options = "OPZIONI..."
 external_tools_header = "STRUMENTI ESTERNI"
+
+# NOTA: nessuna chiave "toolbar_property_db" qui di proposito - il vecchio pulsante
+# separato "PROPERTY DATABASE..." nella toolbar è stato sostituito da "Cambia sorgente
+# new_properties.xml..." dentro Opzioni (vedi options_change_property_source sotto,
+# collegato a OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- LUA Editor ---
+lua_compile = "COMPILA"
+lua_run = "▶ ESEGUI"
+lua_clear_output = "PULISCI OUTPUT"
+lua_save = "SALVA"

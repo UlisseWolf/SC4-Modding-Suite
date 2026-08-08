@@ -39,6 +39,18 @@
 
     <!-- csDBPF's only transitive dependency, per csDBPF.deps.json -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+
+    <!-- LUA Editor: MoonSharp is a pure-managed Lua interpreter (no native lua5x.dll/P-Invoke,
+         unlike Ilive Reader's own embedded C Lua VM under LuaLib/) used to give the "LUA
+         Editor" mode a real Compile (syntax check) and Run button - see
+         Models/LuaScriptRunner.cs. -->
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
+
+    <!-- S3D Editor's VERT/INDX/PRIM grid editors (Tab3DMVert/Indx/Prim equivalents): the
+         official first-party Avalonia grid control - not shipped in the Avalonia base
+         package, but the standard choice here over hand-rolling row/column/edit/selection
+         plumbing on top of ItemsControl. -->
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.3" />
   </ItemGroup>
 
   <ItemGroup>

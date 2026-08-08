@@ -36,6 +36,7 @@ public sealed class OptionsDialogViewModel : ViewModelBase
 
         _simCityLocalePath = options.SimCityLocalePath ?? string.Empty;
         _sc4InstallFolder = options.Sc4InstallFolder ?? string.Empty;
+        _pluginsFolder = options.PluginsFolder ?? string.Empty;
         _pimXPath = options.PimXPath ?? string.Empty;
         _dataNodePath = options.DataNodePath ?? string.Empty;
         _mapperPath = options.MapperPath ?? string.Empty;
@@ -71,6 +72,13 @@ public sealed class OptionsDialogViewModel : ViewModelBase
     {
         get => _sc4InstallFolder;
         set => SetField(ref _sc4InstallFolder, value);
+    }
+
+    private string _pluginsFolder;
+    public string PluginsFolder
+    {
+        get => _pluginsFolder;
+        set => SetField(ref _pluginsFolder, value);
     }
 
     // --- External tool paths ---
@@ -174,6 +182,7 @@ public sealed class OptionsDialogViewModel : ViewModelBase
     {
         _options.SimCityLocalePath = NullIfEmpty(SimCityLocalePath);
         _options.Sc4InstallFolder = NullIfEmpty(Sc4InstallFolder);
+        _options.PluginsFolder = NullIfEmpty(PluginsFolder);
         _options.PimXPath = NullIfEmpty(PimXPath);
         _options.DataNodePath = NullIfEmpty(DataNodePath);
         _options.MapperPath = NullIfEmpty(MapperPath);

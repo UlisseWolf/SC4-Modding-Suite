@@ -5,6 +5,10 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- Required for the S3D Editor's VERT/INDX/PRIM DataGrid controls to pick up the
+             Fluent-theme grid styling (row/cell/header templates) - the DataGrid control
+             itself ships no default styling of its own, only this separate style sheet. -->
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <!-- The active color theme (Styles/AppTheme.axaml, driven by a Themes/*.toml
              palette) is added/removed at runtime by Models/ThemeService.cs instead of
              being hardcoded here, so it can be switched from the Options dialog without

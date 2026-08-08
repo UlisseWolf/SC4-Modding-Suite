@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using SC4ModdingSuite.Models;
 using SC4ModdingSuite.ViewModels;
 
 namespace SC4ModdingSuite.Views;
@@ -36,16 +37,24 @@ public partial class MainWindow : Window
             FileTypeFilter = new List<FilePickerFileType> { Sc4PackageFileType, FilePickerFileTypes.All },
         };
 
-        // Nice-to-have: start the picker in the configured SC4 installation folder, if any
-        // (Opzioni), so opening one of the game's own .dat files is one click instead of
-        // navigating there by hand. Purely a convenience - it has no bearing on which
-        // files end up protected against in-place saving (see ProtectedFileNames).
-        var installFolder = ViewModel.AppOptions.Sc4InstallFolder;
-        if (!string.IsNullOrWhiteSpace(installFolder))
+        // Nice-to-have: start the picker in the configured Plugins folder (Opzioni), if any
+        // - that's where someone using this app actually keeps the mod files they want to
+        // open, as opposed to the base game's own install folder. Falls back to the SC4
+        // installation folder if no Plugins folder is configured, so existing setups that
+        // only ever set that one still get a sensible starting location. Purely a
+        // convenience - it has no bearing on which files end up protected against in-place
+        // saving (see ProtectedFileNames).
+        var startFolder = ViewModel.AppOptions.PluginsFolder;
+        if (string.IsNullOrWhiteSpace(startFolder))
+        {
+            startFolder = ViewModel.AppOptions.Sc4InstallFolder;
+        }
+
+        if (!string.IsNullOrWhiteSpace(startFolder))
         {
             try
             {
-                options.SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(installFolder);
+                options.SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(startFolder);
             }
             catch
             {
@@ -186,6 +195,121 @@ public partial class MainWindow : Window
         }
 
         ViewModel.ExportAllEntries(path);
+    }
+
+    private static readonly FilePickerFileType ThreeDsFileType = new("3D Studio mesh (.3ds)")
+    {
+        Patterns = new[] { "*.3ds" },
+    };
+
+    private async void OnImportS3DClick(object? sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import .3ds file",
+            AllowMultiple = false,
+            FileTypeFilter = new List<FilePickerFileType> { ThreeDsFileType, FilePickerFileTypes.All },
+        });
+
+        var path = files.FirstOrDefault()?.TryGetLocalPath();
+        if (path is null)
+        {
+            return;
+        }
+
+        ViewModel.ImportS3DFrom3ds(path);
+    }
+
+    private async void OnExportS3DClick(object? sender, RoutedEventArgs e)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export model as .3ds",
+            SuggestedFileName = "model.3ds",
+            FileTypeChoices = new List<FilePickerFileType> { ThreeDsFileType },
+        });
+
+        var path = file?.TryGetLocalPath();
+        if (path is null)
+        {
+            return;
+        }
+
+        ViewModel.ExportS3DTo3ds(path);
+    }
+
+    private async void OnExportS3DGroupClick(object? sender, RoutedEventArgs e)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export editing group as .3ds",
+            SuggestedFileName = $"group{ViewModel.S3DEditGroupIndex}.3ds",
+            FileTypeChoices = new List<FilePickerFileType> { ThreeDsFileType },
+        });
+
+        var path = file?.TryGetLocalPath();
+        if (path is null)
+        {
+            return;
+        }
+
+        ViewModel.ExportS3DGroupTo3ds(path);
+    }
+
+    // ---------------------------------------------------------------
+    // S3D Editor: geometry editor. Opens in its own window (S3DGeometryEditorDialog),
+    // sharing this window's MainWindowViewModel as DataContext - no separate dialog
+    // view model needed, the grids/commands it binds to already live on MainWindowViewModel.
+    // ---------------------------------------------------------------
+
+    private async void OnOpenS3DGeometryEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DGeometryEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DMaterialEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DMaterialEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DAnimationEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DAnimationEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DPropEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DPropEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DUVEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DUVEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DHexEditorClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel.SelectedEntry is null)
+        {
+            return;
+        }
+
+        var bytes = RawEntryBytes.GetDecompressed(ViewModel.SelectedEntry.Entry);
+        var chunks = bytes is null ? System.Array.Empty<(string, byte[])>() : S3DParser.LocateChunks(bytes);
+
+        var dialog = new S3DHexEditorDialog(chunks);
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnOpenS3DRegPointEditorClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DRegPointEditorDialog { DataContext = ViewModel };
+        await dialog.ShowDialog(this);
     }
 
     private async void OnOpenOptionsClick(object? sender, RoutedEventArgs e)

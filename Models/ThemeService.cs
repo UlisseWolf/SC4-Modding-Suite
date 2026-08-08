@@ -24,16 +24,13 @@ namespace SC4ModdingSuite.Models;
 ///
 /// Per request, the plain-FluentTheme "Predefinito"/"default" choice has been removed
 /// from the selectable list entirely - the app always applies one of the real TOML
-/// palettes (Bloomberg Terminal by default). <see cref="DefaultThemeKey"/> is kept purely
-/// as an internal fallback: if a theme key can't be resolved for any reason (e.g. a
-/// leftover "default" value from an older settings file, or a theme file that was
-/// deleted), <see cref="Apply"/> now falls back to <see cref="FallbackThemeKey"/> instead
-/// of silently leaving plain Fluent active.
+/// palettes (Bloomberg Terminal by default). If a theme key can't be resolved for any
+/// reason (e.g. a leftover "default" value from an older settings file, or a theme file
+/// that was deleted), <see cref="Apply"/> falls back to <see cref="FallbackThemeKey"/>
+/// instead of silently leaving plain Fluent active.
 /// </summary>
 public sealed class ThemeService
 {
-    private const string DefaultThemeKey = "default";
-
     /// <summary>Theme applied when the requested key can't be resolved, instead of ever falling back to plain Fluent.</summary>
     public const string FallbackThemeKey = "bloomberg";
 

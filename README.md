@@ -2,7 +2,7 @@
 
 A desktop tool for inspecting and editing **SimCity 4** (SC4) DBPF package files
 (`.dat`, `.sc4lot`, `.sc4desc`, `.sc4model`) — built with **.NET 10** and **Avalonia UI**,
-on top of the [csDBPF](https://github.com/noah-severyn/csDBPF) library, with several routines ported
+on top of the [csDBPF](https://github.com/NAMTeam) library, with several routines ported
 directly from **Ilive Reader**'s C++ source.
 
 Browse every entry in a package, edit TGIs, add/edit/remove Exemplar properties, preview
@@ -10,18 +10,24 @@ images (PNG/FSH), 3D models (S3D), and audio (WAV), export/import individual ent
 whole packages, and manage everything through a dense, keyboard-and-mouse-friendly
 interface inspired by classic SC4 modding tools.
 
+> **Status**: actively developed.
+
 ## Features
 
 - **Open, create, and save** SC4 DBPF packages, with a from-scratch package writer
   (ported from Ilive Reader) instead of relying on a third-party library's save routine.
 - **TGI editing**: Type ID is always set manually; Group and Instance can be set manually
-  or generated randomly.
+  or generated randomly. Random values use the exact same algorithm as Ilive Reader's own
+  TGI generator (a fresh GUID's first 32 bits, not a pseudo-random number) instead of
+  trusting the bundled third-party library's own undocumented behavior.
 - **Exemplar/Cohort property editor**: add, edit, and remove properties, with names and
   types resolved against a downloadable `new_properties.xml` database (choose between the
   NAM Team and UlisseWolf-patched sources, or supply your own). Categorical (enum-like)
   property values are displayed in hexadecimal, matching SC4 modding convention, and
   multi-value properties (e.g. Occupant Groups) can be built up one value at a time from
-  the option picker.
+  the option picker. Properties are read using an independent, byte-verified binary
+  Exemplar parser rather than trusting a third-party library's decode in isolation — see
+  [Property reading](#property-reading) below.
 - **Image viewer** for PNG and FSH entries, with zoom and a sub-image selector for
   multi-image FSH files. Handles the PNG/BMP/JPEG Type ID ambiguity gracefully.
 - **S3D model viewer**: interactive wireframe/solid-shaded 3D preview (drag to orbit,
@@ -33,7 +39,10 @@ interface inspired by classic SC4 modding tools.
   formats (Lua scripts, network rules, etc.), with a hex+ASCII fallback for anything else.
 - **Import/export**: pull any entry out to a file, replace an entry's content from a file,
   or export an entire package at once — using Ilive Reader's own naming convention so
-  exports are interchangeable between the two tools.
+  exports are interchangeable between the two tools. Exemplar/Cohort exports are checked
+  against an independent, byte-for-byte validator (ported from Ilive Reader's own binary
+  Exemplar decoder) before being written, so a malformed export is flagged with an exact
+  offset/property index instead of silently producing a broken file.
 - **Copy/paste entries between packages** via the system clipboard (open file A, copy
   entries, open file B, paste), with support for selecting several entries at once
   (click, Shift+click for a range, Ctrl+click to add/remove individual entries), plus a
@@ -93,17 +102,32 @@ ViewModels/                 MVVM view models (no external MVVM toolkit dependenc
 Views/                      Avalonia windows/controls (XAML + code-behind)
 ```
 
+## Property reading
+
+The Properties panel reads Exemplar/Cohort properties using an independent binary parser
+(`Models/ExemplarBinaryParser.cs`), ported and cross-checked byte-for-byte against Ilive
+Reader's own Exemplar decoder, instead of relying solely on the bundled csDBPF library's
+own property list. On a real Lot Configuration Exemplar (heavy on "array-mode" repeating
+properties, e.g. one `LotConfigPropertyLotObject` entry per object placed on the lot),
+csDBPF's own decode produced implausible property IDs not present in the file, while
+independently re-parsing the exact same bytes decoded every property cleanly with zero
+leftover bytes. If the independent parser and csDBPF disagree on how many properties an
+entry has, the Properties panel still shows the independently-verified list, and a status
+message flags the discrepancy so edits to that specific entry aren't assumed trustworthy
+without further investigation. The same parser also validates Exemplar/Cohort exports
+before they're written to disk (see the Import/export feature above).
+
 ## Third-party components
 
 This repository does **not** bundle `csDBPF.dll`. You will need to obtain it separately
-(from the [Noah Severyn](https://github.com/noah-severyn/csDBPF)'s csDBPF project or your own build) and
+(from the [NAM Team](https://github.com/NAMTeam)'s csDBPF project or your own build) and
 place it at `Libs/csDBPF.dll` before building — **check that library's own license terms**
 before distributing a build that includes it; the MIT license below covers the original
 source code in this repository only, not third-party binaries it links against.
 
 Several file-format and save-routine details in this project were derived by reading the
 publicly available C++ source of **Ilive Reader** and **DarkMatter's DatGen 4** (SC4
-DBPF/S3D format documentation, not copied verbatim as code)
+DBPF/S3D format documentation, not copied verbatim as code).
 
 The community-maintained `new_properties.xml` property databases are downloaded at
 runtime, at the user's choice, from:
@@ -113,8 +137,16 @@ runtime, at the user's choice, from:
 
 ## Contributing
 
-Issues and pull requests are welcome.
+Issues and pull requests are welcome. Given how much of this project's correctness
+depends on assumptions about a closed-source-adjacent binary format and a third-party
+library's exact API surface, bug
+reports that include the exact error message and, where possible, a sample `.dat` file
+are especially valuable.
 
 ## License
 
 Original source code in this repository is licensed under the [MIT License](LICENSE).
+
+This does **not** extend to third-party components referenced above (notably
+`csDBPF.dll`, which is not distributed with this repository) — confirm their own license
+terms independently before redistributing a built copy of this application.

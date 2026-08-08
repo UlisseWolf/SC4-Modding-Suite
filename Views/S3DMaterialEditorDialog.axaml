@@ -1,0 +1,145 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="860" d:DesignHeight="640"
+        x:Class="SC4ModdingSuite.Views.S3DMaterialEditorDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="S3D Material Editor"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="860" Height="640"
+        MinWidth="620" MinHeight="560"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Ilive Reader's Dlg3DMMat equivalent (reader/Dlg3DMMat.cpp): a grid of every texture
+         reference across every material ("Group" = material index, matching Ilive's own
+         flattening) with render state / texture editing below for whichever row is
+         selected. Opened via the "MATERIAL EDITOR..." button next to Geometry Editor in
+         MainWindow's third panel (S3D Editor mode only). All bindings target
+         MainWindowViewModel directly (shared DataContext, same convention as
+         S3DGeometryEditorDialog) - see MainWindowViewModel's "Material Editor" region and
+         ViewModels/S3DMaterialRowViewModel.cs for the actual logic. -->
+    <Grid Margin="10" RowDefinitions="140,Auto,*,Auto">
+
+        <!-- List: one row per texture reference (DLG3DMAT_COL0/1/2 = Group/Material name/Material id) -->
+        <Border Grid.Row="0" BorderThickness="1">
+            <ListBox ItemsSource="{Binding S3DMaterialRows}" SelectedItem="{Binding SelectedS3DMaterialRow}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:S3DMaterialRowViewModel">
+                        <Grid ColumnDefinitions="60,*,140">
+                            <TextBlock Grid.Column="0" Text="{Binding GroupLabel}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                            <TextBlock Grid.Column="1" Text="{Binding TextureName}" FontSize="11" />
+                            <TextBlock Grid.Column="2" Text="{Binding TextureIdHex}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <TextBlock Grid.Row="1" Text="{Binding SelectedS3DMaterialRow.GroupLabel, StringFormat='Editing material group {0}', TargetNullValue='No texture selected - click a row above.'}"
+                   FontWeight="Bold" FontSize="11" Margin="0,8,0,6" />
+
+        <!-- Detail panel: texture preview/TGI/change-reference on the left, render state on the right -->
+        <Grid Grid.Row="2" ColumnDefinitions="260,*" IsEnabled="{Binding SelectedS3DMaterialRow, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+            <StackPanel Grid.Column="0" Margin="0,0,10,0" Spacing="6">
+                <TextBlock Text="TEXTURE PREVIEW (FSH)" FontWeight="Bold" FontSize="11" Classes="status" />
+                <Border BorderThickness="1" Height="160" Background="#0A0A0A">
+                    <Image Source="{Binding S3DMaterialTexturePreview}" Stretch="Uniform" Margin="4" />
+                </Border>
+                <TextBlock Text="{Binding S3DMaterialTgiInfo}" FontSize="10" Classes="status" TextWrapping="Wrap" />
+                <Button Content="REPLACE TEXTURE..." Click="OnReplaceTextureClick" HorizontalAlignment="Stretch"
+                        ToolTip.Tip="Overwrite this FSH entry's image with a new .fsh file (applied to the package immediately)" />
+
+                <Separator Margin="0,4" />
+
+                <TextBlock Text="CHANGE TGI (which texture this material points to)" FontWeight="Bold" FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <CheckBox Content="Random instance" IsChecked="{Binding RandomizeS3DMaterialInstance}" />
+                <TextBox Text="{Binding S3DMaterialNewInstanceText}" Watermark="0x........" IsEnabled="{Binding !RandomizeS3DMaterialInstance}" />
+                <TextBox Text="{Binding S3DNewTextureName}" Watermark="Texture name (optional)" />
+                <Button Content="APPLY CHANGE" Command="{Binding ChangeS3DMaterialTgiCommand}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Column="1">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="RENDER STATE" FontWeight="Bold" FontSize="11" Classes="status" />
+                    <WrapPanel>
+                        <CheckBox Content="Alpha test" IsChecked="{Binding SelectedS3DMaterialRow.AlphaTest}" Margin="0,0,12,4" />
+                        <CheckBox Content="Depth test" IsChecked="{Binding SelectedS3DMaterialRow.DepthTest}" Margin="0,0,12,4" />
+                        <CheckBox Content="Backface culling" IsChecked="{Binding SelectedS3DMaterialRow.BackfaceCulling}" Margin="0,0,12,4" />
+                        <CheckBox Content="Framebuffer blending" IsChecked="{Binding SelectedS3DMaterialRow.FramebufferBlend}" Margin="0,0,12,4" />
+                        <CheckBox Content="Texturing" IsChecked="{Binding SelectedS3DMaterialRow.Texturing}" Margin="0,0,12,4" />
+                    </WrapPanel>
+
+                    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" >
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Alpha func:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.CompareFuncs}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.AlphaFunc}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Depth func:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.CompareFuncs}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.DepthFunc}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Src blend factor:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.BlendFactors}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.SrcBlend}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Dest blend factor:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.BlendFactors}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.DstBlend}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Alpha threshold:" VerticalAlignment="Center" Margin="0,4" />
+                        <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding SelectedS3DMaterialRow.AlphaThreshold}"
+                                       Minimum="0" Maximum="255" Increment="1" FormatString="0" Margin="0,4" HorizontalAlignment="Left" Width="120" />
+                    </Grid>
+
+                    <Separator Margin="0,2" />
+                    <TextBlock Text="TEXTURE (wrap / filtering - this reference only)" FontWeight="Bold" FontSize="11" Classes="status" />
+
+                    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Wrap mode S:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.WrapModes}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.WrapModeS}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Wrap mode T:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.WrapModes}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.WrapModeT}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Mag filter:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.MagFilters}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.MagFilter}" Margin="0,4" HorizontalAlignment="Stretch" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Min filter:" VerticalAlignment="Center" Margin="0,4" />
+                        <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{x:Static vm:S3DMaterialOptions.MinFilters}"
+                                  SelectedItem="{Binding SelectedS3DMaterialRow.MinFilter}" Margin="0,4" HorizontalAlignment="Stretch" />
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Add Texture: from an FSH entry already in the package, or import a new .fsh file -->
+        <Border Grid.Row="3" BorderThickness="1" Margin="0,8,0,0" Padding="8,6">
+            <WrapPanel>
+                <TextBlock Text="ADD TEXTURE:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
+                <ComboBox ItemsSource="{Binding S3DPackageFshEntries}" SelectedItem="{Binding SelectedFshEntryForMaterial}"
+                          MinWidth="160" PlaceholderText="Existing FSH entry..." Margin="0,0,6,4">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EntryItemViewModel">
+                            <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
+                                <Run Text="{Binding GroupHex}" /><Run Text="/" /><Run Text="{Binding InstanceHex}" />
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="ADD FROM PACKAGE" Command="{Binding AddS3DTextureFromPackageCommand}" Margin="0,0,6,4" />
+                <Button Content="ADD FROM FILE..." Click="OnAddTextureFromFileClick" Margin="0,0,12,4"
+                        ToolTip.Tip="Import a new .fsh file into the package (SC4's shared texture group) and reference it" />
+                <Rectangle Width="1" Margin="6,2,12,4" />
+                <Button Content="APPLY / SAVE MODEL" Command="{Binding ApplyS3DCommand}" FontWeight="Bold" Margin="0,0,0,4"
+                        ToolTip.Tip="Write the current model (incl. any render state / TGI changes above) back into the entry" />
+            </WrapPanel>
+        </Border>
+    </Grid>
+
+</Window>

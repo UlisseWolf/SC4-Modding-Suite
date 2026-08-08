@@ -10,6 +10,7 @@
         Title="{Binding LocalizationService.OptionsTitle}"
         Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
         Width="620" Height="680"
+        MinWidth="440" MinHeight="380"
         WindowStartupLocation="CenterOwner">
 
     <Grid RowDefinitions="*,Auto" Margin="16">
@@ -18,9 +19,9 @@
 
                 <!-- Protected SC4 system files -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProtectedFiles}" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProtectedFiles}" FontWeight="Bold" FontSize="12" Classes="status" />
                     <TextBlock TextWrapping="Wrap" FontSize="11" Classes="status"
-                               Text="Opening these files is always possible; in-place saving is blocked automatically regardless of the paths below - they're only here for convenience/reference." />
+                               Text="{Binding LocalizationService.OptionsProtectedFilesNote}" />
 
                     <TextBlock Text="{Binding LocalizationService.OptionsSimCityLocaleLabel}" />
                     <Grid ColumnDefinitions="*,Auto">
@@ -33,13 +34,19 @@
                         <TextBox Grid.Column="0" Text="{Binding Sc4InstallFolder}" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseSc4InstallFolderClick" />
                     </Grid>
+
+                    <TextBlock Text="{Binding LocalizationService.OptionsPluginsFolderLabel}" Margin="0,6,0,0" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding PluginsFolder}" Margin="0,0,8,0" />
+                        <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowsePluginsFolderClick" />
+                    </Grid>
                 </StackPanel>
 
                 <Separator />
 
                 <!-- External tools -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="{Binding LocalizationService.OptionsSectionExternalTools}" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionExternalTools}" FontWeight="Bold" FontSize="12" Classes="status" />
 
                     <TextBlock Text="{Binding LocalizationService.OptionsPimXLabel}" />
                     <Grid ColumnDefinitions="*,Auto">
@@ -65,7 +72,7 @@
                         <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseTerraformerClick" />
                     </Grid>
 
-                    <TextBlock Text="SC4pac Editor:" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsSc4PacEditorLabel}" Margin="0,6,0,0" />
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding Sc4PacEditorPath}" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseSc4PacEditorClick" />
@@ -76,8 +83,8 @@
                      dev-features.toml flag file unlocks it - see Models/DevFeatureFlags.cs. -->
                 <StackPanel Spacing="6" IsVisible="{Binding IsNamDevelopmentSuiteEnabled}">
                     <Separator />
-                    <TextBlock Text="NAM DEVELOPMENT SUITE" FontWeight="Bold" FontSize="12" />
-                    <TextBlock Text="NAM Development Suite:" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsNamDevelopmentSuiteHeader}" FontWeight="Bold" FontSize="12" Classes="status" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsNamDevelopmentSuiteLabel}" />
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0" Text="{Binding NamDevelopmentSuitePath}" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="{Binding LocalizationService.OptionsBrowse}" Click="OnBrowseNamDevelopmentSuiteClick" />
@@ -88,7 +95,7 @@
 
                 <!-- Exemplar property database -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProperties}" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionProperties}" FontWeight="Bold" FontSize="12" Classes="status" />
                     <Button Content="{Binding LocalizationService.OptionsChangePropertySource}" Command="{Binding ChangePropertySourceCommand}" />
                 </StackPanel>
 
@@ -96,7 +103,7 @@
 
                 <!-- Language and appearance -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="{Binding LocalizationService.OptionsSectionAppearance}" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="{Binding LocalizationService.OptionsSectionAppearance}" FontWeight="Bold" FontSize="12" Classes="status" />
 
                     <TextBlock Text="{Binding LocalizationService.OptionsLanguageLabel}" />
                     <ComboBox ItemsSource="{Binding AvailableLanguages}" SelectedItem="{Binding SelectedLanguage}"
@@ -117,7 +124,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <TextBlock Text="Language and theme apply immediately as soon as you pick them."
+                    <TextBlock Text="{Binding LocalizationService.OptionsAppearanceNote}"
                                FontSize="11" Classes="status" />
                 </StackPanel>
 

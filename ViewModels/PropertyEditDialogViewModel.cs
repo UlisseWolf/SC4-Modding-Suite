@@ -203,7 +203,7 @@ public sealed class PropertyEditDialogViewModel : ViewModelBase
         ErrorMessage = string.Empty;
         try
         {
-            var id = ParseHex(IdText);
+            var id = EntryClipboard.ParseHex(IdText);
             Result = BuildProperty(id, SelectedDataType, ValuesText);
             CloseRequested?.Invoke(this, true);
         }
@@ -211,17 +211,6 @@ public sealed class PropertyEditDialogViewModel : ViewModelBase
         {
             ErrorMessage = $"Invalid value: {ex.Message}";
         }
-    }
-
-    private static uint ParseHex(string text)
-    {
-        text = text.Trim();
-        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            text = text[2..];
-        }
-
-        return uint.Parse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
     }
 
     private static string FormatValues(DBPFProperty property, PropertyDefinition? definition)

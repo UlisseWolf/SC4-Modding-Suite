@@ -1,0 +1,28 @@
+# Tema "IBM 3270": l'estetica del terminale a schermo verde IBM 3270 (fine anni '70) e dei
+# suoi emulatori software - fosforo verde puro su nero, niente sfumature calde, niente
+# grigi intermedi. Il verde "acceso" (in primo piano, testo attivo/interattivo) e il verde
+# "spento" (in secondo piano, testo statico/non modificabile) sono la stessa distinzione
+# che il terminale reale faceva via intensità del fascio - qui resa con due tonalità di
+# verde fosforo invece che con la luminosità.
+
+name = "IBM 3270"
+
+window_background = "#000000"
+window_foreground = "#33FF33"
+border = "#1A661A"
+
+button_background = "#000000"
+button_foreground = "#33FF33"
+button_border = "#33FF33"
+
+textbox_background = "#001100"
+textbox_foreground = "#55FF55"
+
+selection_background = "#33FF33"
+selection_foreground = "#000000"
+
+listbox_background = "#000000"
+listboxitem_selected_background = "#1A4D1A"
+
+status_foreground = "#1AB81A"
+danger_foreground = "#FF3333"
