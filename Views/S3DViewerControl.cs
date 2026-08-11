@@ -79,6 +79,22 @@ public sealed class S3DViewerControl : Control
         set => SetValue(MaterialTexturesProperty, value);
     }
 
+    /// <summary>
+    /// Every material's own <b>dedicated</b> night-lighting texture (day/night-aware
+    /// <see cref="MaterialTextures"/>'s sibling, always the day texture there, regardless of
+    /// <see cref="Night"/>). Sparse: a material with no separate night FSH has no entry here.
+    /// Used by the Night render's actual blend formula - see <see cref="Shade"/> - instead of
+    /// just swapping which single texture is drawn.
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyDictionary<int, ImgImage>?> NightMaterialTexturesProperty =
+        AvaloniaProperty.Register<S3DViewerControl, IReadOnlyDictionary<int, ImgImage>?>(nameof(NightMaterialTextures));
+
+    public IReadOnlyDictionary<int, ImgImage>? NightMaterialTextures
+    {
+        get => GetValue(NightMaterialTexturesProperty);
+        set => SetValue(NightMaterialTexturesProperty, value);
+    }
+
     /// <summary>False = wireframe, true = solid/textured.</summary>
     public static readonly StyledProperty<bool> SolidProperty =
         AvaloniaProperty.Register<S3DViewerControl, bool>(nameof(Solid));
@@ -174,7 +190,7 @@ public sealed class S3DViewerControl : Control
 
     static S3DViewerControl()
     {
-        AffectsRender<S3DViewerControl>(ModelProperty, BackgroundProperty, TextureProperty, MaterialTexturesProperty, SolidProperty, NightProperty, CurrentFrameProperty, HiddenGroupsProperty, HighlightTriangleProperty);
+        AffectsRender<S3DViewerControl>(ModelProperty, BackgroundProperty, TextureProperty, MaterialTexturesProperty, NightMaterialTexturesProperty, SolidProperty, NightProperty, CurrentFrameProperty, HiddenGroupsProperty, HighlightTriangleProperty);
     }
 
     public S3DViewerControl()
@@ -452,7 +468,8 @@ public sealed class S3DViewerControl : Control
         // the single "primary" Texture only when that group's material can't be resolved),
         // instead of sampling every group's UVs against one texture for the whole model.
         var materialTextures = MaterialTextures;
-        var triangles = new List<(int A, int B, int C, float Depth, ImgImage? Texture)>();
+        var nightMaterialTextures = NightMaterialTextures;
+        var triangles = new List<(int A, int B, int C, float Depth, ImgImage? Texture, ImgImage? NightTexture)>();
         foreach (var (group, a, b, c) in model.EnumerateTriangles(CurrentFrame, HiddenGroups))
         {
             if (!TryResolve(group, a, b, c, blockOffsets, rotatedPositions.Length, out var ia, out var ib, out var ic))
@@ -461,15 +478,22 @@ public sealed class S3DViewerControl : Control
             }
 
             var groupTexture = texture;
-            if (materialTextures is not null
-                && model.GetMaterialIndex(CurrentFrame, group) is { } materialIndex
-                && materialTextures.TryGetValue(materialIndex, out var resolved))
+            ImgImage? groupNightTexture = null;
+            if (model.GetMaterialIndex(CurrentFrame, group) is { } materialIndex)
             {
-                groupTexture = resolved;
+                if (materialTextures is not null && materialTextures.TryGetValue(materialIndex, out var resolved))
+                {
+                    groupTexture = resolved;
+                }
+
+                if (night && nightMaterialTextures is not null && nightMaterialTextures.TryGetValue(materialIndex, out var resolvedNight))
+                {
+                    groupNightTexture = resolvedNight;
+                }
             }
 
             var depth = (rotatedPositions[ia].Z + rotatedPositions[ib].Z + rotatedPositions[ic].Z) / 3f;
-            triangles.Add((ia, ib, ic, depth, groupTexture));
+            triangles.Add((ia, ib, ic, depth, groupTexture, groupNightTexture));
         }
 
         triangles.Sort((t1, t2) => t1.Depth.CompareTo(t2.Depth));
@@ -497,7 +521,7 @@ public sealed class S3DViewerControl : Control
         var pixelHeight = Math.Max(1, (int)Math.Ceiling(bounds.Height));
         var pixels = new byte[pixelWidth * pixelHeight * 4]; // BGRA8888, starts fully transparent
 
-        foreach (var (ia, ib, ic, _, triTexture) in triangles)
+        foreach (var (ia, ib, ic, _, triTexture, triNightTexture) in triangles)
         {
             var va = rotatedPositions[ia];
             var vb = rotatedPositions[ib];
@@ -515,7 +539,7 @@ public sealed class S3DViewerControl : Control
                 pixels, pixelWidth, pixelHeight,
                 Project(g, va), Project(g, vb), Project(g, vc),
                 allUvs[ia], allUvs[ib], allUvs[ic],
-                triTexture, brightness, night);
+                triTexture, triNightTexture, brightness, night);
         }
 
         using var bitmap = new WriteableBitmap(
@@ -538,13 +562,16 @@ public sealed class S3DViewerControl : Control
     /// buffer, <paramref name="width"/>x<paramref name="height"/>), sampling
     /// <paramref name="texture"/> at each pixel's barycentric-interpolated UV when all three
     /// UVs are available, or falling back to a flat neutral color otherwise (no texture
-    /// resolved, or this vertex format has no UVs) - same fallback color as before.
+    /// resolved, or this vertex format has no UVs) - same fallback color as before. When
+    /// <paramref name="night"/> is true and <paramref name="nightTexture"/> is available for
+    /// this triangle's material, also samples it at the same UV and blends it in via
+    /// <see cref="Shade"/>'s night formula, instead of only showing a flat-tinted day texture.
     /// </summary>
     private static void RasterizeTriangle(
         byte[] pixels, int width, int height,
         AvPoint pa, AvPoint pb, AvPoint pc,
         Vector2? uvA, Vector2? uvB, Vector2? uvC,
-        ImgImage? texture, float brightness, bool night)
+        ImgImage? texture, ImgImage? nightTexture, float brightness, bool night)
     {
         var minX = Math.Max(0, (int)Math.Floor(Math.Min(pa.X, Math.Min(pb.X, pc.X))));
         var maxX = Math.Min(width - 1, (int)Math.Ceiling(Math.Max(pa.X, Math.Max(pb.X, pc.X))));
@@ -562,7 +589,7 @@ public sealed class S3DViewerControl : Control
         }
 
         var hasUv = texture is not null && uvA is not null && uvB is not null && uvC is not null;
-        var flat = hasUv ? new AvColor() : Shade((190, 190, 190), brightness, night);
+        var flat = hasUv ? new AvColor() : Shade((190, 190, 190), null, brightness, night);
 
         for (var y = minY; y <= maxY; y++)
         {
@@ -588,7 +615,17 @@ public sealed class S3DViewerControl : Control
                     var tx = Math.Clamp((int)(u * texture!.Width), 0, texture.Width - 1);
                     var ty = Math.Clamp((int)(v * texture.Height), 0, texture.Height - 1);
                     var pixel = texture[tx, ty];
-                    shaded = Shade((pixel.R, pixel.G, pixel.B), brightness, night);
+
+                    (byte R, byte G, byte B, byte A)? nightPixel = null;
+                    if (nightTexture is not null)
+                    {
+                        var ntx = Math.Clamp((int)(u * nightTexture.Width), 0, nightTexture.Width - 1);
+                        var nty = Math.Clamp((int)(v * nightTexture.Height), 0, nightTexture.Height - 1);
+                        var np = nightTexture[ntx, nty];
+                        nightPixel = (np.R, np.G, np.B, np.A);
+                    }
+
+                    shaded = Shade((pixel.R, pixel.G, pixel.B), nightPixel, brightness, night);
                 }
                 else
                 {
@@ -639,14 +676,59 @@ public sealed class S3DViewerControl : Control
         return ambient + diffuse * nDotL;
     }
 
-    private static AvColor Shade((byte R, byte G, byte B) baseColor, float brightness, bool night)
+    /// <summary>
+    /// Night render blend: <c>Night Render = DayModel * NightColour * (1 - NightAlpha) +
+    /// NightModel * NightAlpha</c>.
+    ///
+    /// <list type="bullet">
+    /// <item><description><b>DayModel</b> is <paramref name="dayColor"/> (the day texture's
+    /// pixel, or the flat placeholder color) with the usual directional-light
+    /// <paramref name="brightness"/> applied - the ambient-lit look of the surface as if it
+    /// had no self-illumination at all.</description></item>
+    /// <item><description><b>NightColour</b> is the fixed cool-blue night ambient tint
+    /// (<c>0.55, 0.65, 0.95</c>) already used for the day-mode fallback - moonlight/ambient
+    /// city-glow color, applied to whatever part of the surface isn't self-illuminated.</description></item>
+    /// <item><description><b>NightModel</b>/<b>NightAlpha</b> come from
+    /// <paramref name="nightPixel"/> - the model's own dedicated night-lighting texture
+    /// (see <see cref="MainWindowViewModel.S3DMaterialNightTextures"/>), sampled at the same
+    /// UV as the day texture. Its RGB is the self-illuminated color (drawn at full strength,
+    /// <i>not</i> darkened by <paramref name="brightness"/> - lit windows glow the same
+    /// regardless of which way the wall faces), and its own alpha channel is the blend
+    /// weight: fully opaque texels (lit windows, painted-on lamps, ...) read as
+    /// <c>NightAlpha = 1</c> and replace the day-tinted color outright; fully transparent
+    /// texels (unlit wall/roof areas) read as <c>NightAlpha = 0</c> and leave the day-tinted
+    /// color untouched, exactly matching how self-illumination/"glow" masks are authored in
+    /// SC4 night textures.</description></item>
+    /// </list>
+    ///
+    /// If no dedicated night texture is available for this material at all
+    /// (<paramref name="nightPixel"/> is <see langword="null"/>), this reduces to
+    /// <c>NightAlpha = 0</c> everywhere - the same flat day-texture-tinted-blue render this
+    /// viewer always showed for such materials.
+    /// </summary>
+    private static AvColor Shade((byte R, byte G, byte B) dayColor, (byte R, byte G, byte B, byte A)? nightPixel, float brightness, bool night)
     {
-        // Warm tint for day, cool blue tint for night.
+        // Warm tint for day, cool blue "NightColour" ambient tint for night.
         var (tintR, tintG, tintB) = night ? (0.55f, 0.65f, 0.95f) : (1.05f, 1.0f, 0.92f);
 
-        byte Apply(byte channel, float tint) =>
-            (byte)Math.Clamp(channel * brightness * tint, 0, 255);
+        if (!night || nightPixel is null)
+        {
+            byte ApplyTint(byte channel, float tint) =>
+                (byte)Math.Clamp(channel * brightness * tint, 0, 255);
 
-        return new AvColor(255, Apply(baseColor.R, tintR), Apply(baseColor.G, tintG), Apply(baseColor.B, tintB));
+            return new AvColor(255, ApplyTint(dayColor.R, tintR), ApplyTint(dayColor.G, tintG), ApplyTint(dayColor.B, tintB));
+        }
+
+        var nightAlpha = nightPixel.Value.A / 255f;
+        var dayWeight = brightness * (1f - nightAlpha);
+
+        byte Blend(byte dayChannel, byte nightChannel, float tint) =>
+            (byte)Math.Clamp(dayChannel * tint * dayWeight + nightChannel * nightAlpha, 0, 255);
+
+        return new AvColor(
+            255,
+            Blend(dayColor.R, nightPixel.Value.R, tintR),
+            Blend(dayColor.G, nightPixel.Value.G, tintG),
+            Blend(dayColor.B, nightPixel.Value.B, tintB));
     }
 }

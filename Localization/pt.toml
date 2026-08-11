@@ -30,8 +30,10 @@ options_save = "Salvar"
 options_close = "Fechar"
 
 # --- Barra de ferramentas principal ---
-toolbar_new = "NOVO"
+toolbar_new = "NOVA ABA"
+toolbar_new_tooltip = "Abre uma nova aba vazia"
 toolbar_open = "ABRIR..."
+toolbar_open_tooltip = "Abre um ou mais arquivos .dat, cada um em sua própria aba nova"
 toolbar_save = "SALVAR"
 toolbar_save_as = "SALVAR COMO..."
 toolbar_export_entry = "EXPORTAR ENTRADA..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IMPORTAR NA ENTRADA..."
 toolbar_export_all = "EXPORTAR TUDO..."
 toolbar_options = "OPÇÕES..."
 external_tools_header = "FERRAMENTAS EXTERNAS"
+
+# --- Barra de ferramentas da shell MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVEGADOR"
+shell_compare = "COMPARAR DATs..."
+shell_compare_tooltip = "Compara dois arquivos .dat entrada por entrada e inspeciona os bytes diferentes"
+shell_merge = "MESCLAR DATs..."
+shell_merge_tooltip = "Mescla vários arquivos .dat em um novo arquivo, ou na aba ativa"
+shell_directory_sync = "SINCRONIZAR DIRETÓRIO..."
+shell_directory_sync_tooltip = "Compara o subarquivo Directory (DIR) da aba ativa com suas entradas reais e permite pular para a selecionada"
+shell_close_tab_tooltip = "Fechar esta aba"
 
 # NOTA: propositalmente sem a chave "toolbar_property_db" aqui - o antigo botão
 # independente "PROPERTY DATABASE..." da barra de ferramentas foi substituído por
@@ -51,3 +63,19 @@ lua_compile = "COMPILAR"
 lua_run = "▶ EXECUTAR"
 lua_clear_output = "LIMPAR SAÍDA"
 lua_save = "SALVAR"
+
+# --- Editor T21 (Views/DbpfWorkspaceView.axaml, modo "T21 Editor") ---
+t21_apply_iid = "APLICAR IID"
+t21_add = "ADICIONAR"
+t21_duplicate = "DUPLICAR"
+t21_remove = "REMOVER"
+t21_up = "▲ SUBIR"
+t21_down = "▼ DESCER"
+t21_save = "SALVAR T21"
+t21_rhd_to_lhd = "CONVERTER RHD → LHD..."
+
+# --- Editor LTEXT (Views/DbpfWorkspaceView.axaml, modo "LTEXT Editor") ---
+ltext_save_file = "SALVAR ARQUIVO"
+ltext_save_all_for_language = "SALVAR TODO O ARQUIVO PARA O IDIOMA"
+ltext_export_poedit = "EXPORTAR POEDIT..."
+ltext_import_poedit = "IMPORTAR POEDIT..."

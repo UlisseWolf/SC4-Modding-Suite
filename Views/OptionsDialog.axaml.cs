@@ -14,6 +14,9 @@ public partial class OptionsDialog : Window
 {
     private PropertySourceService? _propertySourceService;
     private Action<PropertyDefinitionsRegistry>? _onPropertyRegistryChanged;
+    private UiElementIndexService? _uiElementIndex;
+    private string? _sc4InstallFolder;
+    private string? _pluginsFolder;
 
     public OptionsDialog()
     {
@@ -23,10 +26,16 @@ public partial class OptionsDialog : Window
     public OptionsDialog(
         OptionsDialogViewModel viewModel,
         PropertySourceService propertySourceService,
-        Action<PropertyDefinitionsRegistry> onPropertyRegistryChanged) : this()
+        Action<PropertyDefinitionsRegistry> onPropertyRegistryChanged,
+        UiElementIndexService uiElementIndex,
+        string? sc4InstallFolder,
+        string? pluginsFolder) : this()
     {
         _propertySourceService = propertySourceService;
         _onPropertyRegistryChanged = onPropertyRegistryChanged;
+        _uiElementIndex = uiElementIndex;
+        _sc4InstallFolder = sc4InstallFolder;
+        _pluginsFolder = pluginsFolder;
 
         DataContext = viewModel;
         viewModel.CloseRequested += (_, _) => Close();
@@ -42,12 +51,13 @@ public partial class OptionsDialog : Window
 
     private async void OnChangePropertySourceRequested(object? sender, EventArgs e)
     {
-        if (_propertySourceService is null || _onPropertyRegistryChanged is null)
+        if (_propertySourceService is null || _onPropertyRegistryChanged is null || _uiElementIndex is null)
         {
             return;
         }
 
-        var dialogVm = new PropertySourceDialogViewModel(_propertySourceService, _propertySourceService.LoadLastUsedSource());
+        var dialogVm = new PropertySourceDialogViewModel(
+            _propertySourceService, _propertySourceService.LoadLastUsedSource(), _uiElementIndex, _sc4InstallFolder, _pluginsFolder);
         var dialog = new PropertySourceDialog(dialogVm);
 
         var accepted = await dialog.ShowDialog<bool>(this);

@@ -30,8 +30,10 @@ options_save = "Guardar"
 options_close = "Cerrar"
 
 # --- Barra de herramientas principal ---
-toolbar_new = "NUEVO"
+toolbar_new = "NUEVA PESTAÑA"
+toolbar_new_tooltip = "Abre una nueva pestaña vacía"
 toolbar_open = "ABRIR..."
+toolbar_open_tooltip = "Abre uno o varios archivos .dat, cada uno en su propia pestaña nueva"
 toolbar_save = "GUARDAR"
 toolbar_save_as = "GUARDAR COMO..."
 toolbar_export_entry = "EXPORTAR ENTRADA..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IMPORTAR EN ENTRADA..."
 toolbar_export_all = "EXPORTAR TODO..."
 toolbar_options = "OPCIONES..."
 external_tools_header = "HERRAMIENTAS EXTERNAS"
+
+# --- Barra de herramientas de la shell MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVEGADOR"
+shell_compare = "COMPARAR DAT..."
+shell_compare_tooltip = "Compara dos archivos .dat entrada por entrada e inspecciona los bytes diferentes"
+shell_merge = "FUSIONAR DAT..."
+shell_merge_tooltip = "Fusiona varios archivos .dat en uno nuevo, o en la pestaña activa"
+shell_directory_sync = "SINCRONIZAR DIRECTORIO..."
+shell_directory_sync_tooltip = "Compara el subarchivo Directory (DIR) de la pestaña activa con sus entradas reales y permite saltar a la seleccionada"
+shell_close_tab_tooltip = "Cerrar esta pestaña"
 
 # NOTA: no hay una clave "toolbar_property_db" aquí, a propósito - el antiguo botón
 # independiente "PROPERTY DATABASE..." de la barra de herramientas fue sustituido por
@@ -51,3 +63,19 @@ lua_compile = "COMPILAR"
 lua_run = "▶ EJECUTAR"
 lua_clear_output = "LIMPIAR SALIDA"
 lua_save = "GUARDAR"
+
+# --- Editor T21 (Views/DbpfWorkspaceView.axaml, modo "T21 Editor") ---
+t21_apply_iid = "APLICAR IID"
+t21_add = "AÑADIR"
+t21_duplicate = "DUPLICAR"
+t21_remove = "ELIMINAR"
+t21_up = "▲ SUBIR"
+t21_down = "▼ BAJAR"
+t21_save = "GUARDAR T21"
+t21_rhd_to_lhd = "CONVERTIR RHD → LHD..."
+
+# --- Editor LTEXT (Views/DbpfWorkspaceView.axaml, modo "LTEXT Editor") ---
+ltext_save_file = "GUARDAR ARCHIVO"
+ltext_save_all_for_language = "GUARDAR TODO EL ARCHIVO PARA EL IDIOMA"
+ltext_export_poedit = "EXPORTAR POEDIT..."
+ltext_import_poedit = "IMPORTAR POEDIT..."

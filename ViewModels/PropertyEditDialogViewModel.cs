@@ -39,7 +39,7 @@ public sealed class PropertyEditDialogViewModel : ViewModelBase
             _selectedDefinition = definition;
             _idText = $"0x{existing.ID:X8}";
             _selectedDataType = existing.DataType;
-            _valuesText = FormatValues(existing, definition);
+            _valuesText = FormatValues(existing);
         }
     }
 
@@ -213,7 +213,7 @@ public sealed class PropertyEditDialogViewModel : ViewModelBase
         }
     }
 
-    private static string FormatValues(DBPFProperty property, PropertyDefinition? definition)
+    private static string FormatValues(DBPFProperty property)
     {
         try
         {
@@ -223,8 +223,7 @@ public sealed class PropertyEditDialogViewModel : ViewModelBase
                 return new string(chars);
             }
 
-            var preferHex = definition is { Options.Count: > 0 };
-            return string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, property.DataType, preferHex)));
+            return string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, property.DataType)));
         }
         catch
         {

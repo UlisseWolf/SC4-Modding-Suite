@@ -1,0 +1,203 @@
+using System.Collections.Generic;
+using System.Text;
+
+namespace SC4ModdingSuite.Models;
+
+/// <summary>One prop=value pair on a &lt;LEGACY&gt; node.</summary>
+public sealed class UiLegacyProp
+{
+    public string Key { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// One node of a UI entry's element tree (Ilive Reader's <c>_ui_legacy</c>/<c>CUIParse</c>).
+/// UI entries (TGI TypeID 0x00000000, per Ilive Reader's <c>cl_entry.cpp</c> classification)
+/// are plain text, not binary - a nested <c>&lt;LEGACY key=val ...&gt;</c> / <c>&lt;CHILDREN&gt;...&lt;/CHILDREN&gt;</c>
+/// tag format, one node per in-game UI element (button, caption, background, ...).
+/// </summary>
+public sealed class UiLegacyNode
+{
+    public bool IsRoot { get; set; }
+    public List<UiLegacyProp> Properties { get; } = new();
+    public List<UiLegacyNode> Children { get; } = new();
+    public UiLegacyNode? Parent { get; set; }
+
+    public string? GetProp(string key)
+    {
+        foreach (var p in Properties)
+        {
+            if (p.Key == key)
+            {
+                return p.Value;
+            }
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// Port of Ilive Reader's <c>CUIParse::Parse</c>/<c>Encode</c> (<c>or_dat/sim019.cpp</c>) -
+/// same tag grammar, same quote-aware tokenizing (<c>FindWord</c>: a delimiter inside
+/// <c>"..."</c> doesn't split), so files round-trip byte-for-byte compatible.
+/// </summary>
+public static class UiLegacyParser
+{
+    /// <summary>Finds the next unquoted occurrence of <paramref name="delimiter"/> in <paramref name="text"/> starting at <paramref name="start"/>, or text.Length if none (mirrors Ilive Reader's FindWord, which toggles an "inside quotes" flag on each '"' and ignores the delimiter while inside).</summary>
+    private static int FindWord(string text, char delimiter, int start)
+    {
+        var inQuotes = false;
+        for (var i = start; i < text.Length; i++)
+        {
+            if (text[i] == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (text[i] == delimiter && !inQuotes)
+            {
+                return i;
+            }
+        }
+
+        return text.Length;
+    }
+
+    public static UiLegacyNode Parse(string text)
+    {
+        var root = new UiLegacyNode { IsRoot = true };
+        var pos = 0;
+        ParseLevel(text, ref pos, root);
+        return root;
+    }
+
+    private static void ParseLevel(string text, ref int pos, UiLegacyNode parent)
+    {
+        UiLegacyNode? active = null;
+
+        while (pos < text.Length)
+        {
+            var open = text.IndexOf('<', pos);
+            if (open == -1)
+            {
+                break;
+            }
+
+            var close = FindWord(text, '>', open);
+            if (close >= text.Length)
+            {
+                break;
+            }
+
+            var tag = text.Substring(open, close - open + 1);
+            var name = ExtractName(tag);
+            pos = close + 1;
+
+            if (name == "CHILDREN")
+            {
+                if (active is not null)
+                {
+                    ParseLevel(text, ref pos, active);
+                }
+            }
+            else if (name == "LEGACY")
+            {
+                var inner = tag.Trim();
+                inner = inner.Substring(0, inner.Length - 1); // drop trailing '>'
+                inner = inner.Substring("<LEGACY".Length); // drop leading "<LEGACY"
+
+                var node = new UiLegacyNode { Parent = parent };
+                ExtractLine(inner, node);
+                parent.Children.Add(node);
+                active = node;
+            }
+            else if (name == "/CHILDREN")
+            {
+                return;
+            }
+        }
+    }
+
+    private static string ExtractName(string tag)
+    {
+        for (var i = 0; i < tag.Length; i++)
+        {
+            if (tag[i] == ' ')
+            {
+                return tag.Substring(1, i - 1);
+            }
+        }
+
+        return tag.Length >= 2 ? tag.Substring(1, tag.Length - 2) : tag;
+    }
+
+    private static void ExtractLine(string text, UiLegacyNode node)
+    {
+        var pos = 0;
+        while (pos < text.Length)
+        {
+            var spacePos = FindWord(text, ' ', pos);
+            var token = text.Substring(pos, spacePos - pos);
+            pos = spacePos + 1;
+
+            if (token.Length == 0)
+            {
+                continue;
+            }
+
+            var eq = token.IndexOf('=');
+            if (eq != -1)
+            {
+                node.Properties.Add(new UiLegacyProp { Key = token.Substring(0, eq), Value = token.Substring(eq + 1) });
+            }
+            else
+            {
+                node.Properties.Add(new UiLegacyProp { Key = token, Value = "Y" });
+            }
+        }
+    }
+
+    public static string Encode(UiLegacyNode root)
+    {
+        var sb = new StringBuilder("# Generated by SC4ModdingSuite UI Editor\r\n");
+        EncodeNode(root, sb, -1);
+        return sb.ToString();
+    }
+
+    private static void EncodeNode(UiLegacyNode node, StringBuilder sb, int level)
+    {
+        var indent = new string(' ', System.Math.Max(0, level) * 3);
+
+        if (node.Properties.Count > 0)
+        {
+            sb.Append(indent).Append("<LEGACY ");
+            foreach (var prop in node.Properties)
+            {
+                if (prop.Key.Length == 0)
+                {
+                    continue;
+                }
+
+                sb.Append(prop.Key).Append('=').Append(prop.Value).Append(' ');
+            }
+
+            sb.Append(">\r\n");
+        }
+
+        var hasChildren = !node.IsRoot && node.Children.Count > 0;
+        if (hasChildren)
+        {
+            sb.Append(indent).Append("<CHILDREN>\r\n");
+        }
+
+        foreach (var child in node.Children)
+        {
+            EncodeNode(child, sb, level + 1);
+        }
+
+        if (hasChildren)
+        {
+            sb.Append(indent).Append("</CHILDREN>\r\n");
+        }
+    }
+}

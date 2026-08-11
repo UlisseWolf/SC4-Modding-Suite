@@ -101,6 +101,16 @@
 
                 <Separator />
 
+                <!-- Temp file cleanup: Ilive Reader's DlgOption "Clean" button (OnBnClickedclean) -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="MAINTENANCE" FontWeight="Bold" FontSize="12" Classes="status" />
+                    <Button Content="CLEAN TEMPORARY FILES" Command="{Binding CleanTempFilesCommand}"
+                            ToolTip.Tip="Deletes leftover WAV-preview scratch files this app may have left in the system temp folder" />
+                    <TextBlock Text="{Binding CleanTempFilesStatus}" FontSize="11" Classes="status" />
+                </StackPanel>
+
+                <Separator />
+
                 <!-- Language and appearance -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="{Binding LocalizationService.OptionsSectionAppearance}" FontWeight="Bold" FontSize="12" Classes="status" />

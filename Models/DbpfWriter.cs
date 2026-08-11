@@ -56,6 +56,15 @@ public static class DbpfWriter
     private const uint DirInstanceId = 0x286B1F03;
 
     /// <summary>
+    /// TGI of the package's Directory subfile - public so other tools that need to recognize/
+    /// skip it when working directly off a <c>DBPFFile</c>'s raw entry list (Compare, Merge,
+    /// Directory sync - all read a *different* package's entries than the one
+    /// <see cref="DbpfService"/> currently has open, so they can't go through
+    /// <see cref="IsDirectoryEntry"/> here) can filter it out the same way <see cref="WritePackage"/> does.
+    /// </summary>
+    public static readonly TGI DirectoryTgi = new(DirTypeId, DirGroupId, DirInstanceId);
+
+    /// <summary>
     /// Writes <paramref name="sourceEntries"/> to <paramref name="path"/> as a complete,
     /// self-contained DBPF package. Writes to a temporary file first and only replaces
     /// the destination once writing succeeds, so a failed/interrupted save never leaves

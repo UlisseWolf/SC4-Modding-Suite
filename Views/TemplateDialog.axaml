@@ -1,0 +1,37 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="280"
+        x:Class="SC4ModdingSuite.Views.TemplateDialog"
+        x:DataType="vm:TemplateDialogViewModel"
+        Title="Insert Template"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="380" Height="280"
+        MinWidth="320" MinHeight="240"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgTemplate: pick a blank entry template (Exemplar/Cohort,
+         from Template/exemplar.eqz+cohort.cqz there) and insert it into the active tab. -->
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="Insert a blank entry to build from:" FontWeight="Bold" FontSize="11" Margin="0,0,0,8" />
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding Templates}" SelectedItem="{Binding SelectedTemplate}"
+                  DoubleTapped="OnInsertClick">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:InsertTemplate">
+                    <TextBlock Text="{Binding Name}" FontSize="12" Margin="4" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Button Grid.Row="2" Content="INSERT" Click="OnInsertClick" FontWeight="Bold"
+                HorizontalAlignment="Left" Margin="0,10,0,8"
+                IsEnabled="{Binding SelectedTemplate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>

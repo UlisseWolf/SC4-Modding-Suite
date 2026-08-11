@@ -146,4 +146,99 @@
         <Setter Property="Foreground" Value="{DynamicResource ThemeDangerForeground}" />
     </Style>
 
+    <!-- ===================================================================
+         Previously un-themed controls: DataGrid (15 grids across the app - S3D editors,
+         Find/Property Manager, Directory sync, Compare, Recorder, TGI editor, ...),
+         TabControl (the MDI shell's own document tabs), TreeView (the Navigator panel),
+         NumericUpDown and ProgressBar. Before this, all of these fell back to plain
+         FluentTheme colors no matter which palette was active - very visible on a
+         high-contrast theme like Bloomberg Terminal or Windows 95, where a stray
+         Fluent-default white/gray grid looked out of place next to everything else.
+         Same plain-property-Setter approach as the rest of this file; only the two
+         `:selected` pseudo-classes below use the well-established pattern already proven
+         by ListBoxItem:selected/ComboBoxItem:selected above.
+         =================================================================== -->
+
+    <!-- DataGrid: RowBackground/*GridLinesBrush are DataGrid's own direct properties (not
+         template-part overrides), so they apply the same reliable way as every other Setter
+         in this file.
+         AlternatingRowBackground is deliberately NOT set here: despite being documented,
+         it isn't actually available on Avalonia.Controls.DataGrid 11.2.3 (confirmed upstream
+         bug - see AvaloniaUI/Avalonia#19263, "DataGrid.AlternatingRowBackground missing";
+         setting it throws AVLN2000 "Unable to resolve suitable regular or attached property"
+         at compile time). ThemeAlternatingRowBackground (and the alternating_row_background
+         theme key it comes from) is still resolved and published by ThemeService - just
+         unused here for now - so re-adding this one Setter is all that's needed if/when a
+         future Avalonia release fixes it upstream. -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="RowBackground" Value="{DynamicResource ThemeListBoxBackground}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource ThemeGridLines}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource ThemeGridLines}" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background" Value="{DynamicResource ThemeHeaderBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeHeaderForeground}" />
+    </Style>
+    <Style Selector="DataGridRow:selected">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxItemSelectedBackground}" />
+    </Style>
+
+    <!-- TabControl: the MDI shell's document tab strip. Unselected tabs use the same
+         "header chrome" color as DataGrid column headers (both are non-interactive-looking
+         chrome around the actual content); the selected tab picks up the same
+         ListBoxItemSelectedBackground used for a selected row/item everywhere else. -->
+    <Style Selector="TabControl">
+        <Setter Property="Background" Value="{DynamicResource ThemeWindowBackground}" />
+    </Style>
+    <Style Selector="TabItem">
+        <Setter Property="Background" Value="{DynamicResource ThemeHeaderBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeHeaderForeground}" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+    <Style Selector="TabItem:selected">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxItemSelectedBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+
+    <!-- TreeView: the Navigator panel (Plugins/SC4 install folders). -->
+    <Style Selector="TreeView">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+    <Style Selector="TreeViewItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeWindowForeground}" />
+    </Style>
+    <Style Selector="TreeViewItem:selected">
+        <Setter Property="Background" Value="{DynamicResource ThemeListBoxItemSelectedBackground}" />
+    </Style>
+
+    <!-- NumericUpDown: same look as a plain TextBox, which every one of these sits next to. -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="Background" Value="{DynamicResource ThemeTextboxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextboxForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+
+    <!-- ProgressBar: track in the textbox color, fill in the status (positive/"in progress") color. -->
+    <Style Selector="ProgressBar">
+        <Setter Property="Background" Value="{DynamicResource ThemeTextboxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeStatusForeground}" />
+    </Style>
+
+    <!-- ToolTip: every button/entry-list row in this app sets ToolTip.Tip, so this is
+         seen constantly - previously always plain FluentTheme regardless of palette. -->
+    <Style Selector="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource ThemeTextboxBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource ThemeTextboxForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+        <Setter Property="FontFamily" Value="Consolas,Menlo,monospace" />
+    </Style>
+
 </Styles>

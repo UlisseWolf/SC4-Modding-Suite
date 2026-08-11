@@ -30,8 +30,10 @@ options_save = "Salva"
 options_close = "Chiudi"
 
 # --- Toolbar principale ---
-toolbar_new = "NUOVO"
+toolbar_new = "NUOVA TAB"
+toolbar_new_tooltip = "Apre una nuova tab vuota"
 toolbar_open = "APRI..."
+toolbar_open_tooltip = "Apre uno o più file .dat, ciascuno in una nuova tab"
 toolbar_save = "SALVA"
 toolbar_save_as = "SALVA CON NOME..."
 toolbar_export_entry = "ESPORTA ENTRY..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IMPORTA IN ENTRY..."
 toolbar_export_all = "ESPORTA TUTTO..."
 toolbar_options = "OPZIONI..."
 external_tools_header = "STRUMENTI ESTERNI"
+
+# --- Toolbar della shell MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATORE"
+shell_compare = "CONFRONTA DAT..."
+shell_compare_tooltip = "Confronta due file .dat entry per entry e ispeziona i byte differenti"
+shell_merge = "UNISCI DAT..."
+shell_merge_tooltip = "Unisce più file .dat in un nuovo file, oppure nella tab attiva"
+shell_directory_sync = "SINCRONIZZA DIRECTORY..."
+shell_directory_sync_tooltip = "Confronta il subfile Directory (DIR) della tab attiva con le sue entry effettive e permette di saltare a quella selezionata"
+shell_close_tab_tooltip = "Chiudi questa tab"
 
 # NOTA: nessuna chiave "toolbar_property_db" qui di proposito - il vecchio pulsante
 # separato "PROPERTY DATABASE..." nella toolbar è stato sostituito da "Cambia sorgente
@@ -50,3 +62,19 @@ lua_compile = "COMPILA"
 lua_run = "▶ ESEGUI"
 lua_clear_output = "PULISCI OUTPUT"
 lua_save = "SALVA"
+
+# --- T21 Editor (Views/DbpfWorkspaceView.axaml, modalità "T21 Editor") ---
+t21_apply_iid = "APPLICA IID"
+t21_add = "AGGIUNGI"
+t21_duplicate = "DUPLICA"
+t21_remove = "RIMUOVI"
+t21_up = "▲ SU"
+t21_down = "▼ GIÙ"
+t21_save = "SALVA T21"
+t21_rhd_to_lhd = "CONVERTI RHD → LHD..."
+
+# --- LTEXT Editor (Views/DbpfWorkspaceView.axaml, modalità "LTEXT Editor") ---
+ltext_save_file = "SALVA FILE"
+ltext_save_all_for_language = "SALVA TUTTO IL FILE PER LINGUA"
+ltext_export_poedit = "ESPORTA POEDIT..."
+ltext_import_poedit = "IMPORTA POEDIT..."

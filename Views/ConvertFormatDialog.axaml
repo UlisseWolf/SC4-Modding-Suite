@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="240"
+        x:Class="SC4ModdingSuite.Views.ConvertFormatDialog"
+        x:DataType="vm:ConvertFormatDialogViewModel"
+        Title="Convert Format"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="480" Height="240"
+        MinWidth="420" MinHeight="220"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="Target extension:" Margin="0,0,0,4" />
+        <ComboBox Grid.Row="1" ItemsSource="{x:Static vm:ConvertFormatDialogViewModel.Extensions}"
+                  SelectedItem="{Binding SelectedExtension}" HorizontalAlignment="Left" MinWidth="160" Margin="0,0,0,10" />
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+            <TextBox Grid.Column="0" Text="{Binding OutputPath}" Margin="0,0,8,0" />
+            <Button Grid.Column="1" Content="Browse..." Click="OnBrowseClick" />
+        </Grid>
+
+        <Button Grid.Row="4" Content="CONVERT" Command="{Binding ConvertCommand}" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,8" />
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" VerticalAlignment="Bottom" />
+    </Grid>
+
+</Window>

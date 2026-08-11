@@ -24,7 +24,7 @@
             <Button Content="▶ RUN" Command="{Binding RunCommand}" Margin="0,0,8,0"
                     ToolTip.Tip="Execute the script and show its print() output below" />
             <Button Content="CLEAR OUTPUT" Command="{Binding ClearOutputCommand}" Margin="0,0,8,0" />
-            <Rectangle Width="1" Margin="0,2,8,2" />
+            <Rectangle Width="1" Height="24" Margin="0,2,8,2" />
             <Button Content="SAVE" Command="{Binding SaveCommand}" FontWeight="Bold" Margin="0,0,8,0"
                     ToolTip.Tip="Save this script back into the selected entry (still needs the main Save/Save As to write the package to disk)" />
             <Button Content="CLOSE" Command="{Binding CloseCommand}" />

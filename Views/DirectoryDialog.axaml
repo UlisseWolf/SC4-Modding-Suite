@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="560"
+        x:Class="SC4ModdingSuite.Views.DirectoryDialog"
+        x:DataType="vm:DirectoryDialogViewModel"
+        Title="Directory Sync"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="560"
+        MinWidth="620" MinHeight="380"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgDirectory: decoded Directory (DIR) subfile records vs.
+         actual entries in the active tab, "Select in list" jumps to the corresponding
+         entry back in that tab's own entry list (DlgDirectory::OnMenuSync). -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto,Auto">
+
+        <TextBlock Grid.Row="0" Text="DIRECTORY (DIR) SUBFILE vs. ACTUAL ENTRIES" FontWeight="Bold" FontSize="11" Margin="0,0,0,6" />
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                  AutoGenerateColumns="False" CanUserReorderColumns="False" IsReadOnly="True"
+                  SelectionMode="Single" GridLinesVisibility="All" FontSize="11"
+                  DoubleTapped="OnSelectInListClick">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="TGI" Binding="{Binding TgiText}" Width="230" />
+                <DataGridTextColumn Header="Declared size" Binding="{Binding DeclaredSizeText}" Width="130" />
+                <DataGridTextColumn Header="Actual size" Binding="{Binding ActualSizeText}" Width="180" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Button Grid.Row="2" Content="SELECT IN LIST" Command="{Binding SelectCommand}"
+                HorizontalAlignment="Left" Margin="0,8,0,8"
+                ToolTip.Tip="Selects the corresponding entry back in this tab's entry list" />
+
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>

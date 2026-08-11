@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="520"
+        x:Class="SC4ModdingSuite.Views.MergeDialog"
+        x:DataType="vm:MergeDialogViewModel"
+        Title="Merge DATs"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="640" Height="520"
+        MinWidth="480" MinHeight="400"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgMerge: pick several .dat files (PB_file1/LB_list),
+         merge them either into a new output file or into the active MDI tab
+         (m_iMode/ED_output disabled in that mode), PB_merge/OnMerge. -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+
+        <TextBlock Grid.Row="0" Text="FILES TO MERGE (in order - later files win on a TGI clash)"
+                   FontWeight="Bold" FontSize="11" Margin="0,0,0,6" />
+
+        <ListBox Grid.Row="1" ItemsSource="{Binding SourceFiles}" SelectedItem="{Binding SelectedSourceFile}"
+                 FontFamily="Consolas,Menlo,monospace" FontSize="11" Margin="0,0,0,6" />
+
+        <WrapPanel Grid.Row="2" Margin="0,0,0,10">
+            <Button Content="ADD FILES..." Click="OnAddFilesClick" Margin="0,0,8,4" />
+            <Button Content="REMOVE" Command="{Binding RemoveSelectedCommand}" Classes="danger" Margin="0,0,0,4" />
+        </WrapPanel>
+
+        <StackPanel Grid.Row="3" Spacing="6" Margin="0,0,0,10">
+            <TextBlock Text="DESTINATION" FontWeight="Bold" FontSize="11" />
+            <RadioButton Content="New output file:" GroupName="mergeMode"
+                         IsChecked="{Binding !MergeIntoOpenDocument}" />
+            <Grid ColumnDefinitions="*,Auto" Margin="24,0,0,0" IsEnabled="{Binding !MergeIntoOpenDocument}">
+                <TextBox Grid.Column="0" Text="{Binding OutputPath}" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="OnBrowseOutputClick" />
+            </Grid>
+            <RadioButton Content="{Binding MergeIntoActiveTabLabel}"
+                         GroupName="mergeMode" IsChecked="{Binding MergeIntoOpenDocument}"
+                         IsEnabled="{Binding CanMergeIntoOpenDocument}" />
+        </StackPanel>
+
+        <Button Grid.Row="4" Content="MERGE" Command="{Binding MergeCommand}" FontWeight="Bold"
+                HorizontalAlignment="Left" Margin="0,0,0,8" />
+
+        <TextBlock Grid.Row="5" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>

@@ -30,8 +30,10 @@ options_save = "Speichern"
 options_close = "Schließen"
 
 # --- Haupt-Symbolleiste ---
-toolbar_new = "NEU"
+toolbar_new = "NEUER TAB"
+toolbar_new_tooltip = "Öffnet einen neuen, leeren Tab"
 toolbar_open = "ÖFFNEN..."
+toolbar_open_tooltip = "Öffnet eine oder mehrere .dat-Dateien, jede in einem eigenen neuen Tab"
 toolbar_save = "SPEICHERN"
 toolbar_save_as = "SPEICHERN UNTER..."
 toolbar_export_entry = "EINTRAG EXPORTIEREN..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IN EINTRAG IMPORTIEREN..."
 toolbar_export_all = "ALLES EXPORTIEREN..."
 toolbar_options = "OPTIONEN..."
 external_tools_header = "EXTERNE TOOLS"
+
+# --- Symbolleiste der MDI-Shell (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATOR"
+shell_compare = "DAT-DATEIEN VERGLEICHEN..."
+shell_compare_tooltip = "Vergleicht zwei .dat-Dateien Eintrag für Eintrag und zeigt die abweichenden Bytes an"
+shell_merge = "DAT-DATEIEN ZUSAMMENFÜHREN..."
+shell_merge_tooltip = "Führt mehrere .dat-Dateien in einer neuen Datei zusammen, oder im aktiven Tab"
+shell_directory_sync = "VERZEICHNIS ABGLEICHEN..."
+shell_directory_sync_tooltip = "Vergleicht die Directory-Subdatei (DIR) des aktiven Tabs mit den tatsächlichen Einträgen und springt zu einem ausgewählten Eintrag"
+shell_close_tab_tooltip = "Diesen Tab schließen"
 
 # HINWEIS: Absichtlich kein Schlüssel "toolbar_property_db" hier - die frühere,
 # eigenständige Schaltfläche "PROPERTY DATABASE..." in der Symbolleiste wurde durch
@@ -51,3 +63,19 @@ lua_compile = "KOMPILIEREN"
 lua_run = "▶ AUSFÜHREN"
 lua_clear_output = "AUSGABE LÖSCHEN"
 lua_save = "SPEICHERN"
+
+# --- T21-Editor (Views/DbpfWorkspaceView.axaml, Modus "T21 Editor") ---
+t21_apply_iid = "IID ANWENDEN"
+t21_add = "HINZUFÜGEN"
+t21_duplicate = "DUPLIZIEREN"
+t21_remove = "ENTFERNEN"
+t21_up = "▲ HOCH"
+t21_down = "▼ RUNTER"
+t21_save = "T21 SPEICHERN"
+t21_rhd_to_lhd = "RHD → LHD KONVERTIEREN..."
+
+# --- LTEXT-Editor (Views/DbpfWorkspaceView.axaml, Modus "LTEXT Editor") ---
+ltext_save_file = "DATEI SPEICHERN"
+ltext_save_all_for_language = "GANZE DATEI FÜR SPRACHE SPEICHERN"
+ltext_export_poedit = "POEDIT EXPORTIEREN..."
+ltext_import_poedit = "POEDIT IMPORTIEREN..."

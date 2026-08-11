@@ -4,446 +4,114 @@
         xmlns:views="using:SC4ModdingSuite.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1320" d:DesignHeight="720"
+        mc:Ignorable="d" d:DesignWidth="1500" d:DesignHeight="820"
         x:Class="SC4ModdingSuite.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Title="{Binding WindowTitle}"
+        x:DataType="vm:MainWindowShellViewModel"
+        Title="SC4 Modding Suite"
         Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
-        Width="1320" Height="720"
-        MinWidth="1080" MinHeight="640"
-        KeyDown="OnWindowKeyDown">
+        Width="1500" Height="820"
+        MinWidth="1080" MinHeight="640">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+    <!-- MDI shell: Navigator tree (Plugins/Documents, Ilive Reader's Workspace bar) on the
+         left, one tab per open document on the right - each tab hosts a whole
+         Views/DbpfWorkspaceView (the former single-window MainWindow content) bound to its
+         own MainWindowViewModel, so several .dat files really are open side by side at
+         once instead of one replacing another. Compare/Merge/Directory-sync are
+         multi-file tools that don't belong to any one tab, so they live in this shell's
+         own toolbar instead - opened as ordinary dialogs, same pattern as every other
+         dialog in this app (Options, S3D editors, ...). -->
+    <Grid RowDefinitions="Auto,*">
 
-        <!-- Toolbar: file operations -->
         <Border Grid.Row="0" BorderThickness="0,0,0,1">
             <WrapPanel Margin="6">
-                <Button Content="{Binding LocalizationService.ToolbarNew}" Click="OnNewClick" Margin="0,0,6,0" />
-                <Button Content="{Binding LocalizationService.ToolbarOpen}" Click="OnOpenClick" Margin="0,0,6,0" />
-                <Button Content="{Binding LocalizationService.ToolbarSave}" Click="OnSaveClick" IsEnabled="{Binding CanSaveInPlace}" Margin="0,0,6,0" />
-                <Button Content="{Binding LocalizationService.ToolbarSaveAs}" Click="OnSaveAsClick" IsEnabled="{Binding HasOpenFile}" Margin="0,0,6,0" />
-                <Rectangle Width="1" Margin="0,2,6,2" />
-                <Button Content="{Binding LocalizationService.ToolbarExportEntry}" Click="OnExportSelectedClick" IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,6,0" />
-                <Button Content="{Binding LocalizationService.ToolbarImportEntry}" Click="OnImportIntoSelectedClick" IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,6,0" />
-                <Button Content="{Binding LocalizationService.ToolbarExportAll}" Click="OnExportAllClick" IsEnabled="{Binding HasOpenFile}" Margin="0,0,6,0" />
-                <Rectangle Width="1" Margin="0,2,6,2" />
+                <Button Content="{Binding LocalizationService.ToolbarNew}" Click="OnNewClick" Margin="0,0,6,0"
+                        ToolTip.Tip="{Binding LocalizationService.ToolbarNewTooltip}" />
+                <Button Content="{Binding LocalizationService.ToolbarOpen}" Click="OnOpenClick" Margin="0,0,6,0"
+                        ToolTip.Tip="{Binding LocalizationService.ToolbarOpenTooltip}" />
+                <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
+                <Button Content="{Binding LocalizationService.ShellCompare}" Click="OnCompareClick" Margin="0,0,6,0"
+                        ToolTip.Tip="{Binding LocalizationService.ShellCompareTooltip}" />
+                <Button Content="{Binding LocalizationService.ShellMerge}" Click="OnMergeClick" Margin="0,0,6,0"
+                        ToolTip.Tip="{Binding LocalizationService.ShellMergeTooltip}" />
+                <Button Content="{Binding LocalizationService.ShellDirectorySync}" Click="OnDirectorySyncClick"
+                        IsEnabled="{Binding SelectedDocument.HasOpenFile}"
+                        ToolTip.Tip="{Binding LocalizationService.ShellDirectorySyncTooltip}" />
+                <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
+                <Button Content="{Binding LocalizationService.ToolbarSave}" Click="OnSaveClick"
+                        IsEnabled="{Binding SelectedDocument.CanSaveInPlace}" Margin="0,0,6,0" />
+                <Button Content="{Binding LocalizationService.ToolbarSaveAs}" Click="OnSaveAsClick"
+                        IsEnabled="{Binding SelectedDocument.HasOpenFile}" Margin="0,0,6,0" />
+                <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
+                <Button Content="{Binding LocalizationService.ToolbarExportEntry}" Click="OnExportSelectedClick"
+                        IsEnabled="{Binding SelectedDocument.SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,6,0" />
+                <Button Content="{Binding LocalizationService.ToolbarImportEntry}" Click="OnImportIntoSelectedClick"
+                        IsEnabled="{Binding SelectedDocument.SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,6,0" />
+                <Button Content="{Binding LocalizationService.ToolbarExportAll}" Click="OnExportAllClick"
+                        IsEnabled="{Binding SelectedDocument.HasOpenFile}" Margin="0,0,6,0" />
+                <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
                 <Button Content="{Binding LocalizationService.ToolbarOptions}" Click="OnOpenOptionsClick" />
             </WrapPanel>
         </Border>
 
-        <!-- External tools: always-visible separate box below the main toolbar -->
-        <Border Grid.Row="1" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
-            <WrapPanel>
-                <TextBlock Text="{Binding LocalizationService.ExternalToolsHeader}" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
-                <Button Content="SC4 PIM-X" Command="{Binding LaunchPimXCommand}" Margin="0,0,8,4" />
-                <Button Content="SC4 DataNode" Command="{Binding LaunchDataNodeCommand}" Margin="0,0,8,4" />
-                <Button Content="SC4 Mapper" Command="{Binding LaunchMapperCommand}" Margin="0,0,8,4" />
-                <Button Content="SC4 Terraformer" Command="{Binding LaunchTerraformerCommand}" Margin="0,0,8,4" />
-                <Button Content="SC4pac Editor" Command="{Binding LaunchSc4PacEditorCommand}" Margin="0,0,8,4" />
-                <Button Content="NAM Development Suite" Command="{Binding LaunchNamDevelopmentSuiteCommand}"
-                        IsVisible="{Binding IsNamDevelopmentSuiteEnabled}" Margin="0,0,8,4" />
-                <TextBlock Text="(paths configurable in Options)" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,0,4" />
-            </WrapPanel>
-        </Border>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="160" MaxWidth="600" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <!-- Editors: quick format filters over the entry list ("dot buttons"), SC4 Editor
-             (no filter) is the default the moment a file is opened. -->
-        <Border Grid.Row="2" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
-            <WrapPanel>
-                <TextBlock Text="EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
-                <RadioButton Content="SC4 Editor" GroupName="editorMode" IsChecked="{Binding IsSc4EditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="LTEXT Editor" GroupName="editorMode" IsChecked="{Binding IsLtextEditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="S3D Editor" GroupName="editorMode" IsChecked="{Binding IsS3DEditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="LUA Editor" GroupName="editorMode" IsChecked="{Binding IsLuaEditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="UI Editor" GroupName="editorMode" IsChecked="{Binding IsUiEditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="T21 Editor" GroupName="editorMode" IsChecked="{Binding IsT21EditorMode}" Margin="0,0,0,4" />
-            </WrapPanel>
-        </Border>
-
-        <!-- Toolbar: preview controls (image zoom/selector or WAV playback), shown contextually -->
-        <Border Grid.Row="3" BorderThickness="0,0,0,1"
-                IsVisible="{Binding HasImagePreview}">
-            <WrapPanel Margin="6">
-                <TextBlock Text="PREVIEW:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,6,4" />
-                <Button Content="−" FontWeight="Bold" MinWidth="32" Padding="0" Margin="0,0,6,4"
-                        Command="{Binding ZoomOutCommand}" ToolTip.Tip="Zoom out" />
-                <Button Content="{Binding ZoomFactor, StringFormat='{}{0:P0}'}" MinWidth="64" Margin="0,0,6,4"
-                        Command="{Binding ZoomResetCommand}" ToolTip.Tip="Reset zoom (click)" />
-                <Button Content="+" FontWeight="Bold" MinWidth="32" Padding="0" Margin="0,0,6,4"
-                        Command="{Binding ZoomInCommand}" ToolTip.Tip="Zoom in" />
-                <ComboBox ItemsSource="{Binding PreviewImages}" SelectedItem="{Binding SelectedPreviewImage}"
-                          MinWidth="180" Margin="0,0,0,4">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ImageItemViewModel">
-                            <TextBlock Text="{Binding Label}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-            </WrapPanel>
-        </Border>
-        <Border Grid.Row="3" BorderThickness="0,0,0,1"
-                IsVisible="{Binding HasWavPreview}">
-            <WrapPanel Margin="6">
-                <TextBlock Text="WAV AUDIO:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,6,4" />
-                <Button Content="▶ PLAY" Command="{Binding PlayWavCommand}" Margin="0,0,6,4" />
-                <Button Content="■ STOP" Command="{Binding StopWavCommand}" Margin="0,0,0,4" />
-            </WrapPanel>
-        </Border>
-        <!-- LUA Editor toolbar: only shown while "LUA Editor" mode is selected above (see
-             IsLuaEditorMode). The editor itself replaces the TGI/preview panel in the main
-             content row below. Full rectangle border (not just the bottom line the other
-             Row 3 toolbars use) to set it apart as its own box, same style as the
-             "External tools"/"Editors" boxes above. -->
-        <Border Grid.Row="3" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
-                IsVisible="{Binding IsLuaEditorMode}">
-            <WrapPanel>
-                <TextBlock Text="LUA SCRIPT:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
-                <Button Content="{Binding LocalizationService.LuaCompile}" Command="{Binding LuaCompileCommand}" Margin="0,0,8,4"
-                        ToolTip.Tip="Syntax-check the script without running it" />
-                <Button Content="{Binding LocalizationService.LuaRun}" Command="{Binding LuaRunCommand}" Margin="0,0,8,4"
-                        ToolTip.Tip="Execute the script and show its print() output below" />
-                <Button Content="{Binding LocalizationService.LuaClearOutput}" Command="{Binding LuaClearOutputCommand}" Margin="0,0,8,4" />
-                <Button Content="{Binding LocalizationService.LuaSave}" Command="{Binding LuaSaveCommand}" FontWeight="Bold" Margin="0,0,0,4"
-                        ToolTip.Tip="Save this script back into the selected entry (still needs the main Save/Save As to write the package to disk)" />
-            </WrapPanel>
-        </Border>
-
-        <!-- Main content: entry list | TGI editor + details/preview | properties -->
-        <Grid Grid.Row="4" ColumnDefinitions="340,*,380" Margin="6">
-
-            <!-- Entry list -->
-            <Border Grid.Column="0" BorderThickness="1">
-                <Grid RowDefinitions="Auto,*,Auto">
-                    <Border Grid.Row="0" BorderThickness="0,0,0,1">
-                        <TextBlock Text="ENTRIES (TGI)" FontWeight="Bold" FontSize="11" Classes="status" Margin="6,4" />
-                    </Border>
-                    <ListBox Grid.Row="1"
-                             x:Name="EntriesListBox"
-                             ItemsSource="{Binding DisplayedEntries}"
-                             SelectedItem="{Binding SelectedEntry}"
-                             SelectionMode="Multiple"
-                             Margin="2">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:EntryItemViewModel">
-                                <StackPanel Margin="2">
-                                    <TextBlock Text="{Binding EntryType}" FontWeight="Bold" FontSize="12" />
-                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
-                                        <Run Text="T:" /><Run Text="{Binding TypeHex}" />
-                                        <Run Text="  G:" /><Run Text="{Binding GroupHex}" />
-                                        <Run Text="  I:" /><Run Text="{Binding InstanceHex}" />
-                                    </TextBlock>
-                                    <TextBlock FontSize="10" Classes="status">
-                                        <Run Text="{Binding SizeBytes}" /><Run Text=" bytes · " /><Run Text="{Binding CompressionLabel}" />
-                                    </TextBlock>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <WrapPanel Grid.Row="2" Margin="4">
-                        <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" Margin="0,0,4,4" />
-                        <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" Margin="0,0,4,4" />
-                        <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" Margin="0,0,4,4" />
-                        <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" Margin="0,0,0,4" />
-                    </WrapPanel>
+            <!-- Navigator: Plugins / SC4 Install folders, double-click an entry to open it in a new tab.
+                 Each folder's own children are only read from disk the first time it's expanded
+                 (see ViewModels/NavigatorNodeViewModel.EnsureChildrenLoaded) - the TreeView.Styles
+                 setter below is what wires a TreeViewItem's own expand/collapse state back to the
+                 corresponding NavigatorNodeViewModel.IsExpanded that triggers that lazy load. -->
+            <Border Grid.Column="0" BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="{Binding LocalizationService.ShellNavigatorHeader}" FontWeight="Bold" FontSize="11" Classes="status" Margin="8,6" />
+                    <TreeView Grid.Row="1" x:Name="NavigatorTree" ItemsSource="{Binding NavigatorRoots}"
+                              DoubleTapped="OnNavigatorDoubleTapped"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <TreeView.Styles>
+                            <Style Selector="TreeViewItem" x:DataType="vm:NavigatorNodeViewModel">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                            </Style>
+                        </TreeView.Styles>
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate x:DataType="vm:NavigatorNodeViewModel" ItemsSource="{Binding Children}">
+                                <!-- Plugins folder/file names can be far longer than the panel is wide
+                                     (mod authors' naming conventions) - trimmed with an ellipsis instead
+                                     of letting them overflow into the tab area, with the full name
+                                     available as a tooltip on hover. -->
+                                <TextBlock Text="{Binding Name}" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           ToolTip.Tip="{Binding Name}" />
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
                 </Grid>
             </Border>
 
-            <!-- TGI editor + details/preview - hidden while the LUA Editor is active, replaced by the inline editor below -->
-            <Grid Grid.Column="1" Margin="6,0" RowDefinitions="Auto,Auto,*" IsVisible="{Binding !IsLuaEditorMode}">
+            <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns"
+                           HorizontalAlignment="Stretch" Background="{DynamicResource ThemeBorder}" />
 
-                <!-- TGI editor -->
-                <Border Grid.Row="0" BorderThickness="1" Padding="10">
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="EDIT TGI — TYPE ID MANUAL ONLY — GROUP/INSTANCE MANUAL OR RANDOM"
-                                   FontWeight="Bold" FontSize="11" />
-
-                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" >
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="TYPE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding NewTypeText}" Margin="0,4" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="(always manual)" Classes="status"
-                                       VerticalAlignment="Center" FontSize="11" Margin="8,4,0,4" />
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="GROUP ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
-                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewGroupText}"
-                                     IsEnabled="{Binding !RandomizeGroup}" Margin="0,4" />
-                            <CheckBox Grid.Row="1" Grid.Column="2" Content="Random"
-                                      IsChecked="{Binding RandomizeGroup}" Margin="8,4,0,4" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="INSTANCE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
-                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NewInstanceText}"
-                                     IsEnabled="{Binding !RandomizeInstance}" Margin="0,4" />
-                            <CheckBox Grid.Row="2" Grid.Column="2" Content="Random"
-                                      IsChecked="{Binding RandomizeInstance}" Margin="8,4,0,4" />
-                        </Grid>
-
-                        <WrapPanel>
-                            <Button Content="APPLY TGI CHANGE" Command="{Binding ApplyTgiCommand}" Margin="0,0,8,4" />
-                            <Button Content="RANDOMIZE G AND I" Command="{Binding RandomizeBothCommand}" Margin="0,0,8,4" />
-                            <Button Content="DELETE ENTRY" Command="{Binding RemoveSelectedCommand}" Classes="danger" Margin="0,0,0,4" />
-                        </WrapPanel>
-                    </StackPanel>
-                </Border>
-
-                <TextBlock Grid.Row="1" Text="IMAGE PREVIEW" FontWeight="Bold" FontSize="11"
-                           Margin="0,10,0,4" IsVisible="{Binding HasImagePreview}" />
-                <TextBlock Grid.Row="1" Text="3D MODEL PREVIEW (S3D)" FontWeight="Bold" FontSize="11"
-                           Margin="0,10,0,4" IsVisible="{Binding HasS3DPreview}" />
-                <TextBlock Grid.Row="1" Text="AUDIO PREVIEW (WAV)" FontWeight="Bold" FontSize="11"
-                           Margin="0,10,0,4" IsVisible="{Binding HasWavPreview}" />
-                <TextBlock Grid.Row="1" Text="{Binding SimplePreviewLabel}" FontWeight="Bold" FontSize="11"
-                           Margin="0,10,0,4" IsVisible="{Binding HasSimplePreview}" />
-                <TextBlock Grid.Row="1" Text="ENTRY DETAILS" FontWeight="Bold" FontSize="11"
-                           Margin="0,10,0,4" IsVisible="{Binding ShowTextDetails}" />
-
-                <!-- Image viewer: PNG/FSH entries -->
-                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasImagePreview}">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                                  Background="#0A0A0A">
-                        <Image Source="{Binding SelectedPreviewImage.Bitmap}"
-                               Stretch="None"
-                               HorizontalAlignment="Left" VerticalAlignment="Top"
-                               RenderOptions.BitmapInterpolationMode="None"
-                               RenderTransformOrigin="0,0">
-                            <Image.RenderTransform>
-                                <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
-                            </Image.RenderTransform>
-                        </Image>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- S3D wireframe viewer: drag to orbit, scroll to zoom (see S3DViewerControl).
-                     Render/lighting toggles sit to the right of the viewer and show up in
-                     both SC4 Editor and S3D Editor mode - this whole preview already appears
-                     in either, since "S3D Editor" is just an entry-list filter, see
-                     IsS3DEditorMode. The box below (Apply/Save/Merge/Import/Export) is only
-                     enabled while S3D Editor mode is selected above, mirroring the LUA
-                     Editor's own dedicated box below its two panes. -->
-                <Grid Grid.Row="2" RowDefinitions="*,Auto" IsVisible="{Binding HasS3DPreview}">
-                    <Grid Grid.Row="0" ColumnDefinitions="*,170">
-                        <Border Grid.Column="0" BorderThickness="1">
-                            <views:S3DViewerControl Model="{Binding SelectedS3DModel}"
-                                                     Texture="{Binding S3DTexture}"
-                                                     MaterialTextures="{Binding S3DMaterialTextures}"
-                                                     Solid="{Binding IsS3DSolid}"
-                                                     Night="{Binding IsS3DNight}"
-                                                     CurrentFrame="{Binding S3DCurrentFrame}"
-                                                     HiddenGroups="{Binding S3DHiddenGroupIndices}"
-                                                     HighlightTriangle="{Binding S3DHighlightTriangle}"
-                                                     PickCommand="{Binding PickS3DTriangleCommand}"
-                                                     Background="#0A0A0A" />
-                        </Border>
-                        <Border Grid.Column="1" BorderThickness="1" Margin="6,0,0,0" Padding="8,6">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel Spacing="6">
-                                    <TextBlock Text="RENDER" FontWeight="Bold" FontSize="11" Classes="status" />
-                                    <RadioButton Content="Wireframe" GroupName="s3dRender" IsChecked="{Binding IsS3DWireframe}" />
-                                    <RadioButton Content="Solid (textures)" GroupName="s3dRender" IsChecked="{Binding IsS3DSolid}" />
-                                    <Separator Margin="0,4" />
-                                    <TextBlock Text="LIGHTING" FontWeight="Bold" FontSize="11" Classes="status" />
-                                    <RadioButton Content="Day" GroupName="s3dLighting" IsChecked="{Binding IsS3DDay}" />
-                                    <RadioButton Content="Night" GroupName="s3dLighting" IsChecked="{Binding IsS3DNight}" />
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Border>
-                    </Grid>
-
-                    <!-- S3D Editor: Apply/Save writes the in-memory model (possibly edited by
-                         Merge/Import 3DS below) back into the entry; Merge/Import only change
-                         the in-memory model until Apply/Save is clicked. Disabled outside S3D
-                         Editor mode (IsEnabled cascades to every control inside). -->
-                    <Border Grid.Row="1" BorderThickness="1" Margin="0,6,0,0" Padding="8,6"
-                            IsEnabled="{Binding IsS3DEditorMode}">
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="{Binding S3DInfo}" FontSize="11" Classes="status" TextWrapping="Wrap" />
-                            <WrapPanel>
-                                <TextBlock Text="EDIT (S3D Editor mode only):" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
-                                <Button Content="APPLY / SAVE" Command="{Binding ApplyS3DCommand}" FontWeight="Bold" Margin="0,0,6,4"
-                                        ToolTip.Tip="Write the current model (incl. any merge/3DS import below) back into the entry - still needs the main Save/Save As to write the package to disk" />
-                                <ComboBox ItemsSource="{Binding S3DMergeCandidates}" SelectedItem="{Binding SelectedMergeCandidate}"
-                                          MinWidth="160" PlaceholderText="Merge with..." Margin="0,0,6,4">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:EntryItemViewModel">
-                                            <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
-                                                <Run Text="{Binding GroupHex}" /><Run Text="/" /><Run Text="{Binding InstanceHex}" />
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <Button Content="MERGE" Command="{Binding MergeS3DCommand}" Margin="0,0,6,4"
-                                        ToolTip.Tip="Append the selected model's groups into this one (Apply/Save afterwards to persist it)" />
-                                <Button Content="IMPORT 3DS..." Click="OnImportS3DClick" Margin="0,0,6,4"
-                                        ToolTip.Tip="Replace this model's geometry from a .3ds file (Apply/Save afterwards to persist it)" />
-                                <Button Content="EXPORT 3DS..." Click="OnExportS3DClick" Margin="0,0,6,4"
-                                        ToolTip.Tip="Save this model's geometry as a .3ds file, editable in Blender/3ds Max" />
-                                <Button Content="EXPORT 3DS (GROUP)..." Click="OnExportS3DGroupClick" Margin="0,0,0,4"
-                                        ToolTip.Tip="Save only the current editing group (S3DEditGroupIndex, below) as a .3ds file, instead of the whole model" />
-                            </WrapPanel>
-
-                            <Separator Margin="0,2" />
-
-                            <!-- Animation playback: Play/Pause/Stop drive S3DCurrentFrame on a timer at the
-                                 model's own ANIM frame rate; disabled (via S3DFrameCount &lt;= 1 in the
-                                 commands' CanExecute) for non-animated models. -->
-                            <WrapPanel>
-                                <TextBlock Text="PLAYBACK:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
-                                <Button Content="▶ Play" Command="{Binding PlayS3DCommand}" Margin="0,0,6,4" />
-                                <Button Content="⏸ Pause" Command="{Binding PauseS3DCommand}" Margin="0,0,6,4" />
-                                <Button Content="⏹ Stop" Command="{Binding StopS3DCommand}" Margin="0,0,6,4" />
-                                <TextBlock Text="{Binding S3DCurrentFrame, StringFormat='Frame {0}'}" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="6,0,0,4" />
-                            </WrapPanel>
-
-                            <!-- Per-group visibility: one checkbox per animation mesh (or raw VERT/INDX/PRIM
-                                 group for non-animated models) - unchecking hides that group in the viewer.
-                                 Hidden entirely (not just disabled, unlike the rest of this box) outside S3D
-                                 Editor mode, since it's an editing tool with no purpose in the other modes. -->
-                            <StackPanel Spacing="6" IsVisible="{Binding IsS3DEditorMode}">
-                                <TextBlock Text="GROUP VISIBILITY:" FontSize="11" Classes="status" Margin="0,4,0,0" />
-                                <ItemsControl ItemsSource="{Binding S3DGroupToggles}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:S3DGroupToggleViewModel">
-                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsVisible}" Margin="0,0,10,4" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+            <!-- One tab per open document -->
+            <TabControl Grid.Column="2" ItemsSource="{Binding Documents}" SelectedItem="{Binding SelectedDocument}">
+                <TabControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MainWindowViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding DocumentTitle}" VerticalAlignment="Center" FontSize="12" />
+                            <Button Content="x" Padding="5,0" FontSize="10" Click="OnCloseTabClick" Tag="{Binding}"
+                                    ToolTip.Tip="{Binding LocalizationService.ShellCloseTabTooltip}" />
                         </StackPanel>
-                    </Border>
-                </Grid>
-
-                <!-- WAV: no visual, playback is via the preview toolbar above -->
-                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasWavPreview}">
-                    <TextBlock Text="WAV audio file ready to play. Use the controls above."
-                               HorizontalAlignment="Center" VerticalAlignment="Center" Classes="status" />
-                </Border>
-
-                <!-- Simple read-only preview: LTEXT/UI text, or hex dump for Directory/Unknown entries. No editor by design. -->
-                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasSimplePreview}">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding SimplePreviewContent}"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 FontFamily="Consolas,Menlo,monospace"
-                                 FontSize="12"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Margin="6" />
-                    </ScrollViewer>
-                </Border>
-
-                <!-- Text details: shown for everything else -->
-                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding ShowTextDetails}">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding Details}"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Margin="6" />
-                    </ScrollViewer>
-                </Border>
-            </Grid>
-
-            <!-- LUA Editor: inline, in place of the TGI/preview panel, only while
-                 IsLuaEditorMode is active (the "LUA Editor" radio above). Code on top,
-                 COMPILE/RUN output log below - same shape as Ilive Reader's own script
-                 editor frame (FrameScript.cpp), just embedded in the main window instead of
-                 a separate dialog. -->
-            <Grid Grid.Column="1" Margin="6,0" RowDefinitions="*,Auto,150" IsVisible="{Binding IsLuaEditorMode}">
-                <Border Grid.Row="0" BorderThickness="1">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <TextBox Text="{Binding LuaCode}"
-                                 AcceptsReturn="True"
-                                 AcceptsTab="True"
-                                 TextWrapping="NoWrap"
-                                 FontFamily="Consolas,Menlo,monospace"
-                                 FontSize="13"
-                                 BorderThickness="0"
-                                 Margin="6" />
-                    </ScrollViewer>
-                </Border>
-
-                <TextBlock Grid.Row="1" Text="OUTPUT (compile/run log)" FontWeight="Bold" FontSize="11" Margin="0,8,0,4" />
-
-                <Border Grid.Row="2" BorderThickness="1">
-                    <ScrollViewer>
-                        <TextBox Text="{Binding LuaOutput}"
-                                 IsReadOnly="True"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 FontFamily="Consolas,Menlo,monospace"
-                                 FontSize="12"
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Margin="6" />
-                    </ScrollViewer>
-                </Border>
-            </Grid>
-
-            <!-- S3D Editor: opens the geometry/material editors in their own windows, only
-                 while "S3D Editor" mode is selected above (see IsS3DEditorMode). -->
-            <Border Grid.Column="2" BorderThickness="1" Padding="8" VerticalAlignment="Top"
-                    IsVisible="{Binding IsS3DEditorMode}">
-                <StackPanel Spacing="6">
-                    <Button Content="GEOMETRY EDITOR..." Click="OnOpenS3DGeometryEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Edit the selected model's VERT/INDX/PRIM groups in a separate window" />
-                    <Button Content="MATERIAL EDITOR..." Click="OnOpenS3DMaterialEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Edit render state, textures and blending for the selected model's materials in a separate window" />
-                    <Button Content="ANIMATION EDITOR..." Click="OnOpenS3DAnimationEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Edit frame rate, mode, displacement and the mesh-to-block frame mapping in a separate window" />
-                    <Button Content="PROP EDITOR..." Click="OnOpenS3DPropEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Add, edit or delete the model's PROP chunk key/value pairs in a separate window" />
-                    <Button Content="UV EDITOR..." Click="OnOpenS3DUVEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="View and drag-edit the editing group's UV coordinates over its texture, in a separate window" />
-                    <Button Content="S3D HEX EDITOR..." Click="OnOpenS3DHexEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Read-only hex dump of each S3D chunk (HEAD/VERT/INDX/PRIM/MATS/ANIM/PROP/REGP), in a separate window" />
-                    <Button Content="REGP EDITOR..." Click="OnOpenS3DRegPointEditorClick" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Add, edit or delete the model's registration points (REGP) and their per-frame transforms, in a separate window" />
-                </StackPanel>
-            </Border>
-
-            <!-- Exemplar/Cohort properties panel -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto" IsVisible="{Binding IsExemplarSelected}">
-                <TextBlock Grid.Row="0" Text="EXEMPLAR/COHORT PROPERTIES" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
-
-                <Border Grid.Row="1" BorderThickness="1">
-                    <ListBox ItemsSource="{Binding Properties}"
-                             SelectedItem="{Binding SelectedProperty}"
-                             Margin="2">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="vm:PropertyItemViewModel">
-                                <StackPanel Margin="2">
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" TextWrapping="Wrap" />
-                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="10" Classes="status">
-                                        <Run Text="{Binding IdHex}" /><Run Text="  [" /><Run Text="{Binding DataTypeText}" /><Run Text="]" />
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding ValuesText}" FontSize="11" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Border>
-
-                <WrapPanel Grid.Row="2" Margin="0,8,0,0">
-                    <Button Content="ADD..." Click="OnAddPropertyClick" Margin="0,0,8,4" />
-                    <Button Content="EDIT..." Click="OnEditPropertyClick"
-                            IsEnabled="{Binding SelectedProperty, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,4" />
-                    <Button Content="REMOVE" Command="{Binding RemoveSelectedPropertyCommand}" Classes="danger" Margin="0,0,0,4" />
-                </WrapPanel>
-            </Grid>
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+                <TabControl.ContentTemplate>
+                    <DataTemplate x:DataType="vm:MainWindowViewModel">
+                        <views:DbpfWorkspaceView />
+                    </DataTemplate>
+                </TabControl.ContentTemplate>
+            </TabControl>
         </Grid>
-
-        <!-- Status bar -->
-        <Border Grid.Row="5" BorderThickness="0,1,0,0" Padding="8,4">
-            <TextBlock Text="{Binding StatusMessage}" Classes="status" FontSize="11" />
-        </Border>
     </Grid>
 
 </Window>

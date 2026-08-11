@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="420"
+        x:Class="SC4ModdingSuite.Views.CloneDialog"
+        x:DataType="vm:CloneDialogViewModel"
+        Title="Clone / Duplicate"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="440" Height="420"
+        MinWidth="380" MinHeight="380"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgClone: N copies of each selected entry, each copy's
+         Type/Group/Instance optionally bumped by a fixed hex amount from the previous one. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="{Binding SourceCount, StringFormat='Cloning {0} selected entry(ies).'}"
+                   FontWeight="Bold" FontSize="12" Margin="0,0,0,10" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="Copies per entry:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <NumericUpDown Grid.Column="1" Value="{Binding CopyCount}" Minimum="1" Increment="1" FormatString="0" />
+        </Grid>
+
+        <TextBlock Grid.Row="2" Text="Increment after each copy (applied cumulatively):" FontSize="11" Classes="status" Margin="0,0,0,6" />
+
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*" Margin="0,0,0,6">
+            <CheckBox Grid.Column="0" Content="Type +" IsChecked="{Binding IncrementType}" Width="110" />
+            <TextBox Grid.Column="1" Text="{Binding TypeIncrementHex}" IsEnabled="{Binding IncrementType}" FontFamily="Consolas,Menlo,monospace" />
+        </Grid>
+        <Grid Grid.Row="4" ColumnDefinitions="Auto,*" Margin="0,0,0,6">
+            <CheckBox Grid.Column="0" Content="Group +" IsChecked="{Binding IncrementGroup}" Width="110" />
+            <TextBox Grid.Column="1" Text="{Binding GroupIncrementHex}" IsEnabled="{Binding IncrementGroup}" FontFamily="Consolas,Menlo,monospace" />
+        </Grid>
+        <Grid Grid.Row="5" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+            <CheckBox Grid.Column="0" Content="Instance +" IsChecked="{Binding IncrementInstance}" Width="110" />
+            <TextBox Grid.Column="1" Text="{Binding InstanceIncrementHex}" IsEnabled="{Binding IncrementInstance}" FontFamily="Consolas,Menlo,monospace" />
+        </Grid>
+
+        <StackPanel Grid.Row="6" Spacing="8">
+            <Button Content="CLONE" Command="{Binding CloneCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+
+</Window>

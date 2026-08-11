@@ -30,8 +30,10 @@ options_save = "Save"
 options_close = "Close"
 
 # --- Main toolbar ---
-toolbar_new = "NEW"
+toolbar_new = "NEW TAB"
+toolbar_new_tooltip = "Open a new, empty tab"
 toolbar_open = "OPEN..."
+toolbar_open_tooltip = "Open one or more .dat files, each into its own new tab"
 toolbar_save = "SAVE"
 toolbar_save_as = "SAVE AS..."
 toolbar_export_entry = "EXPORT ENTRY..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IMPORT INTO ENTRY..."
 toolbar_export_all = "EXPORT ALL..."
 toolbar_options = "OPTIONS..."
 external_tools_header = "EXTERNAL TOOLS"
+
+# --- MDI shell toolbar (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATOR"
+shell_compare = "COMPARE DATs..."
+shell_compare_tooltip = "Compare two .dat files entry-by-entry and inspect the differing bytes"
+shell_merge = "MERGE DATs..."
+shell_merge_tooltip = "Merge several .dat files into a new file, or into the active tab"
+shell_directory_sync = "DIRECTORY SYNC..."
+shell_directory_sync_tooltip = "Inspect the active tab's Directory (DIR) subfile against its actual entries and jump to a selected one"
+shell_close_tab_tooltip = "Close this tab"
 
 # NOTE: no "toolbar_property_db" key here on purpose - the old standalone "PROPERTY
 # DATABASE..." toolbar button was superseded by "Change new_properties.xml source..."
@@ -50,3 +62,21 @@ lua_compile = "COMPILE"
 lua_run = "▶ RUN"
 lua_clear_output = "CLEAR OUTPUT"
 lua_save = "SAVE"
+
+# --- T21 Editor (Views/DbpfWorkspaceView.axaml, "T21 Editor" mode) ---
+t21_apply_iid = "APPLY IID"
+t21_add = "ADD"
+t21_duplicate = "DUPLICATE"
+t21_remove = "REMOVE"
+t21_up = "▲ UP"
+t21_down = "▼ DOWN"
+t21_save = "SAVE T21"
+t21_rhd_to_lhd = "CONVERT RHD → LHD..."
+
+# --- LTEXT Editor (Views/DbpfWorkspaceView.axaml, "LTEXT Editor" mode) - only the
+# action buttons are localized, same scope as the LUA/T21 Editors above; the panel's
+# field labels/headers/tooltips stay hardcoded English. ---
+ltext_save_file = "SAVE FILE"
+ltext_save_all_for_language = "SAVE ALL FILE FOR LANGUAGE"
+ltext_export_poedit = "EXPORT POEDIT..."
+ltext_import_poedit = "IMPORT POEDIT..."
