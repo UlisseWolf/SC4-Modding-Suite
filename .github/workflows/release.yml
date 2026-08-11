@@ -88,7 +88,10 @@ jobs:
           -r ${{ matrix.platform.rid }}
           --self-contained true
           -p:Version=${{ needs.prepare.outputs.version }}
-          -p:PublishSingleFile=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
+          -p:DebugType=None
           -o publish/${{ matrix.platform.rid }}
 
       - name: Ad-hoc sign macOS executable
@@ -135,11 +138,13 @@ jobs:
           cat > release-notes.md << 'EOF'
           ## Windows
 
-          Unzip the whole folder and run `SC4ModdingSuite.exe` from inside it.
+          Unzip and run `SC4ModdingSuite.exe`. Single self-contained executable, no other
+          files needed.
 
           ## Linux
 
-          Unzip, `chmod +x SC4ModdingSuite` (already set in the archive), then run `./SC4ModdingSuite`.
+          Unzip and run `./SC4ModdingSuite` (executable bit already set in the archive).
+          Single self-contained executable, no other files needed.
 
           ## macOS
 
