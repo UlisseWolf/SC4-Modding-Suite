@@ -8,13 +8,15 @@ using System.Text;
 using Avalonia.Threading;
 using csDBPF;
 using SC4ModdingSuite.Models;
+using SC4ModdingSuite.Views;
 using ImgSharpImage = SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>;
 
 namespace SC4ModdingSuite.ViewModels;
 
-public sealed class MainWindowViewModel : ViewModelBase
+public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly DbpfService _service = new();
+    private readonly AnalysisFilterService _filterService = new();
 
     public MainWindowViewModel(
         PropertyDefinitionsRegistry propertyRegistry,
@@ -22,7 +24,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         AppOptionsService appOptionsService,
         AppOptions appOptions,
         ThemeService themeService,
-        LocalizationService localizationService)
+        LocalizationService localizationService,
+        UiElementIndexService uiElementIndex,
+        Func<string, MainWindowViewModel>? openDocumentInNewTab = null)
     {
         PropertyRegistry = propertyRegistry;
         PropertySourceService = propertySourceService;
@@ -30,6 +34,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         AppOptions = appOptions;
         ThemeService = themeService;
         LocalizationService = localizationService;
+        UiElementIndex = uiElementIndex;
+        OpenDocumentInNewTab = openDocumentInNewTab;
 
         RemoveSelectedCommand = new RelayCommand(_ => RemoveSelected(), _ => SelectedEntry is not null);
         ApplyTgiCommand = new RelayCommand(_ => ApplyTgiEdit(), _ => SelectedEntry is not null);
@@ -91,6 +97,38 @@ public sealed class MainWindowViewModel : ViewModelBase
         S3DUVZoomOutCommand = new RelayCommand(_ => S3DUVZoom = Math.Max(S3DUVZoom / 1.25, 0.1));
         S3DUVPointChangedCommand = new RelayCommand(_ => OnS3DUVPointChanged());
 
+        FindSearchCommand = new RelayCommand(_ => RunFind());
+        PluginsAnalyserCommand = new RelayCommand(_ => RunPluginsAnalyser());
+        ExemplarAnalyserCommand = new RelayCommand(_ => RunExemplarAnalyser());
+        PropertyFindCommand = new RelayCommand(_ => RunPropertyFind());
+        RefreshPropertyManagerResults();
+
+        SaveFilterCommand = new RelayCommand(_ => SaveFilter(), _ => !string.IsNullOrWhiteSpace(NewFilterName));
+        LoadFilterCommand = new RelayCommand(_ => LoadFilter(), _ => SelectedSavedFilter is not null);
+        DeleteFilterCommand = new RelayCommand(_ => DeleteFilter(), _ => SelectedSavedFilter is not null);
+        foreach (var filter in _filterService.Load())
+        {
+            SavedFilters.Add(filter);
+        }
+
+        AddUiChildNodeCommand = new RelayCommand(_ => AddUiChildNode());
+        RemoveUiNodeCommand = new RelayCommand(_ => RemoveUiNode(), _ => SelectedUiNode is not null);
+        AddUiPropertyCommand = new RelayCommand(_ => AddUiProperty(), _ => SelectedUiNode is not null);
+        RemoveUiPropertyCommand = new RelayCommand(_ => RemoveUiProperty(), _ => SelectedUiProperty is not null);
+        RefreshUiPreviewCommand = new RelayCommand(_ => RefreshUiPreview());
+        SaveUiEditorCommand = new RelayCommand(_ => SaveUiEditor(), _ => SelectedEntry is not null && _uiRoot is not null);
+        SelectUiNodeCommand = new RelayCommand(param => SelectedUiNode = param is UiLegacyNode node ? FindUiNodeViewModel(node) : null);
+        MoveUiNodeCommand = new RelayCommand(param =>
+        {
+            if (param is ValueTuple<UiLegacyNode, int, int> move)
+            {
+                MoveUiNode(move.Item1, move.Item2, move.Item3);
+            }
+        });
+
+        InitializeT21Commands();
+        InitializeLtextCommands();
+
         IsSc4EditorMode = true;
         RefreshDisplayedEntries();
     }
@@ -114,6 +152,17 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AppOptions AppOptions { get; }
     public ThemeService ThemeService { get; }
     public LocalizationService LocalizationService { get; }
+
+    /// <summary>Shared, app-wide index of every UI element across the SC4 installation folder
+    /// and the Plugins folder - one instance for the whole app (see App.axaml.cs), not per-tab.
+    /// Bound directly in Views/DbpfWorkspaceView.axaml's Analysis "UI Elements" tool.</summary>
+    public UiElementIndexService UiElementIndex { get; }
+
+    /// <summary>Opens <c>path</c> into a brand-new MDI tab and returns that tab's own document -
+    /// null if this document isn't hosted in the shell (e.g. tests). Used by
+    /// SelectAnalysisResult/SelectUiFinderResult to jump to a "whole folder" scan hit that came
+    /// from a different file than the one open in this tab, instead of silently doing nothing.</summary>
+    public Func<string, MainWindowViewModel>? OpenDocumentInNewTab { get; }
 
     public RelayCommand LaunchPimXCommand { get; }
     public RelayCommand LaunchDataNodeCommand { get; }
@@ -166,7 +215,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const uint LuaTypeId = 0xCA63E2A3;
     private const uint T21GroupId = 0x89AC5643;
 
-    private enum EditorMode { None, Sc4, Ltext, S3D, Lua, Ui, T21 }
+    private enum EditorMode { None, Sc4, Ltext, S3D, Lua, Ui, T21, Analysis }
 
     private EditorMode _editorMode;
 
@@ -190,6 +239,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsLuaEditorMode));
         OnPropertyChanged(nameof(IsUiEditorMode));
         OnPropertyChanged(nameof(IsT21EditorMode));
+        OnPropertyChanged(nameof(IsAnalysisMode));
+        OnPropertyChanged(nameof(ShowMainEditorPanel));
+        OnPropertyChanged(nameof(ShowExemplarPropertiesPanel));
         RefreshDisplayedEntries();
     }
 
@@ -228,6 +280,91 @@ public sealed class MainWindowViewModel : ViewModelBase
         get => _editorMode == EditorMode.T21;
         set { if (value) SetEditorMode(EditorMode.T21); }
     }
+
+    /// <summary>
+    /// "Analysis" mode (same radio group as SC4/LUA Editor etc.): swaps the TGI editor/
+    /// preview panel for the Analysis tools panel (Find/Index Analyser, Plugins Analyser,
+    /// Exemplar/Cohort Analyser, Property Find/Count, Property Manager - Ilive Reader's
+    /// DlgIdxAnalyser/DlgPropFind*/DlgPropCount/FormProperty). No entry-list filtering of
+    /// its own (behaves like SC4 Editor for the list itself), it's just a different tools
+    /// panel.
+    /// </summary>
+    public bool IsAnalysisMode
+    {
+        get => _editorMode == EditorMode.Analysis;
+        set { if (value) SetEditorMode(EditorMode.Analysis); }
+    }
+
+    // ---------------------------------------------------------------
+    // Analysis mode's own five tools (Find/Index Analyser, Plugins Analyser, Exemplar/Cohort
+    // Analyser, Property Find/Count, Property Manager) used to be TabItems inside a nested
+    // TabControl, with their own tab strip - that strip wrapped onto a second line as soon
+    // as the window wasn't wide enough for all five headers, which looked broken. Replaced
+    // with the same "radio buttons in a box below the EDITOR: row" pattern already used for
+    // the outer Sc4/Ltext/S3D/Lua/Ui/T21/Analysis switch, for one consistent look
+    // and no more wrapping tab strip.
+    // ---------------------------------------------------------------
+
+    private enum AnalysisSubMode { Find, PluginsAnalyser, ExemplarAnalyser, PropertyFind, PropertyManager, UiElements }
+
+    private AnalysisSubMode _analysisSubMode = AnalysisSubMode.Find;
+
+    private void SetAnalysisSubMode(AnalysisSubMode mode)
+    {
+        if (_analysisSubMode == mode)
+        {
+            return;
+        }
+
+        _analysisSubMode = mode;
+        OnPropertyChanged(nameof(IsAnalysisFindMode));
+        OnPropertyChanged(nameof(IsAnalysisPluginsMode));
+        OnPropertyChanged(nameof(IsAnalysisExemplarMode));
+        OnPropertyChanged(nameof(IsAnalysisPropertyFindMode));
+        OnPropertyChanged(nameof(IsAnalysisPropertyManagerMode));
+        OnPropertyChanged(nameof(IsAnalysisUiElementsMode));
+    }
+
+    public bool IsAnalysisFindMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.Find;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.Find); }
+    }
+
+    public bool IsAnalysisPluginsMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.PluginsAnalyser;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.PluginsAnalyser); }
+    }
+
+    public bool IsAnalysisExemplarMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.ExemplarAnalyser;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.ExemplarAnalyser); }
+    }
+
+    public bool IsAnalysisPropertyFindMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.PropertyFind;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.PropertyFind); }
+    }
+
+    public bool IsAnalysisPropertyManagerMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.PropertyManager;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.PropertyManager); }
+    }
+
+    public bool IsAnalysisUiElementsMode
+    {
+        get => _analysisSubMode == AnalysisSubMode.UiElements;
+        set { if (value) SetAnalysisSubMode(AnalysisSubMode.UiElements); }
+    }
+
+
+    /// <summary>True while the ordinary TGI editor/preview panel (Grid.Column="1") should show - hidden for LUA Editor, Analysis and UI Editor modes, which each replace that whole panel with their own.</summary>
+    public bool ShowMainEditorPanel => !IsLuaEditorMode && !IsAnalysisMode && !IsUiEditorMode && !IsT21EditorMode;
+
 
     private void RefreshDisplayedEntries()
     {
@@ -273,18 +410,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         if (IsLtextEditorMode)
         {
-            if (!EntryTypeClassifier.IsLtextWavXaType(tgi))
-            {
-                return vm.Entry is DBPFEntryLTEXT;
-            }
-
-            if (vm.Entry is DBPFEntryLTEXT)
-            {
-                return true;
-            }
-
-            var bytes = RawEntryBytes.GetDecompressed(vm.Entry);
-            return !EntryTypeClassifier.LooksLikeRiffWav(bytes) && EntryTypeClassifier.TryDecodeAsLtext(bytes) is not null;
+            return IsLtextFamilyEntry(vm);
         }
 
         return true;
@@ -369,6 +495,33 @@ public sealed class MainWindowViewModel : ViewModelBase
     public bool HasOpenFile => _service.HasOpenFile;
     public bool CanSaveInPlace => _service.CanSaveInPlace;
 
+    /// <summary>
+    /// The underlying DBPF service for this document. Exposed so multi-file tools that need to
+    /// work across several open documents at once - Compare/Merge/Directory sync, all reached
+    /// from the MDI shell (<see cref="Views.MainWindow"/>/MainWindowShellViewModel) - can read
+    /// this document's entries/path without duplicating DbpfService's own logic.
+    /// </summary>
+    public DbpfService Service => _service;
+
+    /// <summary>Short label for this document's MDI tab header (just the file name, or "(new file)").</summary>
+    public string DocumentTitle => _service.CurrentPath is null ? "(new file)" : Path.GetFileName(_service.CurrentPath);
+
+    /// <summary>
+    /// Selects the entry with the given TGI in the main list, if present - used by the
+    /// Directory sync dialog's "Select in list" action (Ilive Reader's DlgDirectory::OnMenuSync).
+    /// </summary>
+    public void SelectEntryByTgi(TGI tgi) =>
+        SelectedEntry = Entries.FirstOrDefault(e =>
+            e.Entry.TGI.TypeID == tgi.TypeID && e.Entry.TGI.GroupID == tgi.GroupID && e.Entry.TGI.InstanceID == tgi.InstanceID);
+
+    /// <summary>
+    /// Lets shell-level batch tools (Clone/TGI Editor/Group Patch/Insert Batch/Insert
+    /// Template/Reindex - opened from DbpfWorkspaceView's code-behind, same pattern as
+    /// every other dialog in this app) post a one-line update to this document's own
+    /// status bar, without needing their own separate notification UI.
+    /// </summary>
+    public void SetStatusMessage(string message) => StatusMessage = message;
+
     // ---------------------------------------------------------------
     // Exemplar/Cohort property list (populated when the selected entry is one)
     // ---------------------------------------------------------------
@@ -379,6 +532,16 @@ public sealed class MainWindowViewModel : ViewModelBase
     public DBPFEntryEXMP? SelectedExemplar => SelectedEntry?.Entry as DBPFEntryEXMP;
 
     public bool IsExemplarSelected => SelectedExemplar is not null;
+
+    /// <summary>
+    /// Whether the raw EXEMPLAR/COHORT PROPERTIES panel (Grid.Column="2") should show.
+    /// True under the same condition as before (<see cref="IsExemplarSelected"/>) except
+    /// while the T21 Editor is active - the T21 Editor's own dedicated fields replace it
+    /// there, and showing both side by side was redundant/confusing (and the raw panel's
+    /// ADD/EDIT/REMOVE buttons let a person accidentally edit properties SAVE T21 would
+    /// then immediately overwrite anyway).
+    /// </summary>
+    public bool ShowExemplarPropertiesPanel => IsExemplarSelected && !IsT21EditorMode;
 
     private PropertyItemViewModel? _selectedProperty;
     public PropertyItemViewModel? SelectedProperty
@@ -907,6 +1070,24 @@ public sealed class MainWindowViewModel : ViewModelBase
         private set => SetField(ref _s3DMaterialTextures, (Dictionary<int, SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>>)value);
     }
 
+    /// <summary>
+    /// Every material's own <b>dedicated</b> night-lighting texture (instance ID = day ID +
+    /// <see cref="NightInstanceOffset"/>) - sparse: a material with no separate night FSH
+    /// simply has no entry here, regardless of <see cref="IsS3DNight"/>. Unlike
+    /// <see cref="S3DMaterialTextures"/> (which holds whichever *one* texture the Day/Night
+    /// toggle currently selects, for the UV Editor and the simple flat texture fallback),
+    /// this is resolved unconditionally so the viewer's Night render can genuinely blend
+    /// both the day and the dedicated night texture together per the "Night Render = DayModel
+    /// * NightColour * (1 - NightAlpha) + NightModel * NightAlpha" formula, instead of just
+    /// swapping which single texture is shown.
+    /// </summary>
+    private Dictionary<int, SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>> _s3DMaterialNightTextures = new();
+    public IReadOnlyDictionary<int, SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>> S3DMaterialNightTextures
+    {
+        get => _s3DMaterialNightTextures;
+        private set => SetField(ref _s3DMaterialNightTextures, (Dictionary<int, SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>>)value);
+    }
+
     // Two independent "dot button" (RadioButton) toggle pairs for the S3D viewer.
     private bool _isS3DWireframe = true;
     public bool IsS3DWireframe
@@ -1024,6 +1205,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _service.CreateNew();
         ReloadEntries();
         WindowTitle = "SC4 Modding Suite - (new file)";
+        OnPropertyChanged(nameof(DocumentTitle));
         StatusMessage = "New empty DBPF package created.";
         OnPropertyChanged(nameof(HasOpenFile));
         OnPropertyChanged(nameof(CanSaveInPlace));
@@ -1048,6 +1230,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             _service.SaveAs(path);
             WindowTitle = $"SC4 Modding Suite - {Path.GetFileName(path)}";
+            OnPropertyChanged(nameof(DocumentTitle));
             StatusMessage = $"File saved to: {path}";
         }
         catch (Exception ex)
@@ -1200,7 +1383,14 @@ public sealed class MainWindowViewModel : ViewModelBase
     // Entry list / details / editing
     // ---------------------------------------------------------------
 
-    private void ReloadEntries()
+    /// <summary>
+    /// Re-reads every entry from <see cref="Service"/> into <see cref="Entries"/>/
+    /// <see cref="DisplayedEntries"/>. Public (not just used internally after Open/New) so
+    /// tools that mutate <see cref="Service"/>.CurrentFile directly - e.g. the Merge dialog's
+    /// "merge into this open document" mode - can refresh the list afterwards without going
+    /// through OpenFile/CreateNewPackage.
+    /// </summary>
+    public void ReloadEntries()
     {
         Entries.Clear();
         foreach (var entry in _service.Entries)
@@ -1223,6 +1413,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         SelectedProperty = null;
         OnPropertyChanged(nameof(SelectedExemplar));
         OnPropertyChanged(nameof(IsExemplarSelected));
+        OnPropertyChanged(nameof(ShowExemplarPropertiesPanel));
 
         PreviewImages.Clear();
         SelectedPreviewImage = null;
@@ -1257,6 +1448,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (SelectedEntry is null)
         {
             Details = "Select an entry from the list to see its details.";
+            LoadLtextEditorForSelectedEntry();
             return;
         }
 
@@ -1281,6 +1473,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         LoadWavPreview();
         LoadSimplePreview();
         LoadLuaEditorForSelectedEntry();
+        LoadUiEditorForSelectedEntry();
+        LoadT21EditorForSelectedEntry();
+        LoadLtextEditorForSelectedEntry();
     }
 
     // ---------------------------------------------------------------
@@ -1595,9 +1790,31 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 _s3DMaterialTextures[materialIndex] = materialImage!.CloneAs<SixLabors.ImageSharp.PixelFormats.Rgba32>();
             }
+
+            // Resolved unconditionally (not gated on `night`) so the viewer always has both
+            // halves of the day/night blend formula ready the moment Night mode is toggled
+            // on, without needing a full re-resolve. Sparse by design: a material with no
+            // dedicated night FSH at textureId + NightInstanceOffset simply gets no entry.
+            if (FindFshEntry(textureId + NightInstanceOffset, modelGroupId) is { } nightFshEntry)
+            {
+                try
+                {
+                    nightFshEntry.Decode();
+                    if ((nightFshEntry as DBPFEntryFSH)?.Image is { } nightImage)
+                    {
+                        _s3DMaterialNightTextures[materialIndex] = nightImage.CloneAs<SixLabors.ImageSharp.PixelFormats.Rgba32>();
+                    }
+                }
+                catch
+                {
+                    // No dedicated night texture usable for this material - the viewer falls
+                    // back to the day-only tinted render for it, same as before this feature.
+                }
+            }
         }
 
         OnPropertyChanged(nameof(S3DMaterialTextures));
+        OnPropertyChanged(nameof(S3DMaterialNightTextures));
 
         if (model.PrimaryTextureId is not { } dayTextureId)
         {
@@ -1694,6 +1911,14 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         _s3DMaterialTextures.Clear();
         OnPropertyChanged(nameof(S3DMaterialTextures));
+
+        foreach (var image in _s3DMaterialNightTextures.Values)
+        {
+            image.Dispose();
+        }
+
+        _s3DMaterialNightTextures.Clear();
+        OnPropertyChanged(nameof(S3DMaterialNightTextures));
     }
 
     // ---------------------------------------------------------------
@@ -2799,27 +3024,22 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 case DBPFEntryPNG png:
                 {
-                    Avalonia.Media.Imaging.Bitmap? bitmap = null;
-                    try
-                    {
-                        png.Decode();
-                        bitmap = ImageConversion.ToAvaloniaBitmap(png.PNGImage);
-                    }
-                    catch
-                    {
-                        // TGI Type 0x856DDBAC is shared between PNG, BMP, and JPEG in the
-                        // DBPF format (confirmed in Ilive Reader's own constants -
-                        // ENT_PNG/ENT_BMP/ENT_JPEG are all 0x856DDBAC); csDBPF always
-                        // builds a DBPFEntryPNG for it and decodes specifically as PNG,
-                        // which throws for a genuine BMP/JPEG under this shared type.
-                        // Fall through to the generic, format-sniffing decode below
-                        // instead of giving up.
-                    }
-
-                    if (bitmap is null)
-                    {
-                        bitmap = ImageConversion.TryDecodeAnyFormat(RawEntryBytes.GetDecompressed(png));
-                    }
+                    // PRIORITY INSTRUCTION: png.Decode() must never be called directly on
+                    // possibly-compressed ByteData - confirmed against csDBPF's own source
+                    // (Entries/DBPFEntryPNG.cs): its Decode() calls Image.Load(ByteData)
+                    // with no IsCompressed/QFS.Decompress check first, unlike every other
+                    // structured entry type in csDBPF. For a compressed PNG entry (routine
+                    // for base-game assets), that hands ImageSharp's format-sniffing
+                    // compressed bytes to parse as if they were already raw pixel data -
+                    // this doesn't reliably throw, so a previous version of this code that
+                    // only fell back to the safe decompressed-bytes path when png.Decode()
+                    // threw could silently show a wrong/garbage-sized image instead of the
+                    // real one whenever it "succeeded" on compressed data. Always decoding
+                    // via TryDecodeAnyFormat (already decompresses first) sidesteps that -
+                    // it also auto-detects the real format for the BMP/JPEG-under-the-same-
+                    // shared-TypeID case, so there's no longer a need for a first attempt via
+                    // png.Decode()/PNGImage at all.
+                    var bitmap = ImageConversion.TryDecodeAnyFormat(RawEntryBytes.GetDecompressed(png));
 
                     if (bitmap is not null)
                     {
@@ -3173,4 +3393,1690 @@ public sealed class MainWindowViewModel : ViewModelBase
             StatusMessage = $"Error editing TGI: {ex.Message}";
         }
     }
+
+    // ---------------------------------------------------------------
+    // Analysis mode (Ilive Reader's DlgIdxAnalyser/DlgPropFind*/DlgPropFindPCohort/
+    // DlgPropCount/FormProperty's ID_MGR_PROP): Find/Index Analyser (TGI-range + optional
+    // hex byte-pattern search, current tab or a whole folder), Plugins Analyser (folder
+    // scan stats), Exemplar/Cohort Analyser (property usage stats - folds in DlgPropCount),
+    // Property Find/Count (search by property ID/value across files) and Property Manager
+    // (browse the loaded property database - the "global manager" FormProperty/ID_MGR_PROP
+    // opened, reusing PropertyRegistry directly rather than a second copy of the data).
+    // All read-only reporting tools; none of them mutate entries. DlgDirectory::Search is
+    // already covered by the standalone Directory sync dialog (its own Refresh already does
+    // exactly that - decode + re-list on open), and "advanced saveable filters"
+    // (DlgFilters/Ex, WorkspaceFilter) are the Save/Load buttons on the Find tab below,
+    // backed by AnalysisFilterService.
+    // ---------------------------------------------------------------
+
+    private static readonly string[] Sc4FileExtensions = { ".dat", ".sc4lot", ".sc4desc", ".sc4model" };
+
+    private static IEnumerable<string> EnumerateSc4Files(string folder)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+                .Where(f => Sc4FileExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
+                .ToArray();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    /// <summary>Folder shared by every Analysis tab's "whole folder" scope - defaults to whatever Options has set as the Plugins folder.</summary>
+    private string _analysisFolder = string.Empty;
+    public string AnalysisFolder
+    {
+        get => string.IsNullOrEmpty(_analysisFolder) ? AppOptions.PluginsFolder ?? string.Empty : _analysisFolder;
+        set => SetField(ref _analysisFolder, value);
+    }
+
+    /// <summary>Jumps to this result's TGI: selects it in place if it belongs to the document
+    /// already open in this tab, otherwise opens the file it actually came from (a "whole
+    /// folder" scan hit) into a brand-new tab and selects it there instead.</summary>
+    public void SelectAnalysisResult(AnalysisResultRowViewModel row)
+    {
+        if (_service.CurrentPath is { } currentPath &&
+            string.Equals(Path.GetFullPath(currentPath), Path.GetFullPath(row.FilePath), StringComparison.OrdinalIgnoreCase))
+        {
+            SelectEntryByTgi(row.Tgi);
+            return;
+        }
+
+        var newDoc = OpenDocumentInNewTab?.Invoke(row.FilePath);
+        newDoc?.SelectEntryByTgi(row.Tgi);
+    }
+
+    // --- Find / Index Analyser (DlgIdxAnalyser) ---
+
+    private bool _findWholeFolder;
+    public bool FindWholeFolder
+    {
+        get => _findWholeFolder;
+        set => SetField(ref _findWholeFolder, value);
+    }
+
+    private bool _findFilterType;
+    public bool FindFilterType
+    {
+        get => _findFilterType;
+        set => SetField(ref _findFilterType, value);
+    }
+
+    private string _findTypeHex = "0x00000000";
+    public string FindTypeHex
+    {
+        get => _findTypeHex;
+        set => SetField(ref _findTypeHex, value);
+    }
+
+    private bool _findFilterGroup;
+    public bool FindFilterGroup
+    {
+        get => _findFilterGroup;
+        set => SetField(ref _findFilterGroup, value);
+    }
+
+    private string _findGroupHex = "0x00000000";
+    public string FindGroupHex
+    {
+        get => _findGroupHex;
+        set => SetField(ref _findGroupHex, value);
+    }
+
+    private bool _findFilterInstance;
+    public bool FindFilterInstance
+    {
+        get => _findFilterInstance;
+        set => SetField(ref _findFilterInstance, value);
+    }
+
+    private string _findInstanceHex = "0x00000000";
+    public string FindInstanceHex
+    {
+        get => _findInstanceHex;
+        set => SetField(ref _findInstanceHex, value);
+    }
+
+    /// <summary>Optional raw hex byte pattern (e.g. "DE AD BE EF") to also require somewhere in the entry's decompressed content - Ilive Reader's Hex Find.</summary>
+    private string _findHexPattern = string.Empty;
+    public string FindHexPattern
+    {
+        get => _findHexPattern;
+        set => SetField(ref _findHexPattern, value);
+    }
+
+    public ObservableCollection<AnalysisResultRowViewModel> FindResults { get; } = new();
+
+    private string _findStatusMessage = "Set Type/Group/Instance filters (leave unchecked to match any) and/or a hex byte pattern, then Search.";
+    public string FindStatusMessage
+    {
+        get => _findStatusMessage;
+        private set => SetField(ref _findStatusMessage, value);
+    }
+
+    public RelayCommand FindSearchCommand { get; private set; } = null!;
+
+    private void RunFind()
+    {
+        FindResults.Clear();
+        try
+        {
+            var typeFilter = FindFilterType ? EntryClipboard.ParseHex(FindTypeHex) : 0u;
+            var groupFilter = FindFilterGroup ? EntryClipboard.ParseHex(FindGroupHex) : 0u;
+            var instanceFilter = FindFilterInstance ? EntryClipboard.ParseHex(FindInstanceHex) : 0u;
+            var hexPattern = ParseHexPattern(FindHexPattern);
+
+            var matched = 0;
+            var scanned = 0;
+
+            void Scan(string path, IEnumerable<DBPFEntry> entries)
+            {
+                foreach (var entry in entries)
+                {
+                    scanned++;
+                    var tgi = entry.TGI;
+                    if (FindFilterType && tgi.TypeID != typeFilter) continue;
+                    if (FindFilterGroup && tgi.GroupID != groupFilter) continue;
+                    if (FindFilterInstance && tgi.InstanceID != instanceFilter) continue;
+
+                    if (hexPattern is { Length: > 0 })
+                    {
+                        var bytes = RawEntryBytes.GetDecompressed(entry);
+                        if (bytes is null || !ContainsSequence(bytes, hexPattern))
+                        {
+                            continue;
+                        }
+                    }
+
+                    FindResults.Add(new AnalysisResultRowViewModel
+                    {
+                        FilePath = path,
+                        Tgi = tgi,
+                        EntryType = tgi.GetEntryType(),
+                        SizeBytes = entry.GetSize(),
+                    });
+                    matched++;
+                }
+            }
+
+            if (FindWholeFolder)
+            {
+                if (string.IsNullOrWhiteSpace(AnalysisFolder) || !Directory.Exists(AnalysisFolder))
+                {
+                    FindStatusMessage = "Choose a valid folder first.";
+                    return;
+                }
+
+                foreach (var path in EnumerateSc4Files(AnalysisFolder))
+                {
+                    try
+                    {
+                        Scan(path, new DBPFFile(path).ListOfEntries);
+                    }
+                    catch
+                    {
+                        // Unreadable/corrupt file - skip it, doesn't abort the whole scan.
+                    }
+                }
+            }
+            else if (_service.CurrentFile is not null)
+            {
+                Scan(_service.CurrentPath ?? "(unsaved)", _service.Entries);
+            }
+
+            FindStatusMessage = $"{matched} match(es) out of {scanned} entr{(scanned == 1 ? "y" : "ies")} scanned.";
+        }
+        catch (Exception ex)
+        {
+            FindStatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private static byte[]? ParseHexPattern(string text)
+    {
+        var cleaned = new string((text ?? string.Empty).Where(Uri.IsHexDigit).ToArray());
+        if (cleaned.Length < 2)
+        {
+            return null;
+        }
+
+        if (cleaned.Length % 2 != 0)
+        {
+            cleaned = cleaned[..^1];
+        }
+
+        var bytes = new byte[cleaned.Length / 2];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] = Convert.ToByte(cleaned.Substring(i * 2, 2), 16);
+        }
+
+        return bytes;
+    }
+
+    private static bool ContainsSequence(byte[] haystack, byte[] needle)
+    {
+        if (needle.Length == 0 || needle.Length > haystack.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i <= haystack.Length - needle.Length; i++)
+        {
+            var match = true;
+            for (var j = 0; j < needle.Length; j++)
+            {
+                if (haystack[i + j] != needle[j])
+                {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // --- Plugins Analyser ---
+
+    private string _pluginsAnalyserReport = string.Empty;
+    public string PluginsAnalyserReport
+    {
+        get => _pluginsAnalyserReport;
+        private set => SetField(ref _pluginsAnalyserReport, value);
+    }
+
+    public RelayCommand PluginsAnalyserCommand { get; private set; } = null!;
+
+    private void RunPluginsAnalyser()
+    {
+        if (string.IsNullOrWhiteSpace(AnalysisFolder) || !Directory.Exists(AnalysisFolder))
+        {
+            PluginsAnalyserReport = "Choose a valid folder first.";
+            return;
+        }
+
+        var filesScanned = 0;
+        var filesFailed = 0;
+        var totalEntries = 0;
+        var byType = new Dictionary<string, int>();
+
+        foreach (var path in EnumerateSc4Files(AnalysisFolder))
+        {
+            try
+            {
+                var file = new DBPFFile(path);
+                filesScanned++;
+                foreach (var entry in file.ListOfEntries)
+                {
+                    totalEntries++;
+                    var label = entry.TGI.GetEntryType();
+                    byType[label] = byType.GetValueOrDefault(label) + 1;
+                }
+            }
+            catch
+            {
+                filesFailed++;
+            }
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Folder: {AnalysisFolder}");
+        sb.AppendLine($"Files scanned: {filesScanned} ({filesFailed} unreadable/skipped)");
+        sb.AppendLine($"Total entries: {totalEntries:N0}");
+        sb.AppendLine();
+        sb.AppendLine("By type:");
+        foreach (var kvp in byType.OrderByDescending(k => k.Value))
+        {
+            sb.AppendLine($"  {kvp.Value,6:N0}  {kvp.Key}");
+        }
+
+        PluginsAnalyserReport = sb.ToString();
+    }
+
+    // --- Exemplar/Cohort Analyser (folds in DlgPropCount's property-usage counting) ---
+
+    private bool _exemplarAnalyserWholeFolder;
+    public bool ExemplarAnalyserWholeFolder
+    {
+        get => _exemplarAnalyserWholeFolder;
+        set => SetField(ref _exemplarAnalyserWholeFolder, value);
+    }
+
+    private string _exemplarAnalyserReport = string.Empty;
+    public string ExemplarAnalyserReport
+    {
+        get => _exemplarAnalyserReport;
+        private set => SetField(ref _exemplarAnalyserReport, value);
+    }
+
+    public RelayCommand ExemplarAnalyserCommand { get; private set; } = null!;
+
+    private void RunExemplarAnalyser()
+    {
+        var exemplarCount = 0;
+        var cohortCount = 0;
+        var propertyTotal = 0;
+        var byProperty = new Dictionary<uint, int>();
+
+        void ScanEntries(IEnumerable<DBPFEntry> entries)
+        {
+            foreach (var entry in entries)
+            {
+                if (entry is not DBPFEntryEXMP exmp)
+                {
+                    continue;
+                }
+
+                if (exmp.IsCohort) cohortCount++; else exemplarCount++;
+
+                foreach (var propertyId in exmp.ListOfProperties.Keys)
+                {
+                    propertyTotal++;
+                    byProperty[propertyId] = byProperty.GetValueOrDefault(propertyId) + 1;
+                }
+            }
+        }
+
+        if (ExemplarAnalyserWholeFolder)
+        {
+            if (string.IsNullOrWhiteSpace(AnalysisFolder) || !Directory.Exists(AnalysisFolder))
+            {
+                ExemplarAnalyserReport = "Choose a valid folder first.";
+                return;
+            }
+
+            foreach (var path in EnumerateSc4Files(AnalysisFolder))
+            {
+                try
+                {
+                    ScanEntries(new DBPFFile(path).ListOfEntries);
+                }
+                catch
+                {
+                    // Unreadable/corrupt file - skip it.
+                }
+            }
+        }
+        else if (_service.CurrentFile is not null)
+        {
+            ScanEntries(_service.Entries);
+        }
+        else
+        {
+            ExemplarAnalyserReport = "No document open in this tab.";
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Exemplars: {exemplarCount:N0}   Cohorts: {cohortCount:N0}");
+        sb.AppendLine($"Total property occurrences: {propertyTotal:N0} across {byProperty.Count:N0} distinct property IDs");
+        sb.AppendLine();
+        sb.AppendLine("Most common properties:");
+        foreach (var kvp in byProperty.OrderByDescending(k => k.Value).Take(30))
+        {
+            var name = PropertyRegistry.FindById(kvp.Key)?.Name ?? "(unknown)";
+            sb.AppendLine($"  {kvp.Value,6:N0}  0x{kvp.Key:X8}  {name}");
+        }
+
+        ExemplarAnalyserReport = sb.ToString();
+    }
+
+    // --- Property Find/Count (DlgPropFind/DlgPropFindValue/DlgPropFindPCohort) ---
+
+    private string _propertyFindIdHex = "0x00000000";
+    public string PropertyFindIdHex
+    {
+        get => _propertyFindIdHex;
+        set => SetField(ref _propertyFindIdHex, value);
+    }
+
+    /// <summary>Empty = match presence of the property only (DlgPropFind); non-empty = also require this value (DlgPropFindValue).</summary>
+    private string _propertyFindValueText = string.Empty;
+    public string PropertyFindValueText
+    {
+        get => _propertyFindValueText;
+        set => SetField(ref _propertyFindValueText, value);
+    }
+
+    private bool _propertyFindWholeFolder;
+    public bool PropertyFindWholeFolder
+    {
+        get => _propertyFindWholeFolder;
+        set => SetField(ref _propertyFindWholeFolder, value);
+    }
+
+    public ObservableCollection<AnalysisResultRowViewModel> PropertyFindResults { get; } = new();
+
+    private string _propertyFindStatusMessage = "Enter a property ID (hex), optionally a value to match, then Search.";
+    public string PropertyFindStatusMessage
+    {
+        get => _propertyFindStatusMessage;
+        private set => SetField(ref _propertyFindStatusMessage, value);
+    }
+
+    public RelayCommand PropertyFindCommand { get; private set; } = null!;
+
+    private void RunPropertyFind()
+    {
+        PropertyFindResults.Clear();
+        try
+        {
+            var propertyId = EntryClipboard.ParseHex(PropertyFindIdHex);
+            var matchValue = PropertyFindValueText.Trim();
+            var matched = 0;
+
+            void Scan(string path, IEnumerable<DBPFEntry> entries)
+            {
+                foreach (var entry in entries)
+                {
+                    if (entry is not DBPFEntryEXMP exmp)
+                    {
+                        continue;
+                    }
+
+                    if (!exmp.ListOfProperties.TryGetValue(propertyId, out var prop))
+                    {
+                        continue;
+                    }
+
+                    if (matchValue.Length > 0 && !PropertyValueMatches(prop, matchValue))
+                    {
+                        continue;
+                    }
+
+                    PropertyFindResults.Add(new AnalysisResultRowViewModel
+                    {
+                        FilePath = path,
+                        Tgi = entry.TGI,
+                        EntryType = entry.TGI.GetEntryType(),
+                        SizeBytes = entry.GetSize(),
+                    });
+                    matched++;
+                }
+            }
+
+            if (PropertyFindWholeFolder)
+            {
+                if (string.IsNullOrWhiteSpace(AnalysisFolder) || !Directory.Exists(AnalysisFolder))
+                {
+                    PropertyFindStatusMessage = "Choose a valid folder first.";
+                    return;
+                }
+
+                foreach (var path in EnumerateSc4Files(AnalysisFolder))
+                {
+                    try
+                    {
+                        Scan(path, new DBPFFile(path).ListOfEntries);
+                    }
+                    catch
+                    {
+                        // Unreadable/corrupt file - skip it.
+                    }
+                }
+            }
+            else if (_service.CurrentFile is not null)
+            {
+                Scan(_service.CurrentPath ?? "(unsaved)", _service.Entries);
+            }
+
+            PropertyFindStatusMessage = $"{matched} entr{(matched == 1 ? "y" : "ies")} found.";
+        }
+        catch (Exception ex)
+        {
+            PropertyFindStatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private static bool PropertyValueMatches(DBPFProperty prop, string matchValue)
+    {
+        try
+        {
+            var data = prop.GetTypedData();
+            foreach (var raw in data)
+            {
+                if (string.Equals(raw?.ToString(), matchValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                try
+                {
+                    if (string.Equals($"0x{Convert.ToInt64(raw):X}", matchValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Not numeric (e.g. STRING-typed property) - the plain ToString() comparison above already covers it.
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    // --- Property Manager (FormProperty / ID_MGR_PROP) - browses the loaded property database ---
+
+    private string _propertyManagerSearchText = string.Empty;
+    public string PropertyManagerSearchText
+    {
+        get => _propertyManagerSearchText;
+        set
+        {
+            if (SetField(ref _propertyManagerSearchText, value))
+            {
+                RefreshPropertyManagerResults();
+            }
+        }
+    }
+
+    public ObservableCollection<PropertyDefinition> PropertyManagerResults { get; } = new();
+
+    private void RefreshPropertyManagerResults()
+    {
+        PropertyManagerResults.Clear();
+
+        var query = PropertyManagerSearchText.Trim();
+        IEnumerable<PropertyDefinition> source = PropertyRegistry.All.OrderBy(d => d.Name);
+        if (query.Length > 0)
+        {
+            source = source.Where(d =>
+                d.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || $"{d.Id:X8}".Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Capped so typing a broad/empty query in a 10000+ property database stays snappy.
+        foreach (var definition in source.Take(500))
+        {
+            PropertyManagerResults.Add(definition);
+        }
+    }
+
+    // --- Saved filter presets (Ilive Reader's DlgFilters/DlgFiltersEx, WorkspaceFilter pane) ---
+
+    public ObservableCollection<SavedAnalysisFilter> SavedFilters { get; } = new();
+
+    private SavedAnalysisFilter? _selectedSavedFilter;
+    public SavedAnalysisFilter? SelectedSavedFilter
+    {
+        get => _selectedSavedFilter;
+        set
+        {
+            if (SetField(ref _selectedSavedFilter, value))
+            {
+                LoadFilterCommand.RaiseCanExecuteChanged();
+                DeleteFilterCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    private string _newFilterName = string.Empty;
+    public string NewFilterName
+    {
+        get => _newFilterName;
+        set
+        {
+            if (SetField(ref _newFilterName, value))
+            {
+                SaveFilterCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public RelayCommand SaveFilterCommand { get; private set; } = null!;
+    public RelayCommand LoadFilterCommand { get; private set; } = null!;
+    public RelayCommand DeleteFilterCommand { get; private set; } = null!;
+
+    private void SaveFilter()
+    {
+        var name = NewFilterName.Trim();
+        if (name.Length == 0)
+        {
+            return;
+        }
+
+        var filter = new SavedAnalysisFilter
+        {
+            Name = name,
+            FilterType = FindFilterType,
+            TypeHex = FindTypeHex,
+            FilterGroup = FindFilterGroup,
+            GroupHex = FindGroupHex,
+            FilterInstance = FindFilterInstance,
+            InstanceHex = FindInstanceHex,
+            HexPattern = FindHexPattern,
+        };
+
+        // Replace an existing preset with the same name rather than piling up duplicates.
+        var existingIndex = -1;
+        for (var i = 0; i < SavedFilters.Count; i++)
+        {
+            if (string.Equals(SavedFilters[i].Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                existingIndex = i;
+                break;
+            }
+        }
+
+        if (existingIndex >= 0)
+        {
+            SavedFilters[existingIndex] = filter;
+        }
+        else
+        {
+            SavedFilters.Add(filter);
+        }
+
+        _filterService.Save(new List<SavedAnalysisFilter>(SavedFilters));
+        FindStatusMessage = $"Filter \"{name}\" saved.";
+    }
+
+    private void LoadFilter()
+    {
+        if (SelectedSavedFilter is not { } filter)
+        {
+            return;
+        }
+
+        FindFilterType = filter.FilterType;
+        FindTypeHex = filter.TypeHex;
+        FindFilterGroup = filter.FilterGroup;
+        FindGroupHex = filter.GroupHex;
+        FindFilterInstance = filter.FilterInstance;
+        FindInstanceHex = filter.InstanceHex;
+        FindHexPattern = filter.HexPattern;
+        FindStatusMessage = $"Filter \"{filter.Name}\" loaded - press Search to run it.";
+    }
+
+    private void DeleteFilter()
+    {
+        if (SelectedSavedFilter is not { } filter)
+        {
+            return;
+        }
+
+        SavedFilters.Remove(filter);
+        _filterService.Save(new List<SavedAnalysisFilter>(SavedFilters));
+    }
+
+    // ---------------------------------------------------------------
+    // UI Editor (Ilive Reader's FormUI/DlgUIProp/DlgUIProperties/DlgUIImport, only shown
+    // while IsUiEditorMode is active): tree of the selected UI entry's element nodes,
+    // an editable Prop/Value grid for the selected node (Ilive Reader's own property grid
+    // is exactly this - a flat name/value list per node, see DlgUIProperties::Display/OnOK),
+    // and a live 2D preview (UiPreviewControl) that also supports drag-to-reposition.
+    // Entries in this mode are plain text (UiLegacyParser), not exemplars - a separate
+    // panel from the Properties list used everywhere else, same reasoning as the LUA editor.
+    //
+    // ponytail: no image (CxImage/FSH "image=" prop) rendering in the preview - drawing a
+    // flat colored rect with the node's caption covers "does this layout fit together"
+    // without also porting an FSH-to-bitmap resolver here (S3DViewerControl.Texture already
+    // does this for S3D models; wiring the same resolver into the UI preview is a small
+    // follow-up if button/background art needs to be seen, not just placement).
+    // ---------------------------------------------------------------
+
+    public ObservableCollection<UiLegacyNodeViewModel> UiRootNodes { get; } = new();
+
+    private UiLegacyNodeViewModel? _selectedUiNode;
+    public UiLegacyNodeViewModel? SelectedUiNode
+    {
+        get => _selectedUiNode;
+        set
+        {
+            if (SetField(ref _selectedUiNode, value))
+            {
+                RefreshUiProperties();
+                RemoveUiNodeCommand.RaiseCanExecuteChanged();
+                AddUiChildNodeCommand.RaiseCanExecuteChanged();
+                AddUiPropertyCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public ObservableCollection<UiLegacyProp> UiProperties { get; } = new();
+
+    private UiLegacyProp? _selectedUiProperty;
+    public UiLegacyProp? SelectedUiProperty
+    {
+        get => _selectedUiProperty;
+        set
+        {
+            if (SetField(ref _selectedUiProperty, value))
+            {
+                RemoveUiPropertyCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public ObservableCollection<UiPreviewControl.PreviewBox> UiPreviewBoxes { get; } = new();
+
+    private double _uiPreviewContentWidth = 400;
+    /// <summary>Full extent of the currently loaded dialog after CollectPreviewBoxes' top-left
+    /// normalization - bound to UiPreviewControl's own Width/Height in Views/DbpfWorkspaceView.axaml
+    /// so the ScrollViewer wrapping it knows how much room to actually make scrollable, instead of
+    /// shrinking the control to nothing (a plain Control with no override reports zero desired
+    /// size) or clipping a dialog bigger than the visible panel.</summary>
+    public double UiPreviewContentWidth
+    {
+        get => _uiPreviewContentWidth;
+        private set => SetField(ref _uiPreviewContentWidth, value);
+    }
+
+    private double _uiPreviewContentHeight = 300;
+    public double UiPreviewContentHeight
+    {
+        get => _uiPreviewContentHeight;
+        private set => SetField(ref _uiPreviewContentHeight, value);
+    }
+
+    private string _uiEditorStatusMessage = string.Empty;
+    public string UiEditorStatusMessage
+    {
+        get => _uiEditorStatusMessage;
+        set => SetField(ref _uiEditorStatusMessage, value);
+    }
+
+    private UiLegacyNode? _uiRoot;
+
+    public RelayCommand AddUiChildNodeCommand { get; private set; } = null!;
+    public RelayCommand RemoveUiNodeCommand { get; private set; } = null!;
+    public RelayCommand AddUiPropertyCommand { get; private set; } = null!;
+    public RelayCommand RemoveUiPropertyCommand { get; private set; } = null!;
+    public RelayCommand RefreshUiPreviewCommand { get; private set; } = null!;
+    public RelayCommand SaveUiEditorCommand { get; private set; } = null!;
+    public RelayCommand SelectUiNodeCommand { get; private set; } = null!;
+    public RelayCommand MoveUiNodeCommand { get; private set; } = null!;
+
+    // ---------------------------------------------------------------
+    // UI Finder: jumps to any UI element (TGI Type 0x00000000) found by the shared,
+    // app-wide UiElementIndexService (see App.axaml.cs and that class) - the actual scan
+    // across the SC4 installation folder and the Plugins folder runs once automatically in
+    // the background shortly after the app starts, not per-tab, since it describes those
+    // folders themselves rather than any one open document. This document only needs to
+    // know how to jump to a hit once the person picks one from that shared list.
+    // ---------------------------------------------------------------
+
+    /// <summary>Jumps to a UI Finder hit the same way SelectAnalysisResult does (open a new tab
+    /// if it's not the file already open here), and additionally switches the destination tab
+    /// into UI Editor mode, since finding a UI element implies wanting to edit it.</summary>
+    public void SelectUiFinderResult(AnalysisResultRowViewModel row)
+    {
+        if (_service.CurrentPath is { } currentPath &&
+            string.Equals(Path.GetFullPath(currentPath), Path.GetFullPath(row.FilePath), StringComparison.OrdinalIgnoreCase))
+        {
+            IsUiEditorMode = true;
+            SelectEntryByTgi(row.Tgi);
+            return;
+        }
+
+        var newDoc = OpenDocumentInNewTab?.Invoke(row.FilePath);
+        if (newDoc is null)
+        {
+            return;
+        }
+
+        newDoc.IsUiEditorMode = true;
+        newDoc.SelectEntryByTgi(row.Tgi);
+    }
+
+    private UiLegacyNodeViewModel? FindUiNodeViewModel(UiLegacyNode node, IEnumerable<UiLegacyNodeViewModel>? roots = null)
+    {
+        foreach (var vm in roots ?? UiRootNodes)
+        {
+            if (vm.Node == node)
+            {
+                return vm;
+            }
+
+            if (FindUiNodeViewModel(node, vm.Children) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private void LoadUiEditorForSelectedEntry()
+    {
+        UiRootNodes.Clear();
+        UiProperties.Clear();
+        UiPreviewBoxes.Clear();
+        SelectedUiNode = null;
+        _uiRoot = null;
+        foreach (var cachedImage in _uiPreviewSourceImageCache.Values)
+        {
+            cachedImage?.Dispose();
+        }
+
+        _uiPreviewSourceImageCache.Clear();
+        _uiPreviewFinalImageCache.Clear();
+
+        if (SelectedEntry is null || SelectedEntry.Entry.TGI.TypeID != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var bytes = RawEntryBytes.GetDecompressed(SelectedEntry.Entry) ?? Array.Empty<byte>();
+            var text = Encoding.UTF8.GetString(bytes);
+            _uiRoot = UiLegacyParser.Parse(text);
+
+            foreach (var child in _uiRoot.Children)
+            {
+                UiRootNodes.Add(new UiLegacyNodeViewModel(child));
+            }
+
+            UiEditorStatusMessage = $"{_uiRoot.Children.Count} top-level node(s) parsed.";
+            RefreshUiPreview();
+        }
+        catch (Exception ex)
+        {
+            UiEditorStatusMessage = $"Error parsing UI entry: {ex.Message}";
+        }
+    }
+
+    private void RefreshUiProperties()
+    {
+        UiProperties.Clear();
+        SelectedUiProperty = null;
+
+        if (SelectedUiNode is not null)
+        {
+            foreach (var prop in SelectedUiNode.Node.Properties)
+            {
+                UiProperties.Add(prop);
+            }
+        }
+    }
+
+    private void AddUiChildNode()
+    {
+        var parent = SelectedUiNode?.Node ?? _uiRoot;
+        if (parent is null)
+        {
+            return;
+        }
+
+        var node = new UiLegacyNode { Parent = parent };
+        node.Properties.Add(new UiLegacyProp { Key = "clsid", Value = "\"NewElement\"" });
+        parent.Children.Add(node);
+
+        var nodeVm = new UiLegacyNodeViewModel(node);
+        if (SelectedUiNode is not null)
+        {
+            SelectedUiNode.Children.Add(nodeVm);
+        }
+        else
+        {
+            UiRootNodes.Add(nodeVm);
+        }
+
+        SelectedUiNode = nodeVm;
+        RefreshUiPreview();
+    }
+
+    private void RemoveUiNode()
+    {
+        if (SelectedUiNode is null || _uiRoot is null)
+        {
+            return;
+        }
+
+        var parentNode = SelectedUiNode.Node.Parent ?? _uiRoot;
+        parentNode.Children.Remove(SelectedUiNode.Node);
+
+        // The tree is fully rebuilt from the model rather than hunting for which
+        // ObservableCollection<UiLegacyNodeViewModel> owns this node - the UI trees here
+        // are small (hand-authored dialogs, not generated content), so this isn't worth
+        // tracking a parent-VM pointer for.
+        UiRootNodes.Clear();
+        foreach (var child in _uiRoot.Children)
+        {
+            UiRootNodes.Add(new UiLegacyNodeViewModel(child));
+        }
+
+        SelectedUiNode = null;
+        RefreshUiPreview();
+    }
+
+    private void AddUiProperty()
+    {
+        if (SelectedUiNode is null)
+        {
+            return;
+        }
+
+        var prop = new UiLegacyProp { Key = "prop", Value = "value" };
+        SelectedUiNode.Node.Properties.Add(prop);
+        UiProperties.Add(prop);
+        SelectedUiNode.RefreshName();
+        RefreshUiPreview();
+    }
+
+    private void RemoveUiProperty()
+    {
+        if (SelectedUiNode is null || SelectedUiProperty is null)
+        {
+            return;
+        }
+
+        SelectedUiNode.Node.Properties.Remove(SelectedUiProperty);
+        UiProperties.Remove(SelectedUiProperty);
+        SelectedUiNode.RefreshName();
+        RefreshUiPreview();
+    }
+
+    /// <summary>Same "area"/"caption"/"fillcolor" reading and parent-relative offsetting as Ilive Reader's BuildPreviewUI (ui_common.cpp) - see UiPreviewControl for the actual drawing.</summary>
+    private void RefreshUiPreview()
+    {
+        UiPreviewBoxes.Clear();
+        if (_uiRoot is null)
+        {
+            UiPreviewContentWidth = 400;
+            UiPreviewContentHeight = 300;
+            return;
+        }
+
+        try
+        {
+            var collected = new List<UiPreviewControl.PreviewBox>();
+            foreach (var child in _uiRoot.Children)
+            {
+                CollectPreviewBoxes(child, new Avalonia.PixelRect(0, 0, 0, 0), true, collected);
+            }
+
+            if (collected.Count == 0)
+            {
+                UiPreviewContentWidth = 400;
+                UiPreviewContentHeight = 300;
+                return;
+            }
+
+            // Dialogs are authored with "area" coordinates relative to the game's own screen
+            // (e.g. anchored near the bottom-right of a 1024x768+ resolution), which could be
+            // far outside this preview panel's own much smaller bounds - drawn at their literal
+            // coordinates, only the top-left corner of the panel's own (0,0) origin would ever
+            // show anything, with the rest of the dialog clipped off silently. Shift every box
+            // by the whole dialog's own top-left corner so it always starts flush at (0,0) of
+            // the preview panel, regardless of where it was meant to sit on the real game
+            // screen, and size the control (via UiPreviewContentWidth/Height, bound in
+            // DbpfWorkspaceView.axaml) to the dialog's own full extent so anything still bigger
+            // than the visible panel is reachable by scrolling instead of clipped.
+            var minX = collected.Min(b => b.Area.X);
+            var minY = collected.Min(b => b.Area.Y);
+            var maxRight = 0;
+            var maxBottom = 0;
+            foreach (var box in collected)
+            {
+                // PRIORITY INSTRUCTION: always subtract (minX, minY) unconditionally, for
+                // every box, with no special case. A previous version skipped the
+                // subtraction for whichever box(es) exactly equalled the global (minX, minY)
+                // - almost always the outer/topmost chrome box itself, since it's the
+                // dialog's own top-left-most element - treating "this box IS the minimum" as
+                // "leave it as box.Area unchanged". That's only correct when minX/minY are
+                // already 0; in every real case (minX/minY are the dialog's actual raw
+                // screen-relative coordinates, e.g. (152,159)), it left the chrome pinned to
+                // its RAW unshifted absolute position while every other box (content: text,
+                // sliders, buttons - none of which land on both minX AND minY at once) got
+                // correctly shifted down near (0,0). That's exactly what made a dialog's
+                // background/border render visibly detached from its own content in every
+                // screenshot of this bug - not a decode/sizing issue at all, just this one
+                // broken "optimization" a few lines up from here.
+                var shifted = new Avalonia.PixelRect(box.Area.X - minX, box.Area.Y - minY, box.Area.Width, box.Area.Height);
+                UiPreviewBoxes.Add(box with { Area = shifted });
+                maxRight = Math.Max(maxRight, shifted.X + shifted.Width);
+                maxBottom = Math.Max(maxBottom, shifted.Y + shifted.Height);
+            }
+
+            UiPreviewContentWidth = Math.Max(maxRight, 1);
+            UiPreviewContentHeight = Math.Max(maxBottom, 1);
+        }
+        catch (Exception ex)
+        {
+            // A UI entry's own data (or its referenced images) is arbitrary content someone
+            // else authored, sometimes by hand - malformed "area"/"image" values, a corrupt
+            // or unusually-encoded referenced PNG, or a pathological coordinate combination
+            // this code didn't anticipate, must never be allowed to crash the whole app.
+            // PRIORITY INSTRUCTION: RefreshUiPreview must never throw past this point - every
+            // caller (entry selection, the node-properties dialog, add/remove node/property)
+            // treats a rendering problem as "show what we can, report the rest" instead.
+            UiPreviewBoxes.Clear();
+            UiPreviewContentWidth = 400;
+            UiPreviewContentHeight = 300;
+            UiEditorStatusMessage = $"Preview error: {ex.Message}";
+        }
+    }
+
+    private void CollectPreviewBoxes(UiLegacyNode node, Avalonia.PixelRect parentArea, bool isTopLevel, List<UiPreviewControl.PreviewBox> into)
+    {
+        var areaRaw = node.GetProp("area");
+
+        // Not every node is a visual control - some are pure logical/grouping wrappers with
+        // no "area" prop of their own. Skip drawing a box for these entirely; still recurse
+        // into their children, inheriting the nearest real ancestor position unchanged
+        // rather than snapping to (0,0)-of-parent.
+        if (string.IsNullOrEmpty(areaRaw))
+        {
+            foreach (var missingAreaChild in node.Children)
+            {
+                CollectPreviewBoxes(missingAreaChild, parentArea, false, into);
+            }
+
+            return;
+        }
+
+        var area = ParseRect(areaRaw);
+        if (!isTopLevel)
+        {
+            area = new Avalonia.PixelRect(area.X + parentArea.X, area.Y + parentArea.Y, area.Width, area.Height);
+        }
+
+        var captionRaw = node.GetProp("caption");
+        var caption = captionRaw is { Length: >= 2 } && captionRaw[0] == '"' && captionRaw[^1] == '"'
+            ? captionRaw.Substring(1, captionRaw.Length - 2)
+            : captionRaw ?? string.Empty;
+
+        into.Add(new UiPreviewControl.PreviewBox(node, area, caption, node.GetProp("iid") ?? string.Empty,
+            ParseColor(node.GetProp("fillcolor")), ParseColor(node.GetProp("colorfontnormal")) ?? ParseColor(node.GetProp("forecolor")),
+            node.GetProp("blttype") ?? string.Empty, ResolveUiImage(node, area),
+            node.GetProp("style")?.Contains("radiocheck") ?? false));
+
+        foreach (var child in node.Children)
+        {
+            CollectPreviewBoxes(child, area, false, into);
+        }
+    }
+
+    private readonly Dictionary<string, ImgSharpImage?> _uiPreviewSourceImageCache = new();
+
+    /// <summary>
+    /// Resolves a UI node's "image" prop - Ilive Reader's own <c>TextToCxImage</c>
+    /// (ui_common.cpp): the text is a <c>{group,instance}</c> reference to a plain PNG entry
+    /// (TGI Type 0x856DDBAC, shared with BMP/JPEG - same constant confirmed in Ilive
+    /// Reader's own sim015.h as ENT_PNG/ENT_BMP/ENT_JPEG) stored in this SAME package - not
+    /// an external texture file, so csDBPF's own PNG decoder (already used for the regular
+    /// image-entry preview - see LoadImagePreview) is all that's needed here too, no format
+    /// port required. For <c>blttype="edge"</c> nodes, the source is then re-sliced to fit
+    /// this specific node's own area (Ilive Reader's <c>EdgeCxImage</c> - the dialog-chrome
+    /// 9-slice scaling that keeps rounded corners/borders crisp at any size instead of
+    /// blurring them the way a plain stretch would), which is why the *decoded source* is
+    /// cached (by group/instance, cleared per node-tree-load in
+    /// LoadUiEditorForSelectedEntry) rather than the final per-node result - several
+    /// differently-sized controls can share one source texture.
+    /// </summary>
+    private readonly Dictionary<string, Avalonia.Media.Imaging.Bitmap?> _uiPreviewFinalImageCache = new();
+
+    private Avalonia.Media.Imaging.Bitmap? ResolveUiImage(UiLegacyNode node, Avalonia.PixelRect area)
+    {
+        var imageProp = node.GetProp("image");
+        if (string.IsNullOrEmpty(imageProp))
+        {
+            return null;
+        }
+
+        var blttype = node.GetProp("blttype");
+        var iid = node.GetProp("iid") ?? string.Empty;
+        var imagerect = node.GetProp("imagerect");
+        var isRadioCheckButton = iid == "IGZWinBtn" && (node.GetProp("style")?.Contains("radiocheck") ?? false);
+
+        // The 9-slice pixel-copy loop in BuildEdgeImage runs once per pixel of the
+        // destination size (see its own doc comment) - cheap for any one box, but
+        // RefreshUiPreview reruns CollectPreviewBoxes (and so this method) for every node on
+        // every refresh, including ones nothing changed for, which added up to a real,
+        // repeated cost on top of whatever it took to first resolve/decode the source image.
+        // Cache the FINAL per-size result (not just the decoded source, which
+        // _uiPreviewSourceImageCache already covers) so re-selecting the same entry or
+        // hitting REFRESH PREVIEW without actually editing anything doesn't redo any of that
+        // work. Keyed on every input that can change the output - two nodes sharing the same
+        // source image but different imagerect/button-state-crop/size must never collide.
+        var cacheKey = $"{imageProp}|{blttype}|{iid}|{imagerect}|{area.Width}x{area.Height}";
+        if (_uiPreviewFinalImageCache.TryGetValue(cacheKey, out var cachedFinal))
+        {
+            return cachedFinal;
+        }
+
+        if (!_uiPreviewSourceImageCache.TryGetValue(imageProp, out var source))
+        {
+            source = DecodeUiSourceImage(imageProp);
+
+            // Only cache a SUCCESSFUL decode. A null here is very often transient - most
+            // commonly the shared background-index scan (UiElementIndexService, see
+            // App.axaml.cs) simply hasn't reached the file this image actually lives in
+            // yet, especially right after switching to a UI entry shortly after startup.
+            // Caching that miss permanently would mean the image never appears even once
+            // the index finishes moments later - the exact "elements disappear and never
+            // come back" symptom this is fixing. A genuinely-missing image just gets
+            // looked up again next refresh, which is cheap (single dictionary lookup) once
+            // the index really doesn't have it.
+            if (source is not null)
+            {
+                _uiPreviewSourceImageCache[imageProp] = source;
+            }
+        }
+
+        Avalonia.Media.Imaging.Bitmap? result;
+        var disposables = new List<ImgSharpImage>();
+        try
+        {
+            if (source is null)
+            {
+                result = null;
+            }
+            else
+            {
+                // Faithful order from Ilive Reader's BuildPreviewUI (ui_common.cpp):
+                var working = source;
+
+                // 1) IGZWinBtn's own image is ALWAYS a spritesheet of side-by-side button
+                //    states (normal/hover/pressed/disabled, or - for a radiocheck-style
+                //    toggle button - 8 narrower check/radio states) - every button crops to
+                //    just its own "normal" state before anything else happens to the image,
+                //    regardless of whether the node has its own "imagerect". Missing this
+                //    is exactly why a button previously showed as a whole row of identical-
+                //    looking buttons (all 4, or all 8, states side by side) instead of one.
+                if (iid == "IGZWinBtn")
+                {
+                    // PRIORITY INSTRUCTION: the original C++ (ui_common.cpp) calls this as
+                    // Crop(left, top, RIGHT, bottom) - CxImage's Crop uses (l,t,r,b), not
+                    // (l,t,width,height). CropImage here takes (left,top,WIDTH,height), so
+                    // the standard (non-radiocheck) case's "right edge" of width/2 must be
+                    // converted to an actual crop WIDTH of (width/2 - width/4) = width/4 -
+                    // passing width/2 directly as the WIDTH parameter (as an earlier version
+                    // did) crops a HALF-width span (2 of the 4 button states) instead of a
+                    // QUARTER-width span (1 state), which is exactly why a button rendered
+                    // as two side-by-side states instead of one. The radiocheck case doesn't
+                    // need this adjustment since its own left edge is 0, where "right edge"
+                    // and "width" happen to be the same value either way.
+                    var cropped = isRadioCheckButton
+                        ? CropImage(working, 0, 0, working.Width / 8, working.Height, disposables)
+                        : CropImage(working, working.Width / 4, 0, working.Width / 4, working.Height, disposables);
+                    working = cropped ?? working;
+                }
+
+                // 2) The node's own explicit "imagerect" - a (left,top,right,bottom) crop
+                //    into whatever the image now is (post button-state-crop, if any), same
+                //    "(l,t,r,b)" convention as "area"/ParseRect.
+                if (!string.IsNullOrEmpty(imagerect))
+                {
+                    var rect = ParseRect(imagerect);
+                    if (rect.Width > 0 && rect.Height > 0)
+                    {
+                        var cropped = CropImage(working, rect.X, rect.Y, rect.Width, rect.Height, disposables);
+                        working = cropped ?? working;
+                    }
+                }
+
+                // 3) blttype="edge" 9-slices whatever the image is at this point to this
+                //    node's own area size (dialog chrome, mainly - buttons/imagerect icons
+                //    essentially never combine with blttype="edge" in practice, but nothing
+                //    here assumes they can't).
+                if (blttype == "edge" && area.Width > 0 && area.Height > 0)
+                {
+                    var sliced = BuildEdgeImage(working, area.Width, area.Height);
+                    if (sliced is not null)
+                    {
+                        disposables.Add(sliced);
+                        working = sliced;
+                    }
+
+                    // PRIORITY INSTRUCTION: never let an "edge" image reach the renderer at
+                    // any size other than exactly this node's own area - BuildEdgeImage
+                    // above should already guarantee that, but this is the actual visible
+                    // symptom being fixed (a dialog's chrome rendering bigger than its area
+                    // and visibly detached from its content), so it's worth asserting
+                    // directly rather than trusting that guarantee transitively.
+                    if (working.Width != area.Width || working.Height != area.Height)
+                    {
+                        var forced = CropImage(working, 0, 0, area.Width, area.Height, disposables);
+                        if (forced is not null)
+                        {
+                            working = forced;
+                        }
+                    }
+                }
+
+                result = ImageConversion.ToAvaloniaBitmap(working);
+            }
+        }
+        catch
+        {
+            // Whatever went wrong converting/cropping/9-slicing this one image (unusual
+            // pixel data, a pathological destination size, a malformed imagerect, ...) must
+            // not take down the whole preview - this one box just shows without an image
+            // (falls back to its plain fillcolor) instead.
+            result = null;
+        }
+        finally
+        {
+            // Every crop/slice step above produces a NEW derived image distinct from the
+            // shared, cached `source` - source itself is never mutated or disposed here (it
+            // stays owned by _uiPreviewSourceImageCache), only these intermediate ones.
+            foreach (var d in disposables)
+            {
+                d.Dispose();
+            }
+        }
+
+        // Same "don't cache a miss" reasoning as the source-image cache above - result can
+        // be null purely because `source` was (itself not yet cached, for the same
+        // transient reason), not because this specific size/blttype combination is
+        // actually unresolvable.
+        if (result is not null)
+        {
+            _uiPreviewFinalImageCache[cacheKey] = result;
+        }
+
+        return result;
+    }
+
+    /// <summary>Crops <paramref name="src"/> to the given (left,top,width,height) region,
+    /// clamped defensively to whatever of the source is actually there (a malformed/
+    /// out-of-range imagerect or button-state division shouldn't throw). Returns a NEW
+    /// image - never mutates src - added to <paramref name="trackForDisposal"/> so the
+    /// caller can dispose every intermediate crop once it's done with the final result.</summary>
+    private static ImgSharpImage? CropImage(ImgSharpImage src, int left, int top, int width, int height, List<ImgSharpImage> trackForDisposal)
+    {
+        if (src.Width <= 0 || src.Height <= 0)
+        {
+            return null;
+        }
+
+        left = Math.Clamp(left, 0, src.Width - 1);
+        top = Math.Clamp(top, 0, src.Height - 1);
+        width = Math.Clamp(width, 1, src.Width - left);
+        height = Math.Clamp(height, 1, src.Height - top);
+
+        var dest = new ImgSharpImage(width, height);
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                dest[x, y] = src[left + x, top + y];
+            }
+        }
+
+        trackForDisposal.Add(dest);
+        return dest;
+    }
+
+    private ImgSharpImage? DecodeUiSourceImage(string imageProp)
+    {
+        try
+        {
+            var trimmed = imageProp.Trim('{', '}');
+            var parts = trimmed.Split(',');
+            if (parts.Length != 2)
+            {
+                return null;
+            }
+
+            var group = EntryClipboard.ParseHex(parts[0]);
+            var instance = EntryClipboard.ParseHex(parts[1]);
+
+            var imageEntry = Entries.FirstOrDefault(e =>
+                e.Entry.TGI.TypeID == 0x856DDBAC && e.Entry.TGI.GroupID == group && e.Entry.TGI.InstanceID == instance);
+
+            if (imageEntry?.Entry is not null)
+            {
+                return DecodePng(imageEntry.Entry);
+            }
+
+            // Not in this file's own entries - UI dialogs very commonly reference shared
+            // chrome/background graphics (rounded borders, button skins, ...) that live in
+            // the base game's own package files rather than being duplicated into every
+            // single UI-definition .dat that uses them. Ilive Reader itself would show the
+            // exact same plain-fillcolor fallback box if opening this one file in isolation
+            // without the rest of the game's assets available - falling back to a search of
+            // the configured SC4 installation folder (see Options) is this app's own
+            // addition on top of that, not something the original ever did.
+            //
+            // PRIORITY INSTRUCTION: .Clone() here is required, not optional. UiElementIndex
+            // is one shared, app-wide service (every tab/document uses the same instance -
+            // see App.axaml.cs) that keeps its OWN cache of decoded shared images
+            // (UiElementIndexService._sharedImageCache) so the same background/button-skin
+            // graphic isn't re-decoded for every dialog that references it. Without cloning,
+            // this method would hand back that exact cached object by reference - which then
+            // gets stored in THIS document's own _uiPreviewSourceImageCache and disposed the
+            // next time LoadUiEditorForSelectedEntry runs (switching entries, even to an
+            // unrelated one). That silently corrupts the SHARED cache entry too, since it's
+            // the same object - the next lookup for that image, from this document or any
+            // other tab, returns an already-disposed image that fails to decode/9-slice and
+            // silently falls back to no image at all. That's exactly the "images work once,
+            // then vanish on the next selection - even after switching away and back" bug
+            // this fixes: each document needs its own independently-disposable copy.
+            return UiElementIndex.ResolveSharedImage(0x856DDBAC, group, instance)?.Clone();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// PRIORITY INSTRUCTION: never call DBPFEntryPNG.Decode() directly on a possibly-
+    /// compressed entry. Confirmed against csDBPF's own source (Entries/DBPFEntryPNG.cs):
+    /// unlike DBPFEntryUI/DBPFEntryLTEXT/DBPFEntryFSH/DBPFEntryEXMP, its Decode() calls
+    /// `Image.Load(ByteData)` directly with NO IsCompressed check/QFS.Decompress call first
+    /// - a real gap in that library, not something in this app's own pipeline. Most base-
+    /// game/shared UI chrome images ARE QFS-compressed, so Decode() was being handed
+    /// compressed bytes: ImageSharp's format-sniffing occasionally parsed that "successfully"
+    /// into a non-null Image with essentially garbage width/height derived from misread
+    /// compressed data instead of throwing outright - exactly why a dialog's chrome kept
+    /// rendering at some unrelated size, visibly detached from its own content, even after
+    /// the coordinate math and the "always fits its own area" sizing guarantees were both
+    /// independently verified correct. ByteData's setter is `protected` (DBPFEntry.cs), so
+    /// there's no way to hand a fixed-up entry back into csDBPF's own Decode() - decoding
+    /// directly via ImageSharp after this app's own RawEntryBytes.GetDecompressed (already
+    /// used everywhere else non-PNG in this codebase) sidesteps the gap entirely, and
+    /// doubles as the BMP/JPEG-under-the-same-shared-TypeID fallback in one step, since
+    /// Image.Load auto-detects the real format instead of assuming PNG specifically.
+    /// </summary>
+    private static ImgSharpImage? DecodePng(DBPFEntry entry)
+    {
+        try
+        {
+            var bytes = RawEntryBytes.GetDecompressed(entry);
+            if (bytes is null || bytes.Length == 0)
+            {
+                return null;
+            }
+
+            using var image = SixLabors.ImageSharp.Image.Load(bytes);
+            // .CloneAs<Rgba32>() guarantees a concrete Image<Rgba32> regardless of the
+            // decoded image's own exact pixel format (indexed/greyscale/etc PNGs all decode
+            // to something other than Rgba32 directly) - required anyway since
+            // BuildEdgeImage's per-pixel indexer below needs a known concrete pixel type to
+            // compile against.
+            return image.CloneAs<SixLabors.ImageSharp.PixelFormats.Rgba32>();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Port of Ilive Reader's <c>EdgeCxImage</c> (ui_common.cpp): 9-slice-scales
+    /// <paramref name="src"/> to exactly <paramref name="destWidth"/>x<paramref name="destHeight"/>.
+    /// The source is treated as a 3x3 grid of equal thirds - the 4 corner thirds are copied
+    /// unstretched to the 4 corners of the result; the remaining middle third of each edge,
+    /// and the very center third, are repeated (tiled) to fill however much space is left,
+    /// rather than being stretched/blurred. This is what keeps a dialog's rounded corner/
+    /// border artwork sharp at any dialog size.
+    ///
+    /// PRIORITY INSTRUCTION: this ALWAYS returns an image sized exactly destWidth x
+    /// destHeight (never null except for a genuinely invalid destination size) - an earlier
+    /// version returned null as a "already the right size, caller can just use src as-is"
+    /// shortcut, but the caller (ResolveUiImage) can't actually verify that assumption still
+    /// holds once other crop steps (button-state/imagerect) have already run first, and a
+    /// shared chrome/background image is routinely reused at several different sizes across
+    /// different dialogs anyway. Falling back to src's own native size when it DIDN'T
+    /// actually match the target is exactly what made a dialog's chrome render bigger than
+    /// its own area and visibly detached from its content - this always produces a result
+    /// that fits, with a plain copy standing in for the 9-slice math only in the genuine
+    /// exact-match case.
+    /// </summary>
+    private static ImgSharpImage? BuildEdgeImage(ImgSharpImage src, int destWidth, int destHeight)
+    {
+        if (destWidth <= 0 || destHeight <= 0)
+        {
+            return null;
+        }
+
+        var sw = src.Width;
+        var sh = src.Height;
+        if (sw == destWidth && sh == destHeight)
+        {
+            return src.Clone();
+        }
+
+        var thirdW = Math.Max(1, sw / 3);
+        var thirdH = Math.Max(1, sh / 3);
+
+        var dest = new ImgSharpImage(destWidth, destHeight);
+
+        for (var dy = 0; dy < destHeight; dy++)
+        {
+            int sy;
+            if (dy < thirdH)
+            {
+                sy = dy;
+            }
+            else if (dy >= destHeight - thirdH)
+            {
+                sy = sh - (destHeight - dy);
+            }
+            else
+            {
+                sy = thirdH + (dy - thirdH) % thirdH;
+            }
+
+            for (var dx = 0; dx < destWidth; dx++)
+            {
+                int sx;
+                if (dx < thirdW)
+                {
+                    sx = dx;
+                }
+                else if (dx >= destWidth - thirdW)
+                {
+                    sx = sw - (destWidth - dx);
+                }
+                else
+                {
+                    sx = thirdW + (dx - thirdW) % thirdW;
+                }
+
+                dest[dx, dy] = src[sx, sy];
+            }
+        }
+
+        return dest;
+    }
+
+    /// <summary>Parses Ilive Reader's "(left,top,right,bottom)" rect text (ui_common.cpp's TextToCRect) into an Avalonia-friendly X/Y/Width/Height rectangle.</summary>
+    private static Avalonia.PixelRect ParseRect(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return new Avalonia.PixelRect(0, 0, 0, 0);
+        }
+
+        var parts = text.Trim('(', ')').Split(',');
+        if (parts.Length != 4)
+        {
+            return new Avalonia.PixelRect(0, 0, 0, 0);
+        }
+
+        if (!int.TryParse(parts[0], out var l) || !int.TryParse(parts[1], out var t) ||
+            !int.TryParse(parts[2], out var r) || !int.TryParse(parts[3], out var b))
+        {
+            return new Avalonia.PixelRect(0, 0, 0, 0);
+        }
+
+        return new Avalonia.PixelRect(l, t, r - l, b - t);
+    }
+
+    /// <summary>Parses Ilive Reader's "(r,g,b)" color text (ui_common.cpp's TextToColor).</summary>
+    private static Avalonia.Media.Color? ParseColor(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var parts = text.Trim('(', ')').Split(',');
+        if (parts.Length != 3 ||
+            !byte.TryParse(parts[0], out var r) || !byte.TryParse(parts[1], out var g) || !byte.TryParse(parts[2], out var b))
+        {
+            return null;
+        }
+
+        return new Avalonia.Media.Color(255, r, g, b);
+    }
+
+    /// <summary>Called from UiPreviewControl when a box is dragged - writes the new position straight back into that node's "area" prop, live (Ilive Reader's own preview is read-only; this adds real drag-to-reposition on top).</summary>
+    public void MoveUiNode(UiLegacyNode node, int newLeft, int newTop)
+    {
+        var area = ParseRect(node.GetProp("area"));
+        var width = area.Width;
+        var height = area.Height;
+        var newArea = $"({newLeft},{newTop},{newLeft + width},{newTop + height})";
+
+        var existing = node.Properties.FirstOrDefault(p => p.Key == "area");
+        if (existing is not null)
+        {
+            existing.Value = newArea;
+        }
+        else
+        {
+            node.Properties.Add(new UiLegacyProp { Key = "area", Value = newArea });
+        }
+
+        if (SelectedUiNode?.Node == node)
+        {
+            RefreshUiProperties();
+        }
+
+        RefreshUiPreview();
+    }
+
+    /// <summary>Re-encodes the whole tree (Ilive Reader's CUIParse::Encode) and writes it back into the selected entry - the UI Editor's Save().</summary>
+    private void SaveUiEditor()
+    {
+        if (SelectedEntry is null || _uiRoot is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var text = UiLegacyParser.Encode(_uiRoot);
+            var bytes = Encoding.UTF8.GetBytes(text);
+            var oldVm = SelectedEntry;
+            var index = Entries.IndexOf(oldVm);
+
+            var newEntry = _service.ReplaceEntryBytes(oldVm.Entry, bytes);
+            try
+            {
+                _service.SetEntryCompression(newEntry, false);
+            }
+            catch
+            {
+                // Not fatal - see SaveLuaScriptToSelectedEntry's identical note.
+            }
+
+            var newVm = new EntryItemViewModel(newEntry);
+            if (index >= 0)
+            {
+                Entries[index] = newVm;
+            }
+            else
+            {
+                Entries.Add(newVm);
+            }
+
+            RefreshDisplayedEntries();
+            SelectedEntry = newVm;
+            UiEditorStatusMessage = "UI entry saved (remember to save the package).";
+        }
+        catch (Exception ex)
+        {
+            UiEditorStatusMessage = $"Error saving UI entry: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Batch-exports the given entries' decoded (decompressed) bytes into <paramref name="folder"/>
+    /// (Ilive Reader's "Save decoded file", ID_MENU_SAVEDECODEDFILE / <c>ExtractSelectedFiles(TRUE)</c>,
+    /// but multi-select instead of one file-save-dialog per entry) - same underlying export
+    /// (<see cref="EntryExporter.ExportAll"/>, with the matching ".TGI" companion file) as
+    /// <see cref="ExportAllEntries"/>, just scoped to a chosen set of entries instead of the
+    /// whole package.
+    /// </summary>
+    public void ExportSelectedEntriesDecoded(IReadOnlyCollection<DBPFEntry> entries, string folder)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var (succeeded, failed, warnings) = EntryExporter.ExportAll(entries, folder);
+            StatusMessage = (failed, warnings) switch
+            {
+                (0, 0) => $"{succeeded} decoded entr(y/ies) exported to: {folder}",
+                (0, > 0) => $"{succeeded} decoded entr(y/ies) exported to: {folder} — {warnings} with a validation warning",
+                _ => $"{succeeded} decoded entr(y/ies) exported ({warnings} with a warning), {failed} skipped (error), to: {folder}",
+            };
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while exporting: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// "EXPORT READABLE (TXT)...": writes each selected entry's content in genuinely
+    /// human-readable form - one .txt file per entry, same TTTTTTTT-GGGGGGGG-IIIIIIII
+    /// naming as every other export in this app - instead of raw bytes. For Exemplar/
+    /// Cohort entries in particular (the common complaint: opening the ".exmp"/".cohort"
+    /// binary export in Notepad shows garbage, because that binary "EQZB" property-table
+    /// layout was never meant to be read as text) this decodes every property to its name
+    /// (via <see cref="PropertyRegistry"/>) and formatted value/array - exactly the same
+    /// text <see cref="EntryDescriber.Describe"/> already builds for the Details panel, just
+    /// written to a file instead of shown inline. LTEXT/UI/FSH and everything else
+    /// EntryDescriber knows how to summarize come along the same way; entries it has no
+    /// structured reader for still get *something* useful (TGI, type, size) rather than a
+    /// blank/garbled file.
+    /// </summary>
+    public void ExportSelectedEntriesReadable(IReadOnlyCollection<DBPFEntry> entries, string folder)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var succeeded = 0;
+            var failed = 0;
+
+            foreach (var entry in entries)
+            {
+                try
+                {
+                    var text = EntryDescriber.Describe(entry, PropertyRegistry);
+                    var fileName = EntryExporter.BaseFileName(entry) + ".readable.txt";
+                    File.WriteAllText(Path.Combine(folder, fileName), text);
+                    succeeded++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            StatusMessage = failed == 0
+                ? $"{succeeded} entr(y/ies) exported as readable text to: {folder}"
+                : $"{succeeded} entr(y/ies) exported as readable text ({failed} skipped due to an error), to: {folder}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while exporting readable text: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Ilive Reader's "Save header as text" (ID_MENU_SAVEHEADER_TXT) wrote each selected
+    /// entry's raw 20-byte on-disk index record as a hex byte dump to its own auto-named
+    /// .hdr file. csDBPF doesn't expose that raw on-disk index record, so this writes the
+    /// same information in a readable form instead - one line per entry (Type/Group/
+    /// Instance/size in hex) into a single chosen file, covering every currently selected
+    /// entry in one go rather than one file-save-dialog per entry.
+    /// </summary>
+    public void SaveSelectedEntryHeaders(IReadOnlyCollection<DBPFEntry> entries, string filePath)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var sb = new StringBuilder();
+            foreach (var entry in entries)
+            {
+                var tgi = entry.TGI;
+                var size = entry.ByteData?.Length ?? 0;
+                sb.AppendLine($"Type=0x{tgi.TypeID:X8} Group=0x{tgi.GroupID:X8} Instance=0x{tgi.InstanceID:X8} Size=0x{size:X8}");
+            }
+
+            File.WriteAllText(filePath, sb.ToString());
+            StatusMessage = $"{entries.Count} entry header(s) saved to: {filePath}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while saving headers: {ex.Message}";
+        }
+    }
+
 }

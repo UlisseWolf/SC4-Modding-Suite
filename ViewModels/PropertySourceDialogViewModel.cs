@@ -12,10 +12,21 @@ namespace SC4ModdingSuite.ViewModels;
 public sealed class PropertySourceDialogViewModel : ViewModelBase
 {
     private readonly PropertySourceService _service;
+    private readonly UiElementIndexService _uiElementIndex;
+    private readonly string? _sc4InstallFolder;
+    private readonly string? _pluginsFolder;
 
-    public PropertySourceDialogViewModel(PropertySourceService service, PropertySource lastUsedSource)
+    public PropertySourceDialogViewModel(
+        PropertySourceService service,
+        PropertySource lastUsedSource,
+        UiElementIndexService uiElementIndex,
+        string? sc4InstallFolder,
+        string? pluginsFolder)
     {
         _service = service;
+        _uiElementIndex = uiElementIndex;
+        _sc4InstallFolder = sc4InstallFolder;
+        _pluginsFolder = pluginsFolder;
         HasLocalOverride = service.HasLocalOverride;
         LocalOverridePath = service.LocalOverridePath;
 
@@ -122,9 +133,10 @@ public sealed class PropertySourceDialogViewModel : ViewModelBase
             if (UseLocalOverride && HasLocalOverride)
             {
                 StatusMessage = "Loading the custom local file...";
-                registry.Load(_service.LocalOverridePath, "Custom local file (developer)");
+                await Task.Run(() => registry.Load(_service.LocalOverridePath, "Custom local file (developer)"));
                 Result = registry;
                 ResultSource = null;
+                await IndexUiElementsAsync();
                 CloseRequested?.Invoke(this, true);
                 return;
             }
@@ -144,15 +156,40 @@ public sealed class PropertySourceDialogViewModel : ViewModelBase
                 return;
             }
 
-            registry.Load(path, PropertySourceService.DisplayName(source));
+            StatusMessage = $"Loading {PropertySourceService.DisplayName(source)}...";
+            await Task.Run(() => registry.Load(path, PropertySourceService.DisplayName(source)));
             Result = registry;
             ResultSource = source;
             _service.SaveLastUsedSource(source);
+            await IndexUiElementsAsync();
             CloseRequested?.Invoke(this, true);
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Indexes every UI/image entry (see UiElementIndexService) across BOTH the SC4
+    /// installation folder and the Plugins folder before this "please wait" screen closes,
+    /// so the app is fully ready - shared UI chrome images resolvable, "UI Elements" results
+    /// populated - the moment the main window appears, instead of racing a background scan
+    /// against whatever the person does first. Same idea as SC4 PIM-X finishing its own data
+    /// loading before revealing its main window. The Plugins folder can be considerably
+    /// bigger than the installation folder (thousands of files vs. a handful) - the
+    /// tradeoff is a longer wait here in exchange for the UI Editor never needing to fall
+    /// back to an incomplete index once the person actually gets to it.
+    /// </summary>
+    private async Task IndexUiElementsAsync()
+    {
+        var folders = new[] { _sc4InstallFolder, _pluginsFolder };
+        if (Array.TrueForAll(folders, string.IsNullOrWhiteSpace))
+        {
+            return;
+        }
+
+        StatusMessage = "Indexing UI and image entries in Plugins and the SC4 installation folder...";
+        await _uiElementIndex.RefreshAsync(folders);
     }
 }

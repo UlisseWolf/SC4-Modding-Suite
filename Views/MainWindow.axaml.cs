@@ -1,14 +1,20 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using SC4ModdingSuite.Models;
 using SC4ModdingSuite.ViewModels;
 
 namespace SC4ModdingSuite.Views;
 
+/// <summary>
+/// MDI shell window: Navigator tree + one tab per open document (see
+/// ViewModels/MainWindowShellViewModel and Views/DbpfWorkspaceView, the former single-
+/// window MainWindow content). Also hosts the multi-file tools that don't belong to any
+/// one tab - Compare, Merge, Directory sync - opened here the same way every dialog in
+/// this app is opened, from code-behind against the active tab (<see cref="MainWindowShellViewModel.SelectedDocument"/>).
+/// </summary>
 public partial class MainWindow : Window
 {
     public MainWindow()
@@ -16,38 +22,28 @@ public partial class MainWindow : Window
         InitializeComponent();
     }
 
-    private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;
+    private MainWindowShellViewModel ViewModel => (MainWindowShellViewModel)DataContext!;
 
     private static readonly FilePickerFileType Sc4PackageFileType = new("File SC4 (DBPF)")
     {
         Patterns = new[] { "*.dat", "*.sc4lot", "*.sc4desc", "*.sc4model" },
     };
 
-    private void OnNewClick(object? sender, RoutedEventArgs e)
-    {
-        ViewModel.CreateNewPackage();
-    }
+    private void OnNewClick(object? sender, RoutedEventArgs e) => ViewModel.NewDocument();
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e)
     {
         var options = new FilePickerOpenOptions
         {
-            Title = "Open SC4 (DBPF) file",
-            AllowMultiple = false,
+            Title = "Open SC4 (DBPF) file(s)",
+            AllowMultiple = true, // MDI: opening several at once puts each into its own tab
             FileTypeFilter = new List<FilePickerFileType> { Sc4PackageFileType, FilePickerFileTypes.All },
         };
 
-        // Nice-to-have: start the picker in the configured Plugins folder (Opzioni), if any
-        // - that's where someone using this app actually keeps the mod files they want to
-        // open, as opposed to the base game's own install folder. Falls back to the SC4
-        // installation folder if no Plugins folder is configured, so existing setups that
-        // only ever set that one still get a sensible starting location. Purely a
-        // convenience - it has no bearing on which files end up protected against in-place
-        // saving (see ProtectedFileNames).
-        var startFolder = ViewModel.AppOptions.PluginsFolder;
+        var startFolder = ViewModel.SelectedDocument?.AppOptions.PluginsFolder;
         if (string.IsNullOrWhiteSpace(startFolder))
         {
-            startFolder = ViewModel.AppOptions.Sc4InstallFolder;
+            startFolder = ViewModel.SelectedDocument?.AppOptions.Sc4InstallFolder;
         }
 
         if (!string.IsNullOrWhiteSpace(startFolder))
@@ -63,29 +59,74 @@ public partial class MainWindow : Window
         }
 
         var files = await StorageProvider.OpenFilePickerAsync(options);
-
-        var file = files.FirstOrDefault();
-        if (file is null)
+        foreach (var file in files)
         {
-            return;
+            var path = file.TryGetLocalPath();
+            if (path is not null)
+            {
+                ViewModel.OpenDocument(path);
+            }
         }
-
-        var path = file.TryGetLocalPath();
-        if (path is null)
-        {
-            return;
-        }
-
-        ViewModel.OpenFile(path);
     }
 
-    private void OnSaveClick(object? sender, RoutedEventArgs e)
+    private void OnCloseTabClick(object? sender, RoutedEventArgs e)
     {
-        ViewModel.SaveInPlace();
+        if (sender is Button { Tag: MainWindowViewModel doc })
+        {
+            ViewModel.CloseDocument(doc);
+        }
     }
+
+    /// <summary>Double-clicking a package file in the Navigator opens it into a new tab.</summary>
+    private void OnNavigatorDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is TreeView { SelectedItem: NavigatorNodeViewModel { IsSc4Package: true, Path: { } path } })
+        {
+            ViewModel.OpenDocument(path);
+        }
+    }
+
+    private async void OnCompareClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new DatCompareDialog(new DatCompareDialogViewModel());
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnMergeClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new MergeDialog(new MergeDialogViewModel(ViewModel.SelectedDocument));
+        await dialog.ShowDialog(this);
+    }
+
+    private async void OnDirectorySyncClick(object? sender, RoutedEventArgs e)
+    {
+        var document = ViewModel.SelectedDocument;
+        if (document is null || !document.HasOpenFile)
+        {
+            return;
+        }
+
+        var dialog = new DirectoryDialog(new DirectoryDialogViewModel(document));
+        await dialog.ShowDialog(this);
+    }
+
+    // ---------------------------------------------------------------
+    // Save/Save As/Export/Import/Options - act on SelectedDocument (the active tab), same as
+    // "New"/"Open" above. Used to be duplicated per-tab in Views/DbpfWorkspaceView's own
+    // toolbar; consolidated up here so every file-operation button lives in one single place
+    // regardless of which tab is active.
+    // ---------------------------------------------------------------
+
+    private void OnSaveClick(object? sender, RoutedEventArgs e) => ViewModel.SelectedDocument?.SaveInPlace();
 
     private async void OnSaveAsClick(object? sender, RoutedEventArgs e)
     {
+        var document = ViewModel.SelectedDocument;
+        if (document is null)
+        {
+            return;
+        }
+
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Save SC4 (DBPF) file as",
@@ -99,46 +140,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        ViewModel.SaveToPath(path);
-    }
-
-    private async void OnAddPropertyClick(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel.SelectedExemplar is null)
-        {
-            return;
-        }
-
-        var dialogVm = new PropertyEditDialogViewModel(ViewModel.PropertyRegistry, existing: null);
-        var dialog = new PropertyEditDialog(dialogVm);
-
-        var accepted = await dialog.ShowDialog<bool>(this);
-        if (accepted && dialogVm.Result is not null)
-        {
-            ViewModel.AddOrUpdateProperty(dialogVm.Result);
-        }
-    }
-
-    private async void OnEditPropertyClick(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel.SelectedExemplar is null || ViewModel.SelectedProperty is null)
-        {
-            return;
-        }
-
-        var dialogVm = new PropertyEditDialogViewModel(ViewModel.PropertyRegistry, ViewModel.SelectedProperty.Property);
-        var dialog = new PropertyEditDialog(dialogVm);
-
-        var accepted = await dialog.ShowDialog<bool>(this);
-        if (accepted && dialogVm.Result is not null)
-        {
-            ViewModel.AddOrUpdateProperty(dialogVm.Result);
-        }
+        document.SaveToPath(path);
     }
 
     private async void OnExportSelectedClick(object? sender, RoutedEventArgs e)
     {
-        if (ViewModel.SelectedEntry is null)
+        var document = ViewModel.SelectedDocument;
+        if (document?.SelectedEntry is null)
         {
             return;
         }
@@ -146,7 +154,7 @@ public partial class MainWindow : Window
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export entry as...",
-            SuggestedFileName = ViewModel.SuggestedExportFileName,
+            SuggestedFileName = document.SuggestedExportFileName,
         });
 
         var path = file?.TryGetLocalPath();
@@ -155,12 +163,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        ViewModel.ExportSelectedEntry(path);
+        document.ExportSelectedEntry(path);
     }
 
     private async void OnImportIntoSelectedClick(object? sender, RoutedEventArgs e)
     {
-        if (ViewModel.SelectedEntry is null)
+        var document = ViewModel.SelectedDocument;
+        if (document?.SelectedEntry is null)
         {
             return;
         }
@@ -177,11 +186,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        ViewModel.ImportIntoSelectedEntry(path);
+        document.ImportIntoSelectedEntry(path);
     }
 
     private async void OnExportAllClick(object? sender, RoutedEventArgs e)
     {
+        var document = ViewModel.SelectedDocument;
+        if (document is null)
+        {
+            return;
+        }
+
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = "Choose the folder to export all entries to",
@@ -194,234 +209,41 @@ public partial class MainWindow : Window
             return;
         }
 
-        ViewModel.ExportAllEntries(path);
-    }
-
-    private static readonly FilePickerFileType ThreeDsFileType = new("3D Studio mesh (.3ds)")
-    {
-        Patterns = new[] { "*.3ds" },
-    };
-
-    private async void OnImportS3DClick(object? sender, RoutedEventArgs e)
-    {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Import .3ds file",
-            AllowMultiple = false,
-            FileTypeFilter = new List<FilePickerFileType> { ThreeDsFileType, FilePickerFileTypes.All },
-        });
-
-        var path = files.FirstOrDefault()?.TryGetLocalPath();
-        if (path is null)
-        {
-            return;
-        }
-
-        ViewModel.ImportS3DFrom3ds(path);
-    }
-
-    private async void OnExportS3DClick(object? sender, RoutedEventArgs e)
-    {
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Export model as .3ds",
-            SuggestedFileName = "model.3ds",
-            FileTypeChoices = new List<FilePickerFileType> { ThreeDsFileType },
-        });
-
-        var path = file?.TryGetLocalPath();
-        if (path is null)
-        {
-            return;
-        }
-
-        ViewModel.ExportS3DTo3ds(path);
-    }
-
-    private async void OnExportS3DGroupClick(object? sender, RoutedEventArgs e)
-    {
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Export editing group as .3ds",
-            SuggestedFileName = $"group{ViewModel.S3DEditGroupIndex}.3ds",
-            FileTypeChoices = new List<FilePickerFileType> { ThreeDsFileType },
-        });
-
-        var path = file?.TryGetLocalPath();
-        if (path is null)
-        {
-            return;
-        }
-
-        ViewModel.ExportS3DGroupTo3ds(path);
-    }
-
-    // ---------------------------------------------------------------
-    // S3D Editor: geometry editor. Opens in its own window (S3DGeometryEditorDialog),
-    // sharing this window's MainWindowViewModel as DataContext - no separate dialog
-    // view model needed, the grids/commands it binds to already live on MainWindowViewModel.
-    // ---------------------------------------------------------------
-
-    private async void OnOpenS3DGeometryEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DGeometryEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DMaterialEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DMaterialEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DAnimationEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DAnimationEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DPropEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DPropEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DUVEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DUVEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DHexEditorClick(object? sender, RoutedEventArgs e)
-    {
-        if (ViewModel.SelectedEntry is null)
-        {
-            return;
-        }
-
-        var bytes = RawEntryBytes.GetDecompressed(ViewModel.SelectedEntry.Entry);
-        var chunks = bytes is null ? System.Array.Empty<(string, byte[])>() : S3DParser.LocateChunks(bytes);
-
-        var dialog = new S3DHexEditorDialog(chunks);
-        await dialog.ShowDialog(this);
-    }
-
-    private async void OnOpenS3DRegPointEditorClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new S3DRegPointEditorDialog { DataContext = ViewModel };
-        await dialog.ShowDialog(this);
+        document.ExportAllEntries(path);
     }
 
     private async void OnOpenOptionsClick(object? sender, RoutedEventArgs e)
     {
+        var document = ViewModel.SelectedDocument;
+        if (document is null)
+        {
+            return;
+        }
+
         var dialogVm = new OptionsDialogViewModel(
-            ViewModel.AppOptionsService,
-            ViewModel.AppOptions,
-            ViewModel.ThemeService,
-            ViewModel.LocalizationService);
+            document.AppOptionsService,
+            document.AppOptions,
+            document.ThemeService,
+            document.LocalizationService);
 
         var dialog = new OptionsDialog(
             dialogVm,
-            ViewModel.PropertySourceService,
-            registry => ViewModel.SetPropertyRegistry(registry));
+            document.PropertySourceService,
+            registry => document.SetPropertyRegistry(registry),
+            document.UiElementIndex,
+            document.AppOptions.Sc4InstallFolder,
+            document.AppOptions.PluginsFolder);
 
         await dialog.ShowDialog(this);
-    }
 
-    // ---------------------------------------------------------------
-    // Copy/paste (full entries and TGI-only). Multi-select on EntriesListBox works out of
-    // the box from SelectionMode="Multiple" (click = select one, Ctrl+click = toggle
-    // add/remove, Shift+click = select a contiguous range) - standard Avalonia ListBox
-    // behavior, no extra code needed for that part.
-    // ---------------------------------------------------------------
+        // Options may have just changed the Plugins and/or SC4 installation folder paths -
+        // rescan the Navigator so the new/corrected paths show up without needing a restart.
+        ViewModel.RefreshNavigatorRoots();
 
-    private IReadOnlyCollection<EntryItemViewModel> GetSelectedEntries() =>
-        EntriesListBox.SelectedItems?.Cast<EntryItemViewModel>().ToList() ?? new List<EntryItemViewModel>();
-
-    private async void OnCopyEntriesClick(object? sender, RoutedEventArgs e) => await CopyEntriesAsync();
-
-    private async void OnPasteEntriesClick(object? sender, RoutedEventArgs e) => await PasteEntriesAsync();
-
-    private async void OnCopyTgiClick(object? sender, RoutedEventArgs e) => await CopyTgiAsync();
-
-    private async void OnPasteTgiClick(object? sender, RoutedEventArgs e) => await PasteTgiAsync();
-
-    private async void OnWindowKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
-    {
-        var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
-        var shift = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift);
-
-        if (!ctrl)
-        {
-            return;
-        }
-
-        switch (e.Key)
-        {
-            case Avalonia.Input.Key.C when shift:
-                await CopyTgiAsync();
-                e.Handled = true;
-                break;
-            case Avalonia.Input.Key.C:
-                await CopyEntriesAsync();
-                e.Handled = true;
-                break;
-            case Avalonia.Input.Key.V when shift:
-                await PasteTgiAsync();
-                e.Handled = true;
-                break;
-            case Avalonia.Input.Key.V:
-                await PasteEntriesAsync();
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private async System.Threading.Tasks.Task CopyEntriesAsync()
-    {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        var text = ViewModel.BuildEntriesClipboardText(GetSelectedEntries());
-        if (clipboard is null || text is null)
-        {
-            return;
-        }
-
-        await clipboard.SetTextAsync(text);
-    }
-
-    private async System.Threading.Tasks.Task PasteEntriesAsync()
-    {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is null)
-        {
-            return;
-        }
-
-        var text = await clipboard.GetTextAsync();
-        ViewModel.PasteEntriesFromClipboardText(text);
-    }
-
-    private async System.Threading.Tasks.Task CopyTgiAsync()
-    {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        var text = ViewModel.BuildTgiClipboardText(GetSelectedEntries());
-        if (clipboard is null || text is null)
-        {
-            return;
-        }
-
-        await clipboard.SetTextAsync(text);
-    }
-
-    private async System.Threading.Tasks.Task PasteTgiAsync()
-    {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is null)
-        {
-            return;
-        }
-
-        var text = await clipboard.GetTextAsync();
-        ViewModel.PasteTgiFromClipboardText(text);
+        // Same for the automatic UI Elements index (see App.axaml.cs/UiElementIndexService) -
+        // otherwise it would stay empty (or stale) until the app is restarted if this is the
+        // first time either folder gets set. Its own on-disk cache means files that haven't
+        // actually changed since the last scan are skipped, not fully reparsed.
+        _ = document.UiElementIndex.RefreshAsync(new[] { document.AppOptions.Sc4InstallFolder, document.AppOptions.PluginsFolder });
     }
 }

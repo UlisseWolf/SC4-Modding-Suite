@@ -64,10 +64,9 @@ public sealed class PropertyItemViewModel : ViewModelBase
         try
         {
             var data = Property.GetTypedData();
-            var preferHex = Definition is { Options.Count: > 0 };
             values = data is char[] chars
                 ? new string(chars)
-                : string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, Property.DataType, preferHex)));
+                : string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, Property.DataType)));
         }
         catch
         {

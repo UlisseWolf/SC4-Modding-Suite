@@ -16,6 +16,15 @@ public sealed class DbpfService
     /// <summary>The package currently loaded (or newly created), if any.</summary>
     public DBPFFile? CurrentFile { get; private set; }
 
+    /// <summary>
+    /// Entries added or modified since the package was opened (Ilive Reader's own
+    /// "Recorder"/Patch Manager - <c>CSave::m_aRecorded</c>) - a running set of "what
+    /// changed this session", so a patch containing just those entries can be exported
+    /// without hand-picking them. Cleared on Open/CreateNew; entries removed via
+    /// RemoveEntry drop out too (nothing to patch-export for something no longer there).
+    /// </summary>
+    public HashSet<DBPFEntry> RecordedEntries { get; } = new();
+
     /// <summary>Full path of the currently loaded package, or null for an unsaved new package.</summary>
     public string? CurrentPath { get; private set; }
 
@@ -28,6 +37,7 @@ public sealed class DbpfService
     /// <summary>Opens an existing SC4 DBPF-format file (.dat/.sc4lot/.sc4desc/.sc4model).</summary>
     public void Open(string path)
     {
+        RecordedEntries.Clear();
         CurrentFile = new DBPFFile(path);
         CurrentPath = path;
     }
@@ -35,6 +45,7 @@ public sealed class DbpfService
     /// <summary>Starts a brand-new, empty package in memory.</summary>
     public void CreateNew()
     {
+        RecordedEntries.Clear();
         CurrentFile = new DBPFFile();
         CurrentPath = null;
     }
@@ -47,7 +58,8 @@ public sealed class DbpfService
             return;
         }
 
-        CurrentFile.RemoveEntry(entry.TGI);
+        DbpfFileFixes.RemoveEntry(CurrentFile, entry.TGI);
+        RecordedEntries.Remove(entry);
     }
 
     /// <summary>
@@ -123,8 +135,10 @@ public sealed class DbpfService
 
         var newEntry = (DBPFEntry)ctor.Invoke(args);
 
-        CurrentFile.RemoveEntry(current);
+        DbpfFileFixes.RemoveEntry(CurrentFile, current);
         CurrentFile.AddEntry(newEntry);
+        RecordedEntries.Remove(entry);
+        RecordedEntries.Add(newEntry);
 
         return newEntry;
     }
@@ -184,9 +198,51 @@ public sealed class DbpfService
         object[] args = { tgi, 0u, (uint)bytes.Length, 0u, bytes };
         var newEntry = (DBPFEntry)ctor.Invoke(args);
 
-        CurrentFile.AddOrUpdateEntry(newEntry);
+        DbpfFileFixes.AddOrUpdateEntry(CurrentFile, newEntry);
+        RecordedEntries.Add(newEntry);
         return newEntry;
     }
+
+    /// <summary>
+    /// Creates or updates an LTEXT entry at the exact <paramref name="tgi"/> given, setting
+    /// its text to <paramref name="text"/> - the one write path shared by the LTEXT
+    /// Editor's "SAVE FILE", "SAVE ALL FOR LANGUAGE" and "IMPORT POEDIT" actions, all of
+    /// which need to place a translated string at a specific language-offset TGI (see
+    /// <see cref="LtextTgiLanguage"/>) whether or not an entry already happens to exist
+    /// there yet.
+    /// </summary>
+    /// <returns>The created or updated <see cref="DBPFEntryLTEXT"/>.</returns>
+    public DBPFEntryLTEXT UpsertLtextEntry(TGI tgi, string text)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var existing = CurrentFile.GetEntry(tgi);
+
+        DBPFEntryLTEXT ltext;
+        if (existing is DBPFEntryLTEXT existingLtext)
+        {
+            existingLtext.Text = text;
+            ltext = existingLtext;
+        }
+        else
+        {
+            // A brand-new entry, or an existing non-LTEXT entry (e.g. csDBPF's generic
+            // DBPFEntryUnknown for something this app hasn't touched yet) at that TGI -
+            // either way, a fresh DBPFEntryLTEXT is what should live there afterwards.
+            ltext = new DBPFEntryLTEXT(tgi, text);
+        }
+
+        ltext.Encode(compress: false);
+        DbpfFileFixes.AddOrUpdateEntry(CurrentFile, ltext);
+        RecordedEntries.Add(ltext);
+        return ltext;
+    }
+
+    /// <summary>Looks up an entry by its exact TGI, or null if none exists at that address yet.</summary>
+    public DBPFEntry? TryGetEntry(TGI tgi) => CurrentFile?.GetEntry(tgi);
 
     /// <summary>
     /// Saves the package back to the file it was opened from. Writes the package with
@@ -220,6 +276,57 @@ public sealed class DbpfService
     }
 
     /// <summary>
+    /// Result of <see cref="ExportRhdToLhd"/>: how many T21 exemplars were actually
+    /// mirrored, vs. how many entries (T21 or not) were carried over unchanged into the
+    /// new file because they either weren't a T21 at all or weren't a well-formed one
+    /// (<see cref="T21LhdConverter.MirrorToLhd"/> returned null - copied through as-is
+    /// instead of being dropped, so the new file is never missing anything the source had).
+    /// </summary>
+    public sealed record RhdToLhdResult(int Mirrored, int CopiedUnchanged);
+
+    /// <summary>
+    /// Writes a brand-new file at <paramref name="path"/> containing every entry from the
+    /// currently open package, with every T21 (network lot / Prop&amp;Flora placement)
+    /// Exemplar mirrored for left-hand-drive traffic (see <see cref="T21LhdConverter"/> for
+    /// exactly what "mirrored" means) - the requested "RHD → LHD" conversion. The
+    /// currently open package itself (<see cref="CurrentFile"/>/<see cref="CurrentPath"/>)
+    /// is never modified; this only ever reads from it and writes a separate file, exactly
+    /// like <see cref="SaveAs"/> but with T21 entries transformed along the way instead of
+    /// copied byte-for-byte.
+    /// </summary>
+    public RhdToLhdResult ExportRhdToLhd(string path)
+    {
+        if (CurrentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var mirroredCount = 0;
+        var copiedCount = 0;
+        var outputEntries = new List<DBPFEntry>();
+
+        foreach (var entry in CurrentFile.ListOfEntries)
+        {
+            if (entry is DBPFEntryEXMP exemplar && T21LhdConverter.IsT21Exemplar(exemplar))
+            {
+                var mirrored = T21LhdConverter.MirrorToLhd(exemplar);
+                if (mirrored is not null)
+                {
+                    outputEntries.Add(mirrored);
+                    mirroredCount++;
+                    continue;
+                }
+            }
+
+            outputEntries.Add(entry);
+            copiedCount++;
+        }
+
+        DbpfWriter.WritePackage(outputEntries, path);
+        return new RhdToLhdResult(mirroredCount, copiedCount);
+    }
+
+    /// <summary>
     /// Saves the package to a new file path, creating it if needed. See <see cref="Save"/>
     /// for why this uses <see cref="DbpfWriter"/> instead of csDBPF's own SaveAs. Unlike
     /// <see cref="Save"/>, this is always allowed even for a package originally opened
@@ -247,6 +354,124 @@ public sealed class DbpfService
 
     /// <summary>True if the currently open file is one of SC4's protected core game data files.</summary>
     public bool IsCurrentFileProtected => ProtectedFileNames.IsProtected(CurrentPath);
+
+    /// <summary>True if any entry in the currently open package already has this exact TGI - used
+    /// for conflict checks (e.g. "Change Instance", Ilive Reader's DlgChangeInstance) before
+    /// applying a new TGI, something the original dialog never actually checked for.</summary>
+    public bool TgiExists(TGI tgi) =>
+        CurrentFile is not null && CurrentFile.ListOfEntries.Any(e =>
+            e.TGI.TypeID == tgi.TypeID && e.TGI.GroupID == tgi.GroupID && e.TGI.InstanceID == tgi.InstanceID);
+
+    private static readonly Lazy<ConstructorInfo?> UnknownEntryCtor = new(() =>
+    {
+        var type = typeof(DBPFEntry).Assembly.GetType("csDBPF.DBPFEntryUnknown");
+        return type is null ? null : FindReadingConstructor(type);
+    });
+
+    /// <summary>
+    /// Adds a brand-new entry built from raw bytes and an explicit TGI - used by "Insert Batch"
+    /// and "Insert Template" (Ilive Reader's DlgInsertBatch/DlgTemplate) to add entries that
+    /// don't come from copying an existing one (that's <see cref="AddEntryFromClipboard"/>'s job).
+    /// Always constructed as csDBPF's generic/fallback entry type - the same one
+    /// <see cref="AddEntryFromClipboard"/> already relies on for entries with no structured
+    /// decoder - rather than guessing a format-specific class from the TGI. A freshly-inserted
+    /// entry gets its correct concrete type back automatically the next time the package is
+    /// saved and reopened (exactly like any file csDBPF reads from disk); until then, tools
+    /// that need a specific type (Exemplar property grid, image preview, ...) won't recognize
+    /// it, while TGI/raw-bytes-driven tools (S3D/LUA editors, export, hex view) work immediately.
+    /// </summary>
+    /// <param name="tgi">TGI for the new entry.</param>
+    /// <param name="rawBytes">Uncompressed payload bytes.</param>
+    /// <param name="compress">If true, QFS-compresses <paramref name="rawBytes"/> before storing them.</param>
+    public DBPFEntry? AddNewEntry(TGI tgi, byte[] rawBytes, bool compress)
+    {
+        var currentFile = CurrentFile;
+        if (currentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var ctor = UnknownEntryCtor.Value;
+        if (ctor is null)
+        {
+            return null;
+        }
+
+        var bytes = compress ? QFS.Compress(rawBytes) : rawBytes;
+        if (bytes is null)
+        {
+            // QFS.Compress is annotated as returning byte[]? in csDBPF - guard against it
+            // explicitly (CS8602) instead of a null-forgiving "!", which would only push a
+            // NullReferenceException a few lines further down into a corrupted entry instead
+            // of failing clearly here.
+            throw new InvalidOperationException("QFS compression failed for the new entry's payload.");
+        }
+
+        object[] args = { tgi, 0u, (uint)bytes.Length, 0u, bytes };
+        var newEntry = (DBPFEntry)ctor.Invoke(args);
+
+        DbpfFileFixes.AddOrUpdateEntry(currentFile, newEntry);
+        RecordedEntries.Add(newEntry);
+        return newEntry;
+    }
+
+    /// <summary>
+    /// Adds an entry whose raw bytes are already in their final on-disk form (compressed or
+    /// not - whichever the bytes themselves already are) - used for "Insert Template", where
+    /// the two bundled template blobs (blank Exemplar/Cohort) are stored exactly as Ilive
+    /// Reader shipped them, one QFS-compressed and one not.
+    /// </summary>
+    public DBPFEntry? AddNewEntryRaw(TGI tgi, byte[] finalBytes)
+    {
+        var currentFile = CurrentFile;
+        if (currentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var ctor = UnknownEntryCtor.Value;
+        if (ctor is null)
+        {
+            return null;
+        }
+
+        object[] args = { tgi, 0u, (uint)finalBytes.Length, 0u, finalBytes };
+        var newEntry = (DBPFEntry)ctor.Invoke(args);
+
+        DbpfFileFixes.AddOrUpdateEntry(currentFile, newEntry);
+        RecordedEntries.Add(newEntry);
+        return newEntry;
+    }
+
+    /// <summary>
+    /// Drops any stray Directory (DIR) subfile entry from the working set - Ilive Reader's
+    /// manual "Reindex" (ID_MENU_REINDEX/CSave::ReIndex) recomputed each entry's index/order
+    /// bookkeeping; this app's <see cref="DbpfWriter"/> already rebuilds that from scratch on
+    /// every single save, so the only thing "Reindex" can meaningfully still do here is clear
+    /// out a Directory entry that was loaded from disk and would otherwise just sit in the
+    /// entry list unused until the next save silently replaces it anyway.
+    /// </summary>
+    /// <returns>Count of stray Directory entries removed.</returns>
+    public int Reindex()
+    {
+        var currentFile = CurrentFile;
+        if (currentFile is null)
+        {
+            throw new InvalidOperationException("No package is currently open.");
+        }
+
+        var stray = currentFile.ListOfEntries.Where(e =>
+            e.TGI.TypeID == DbpfWriter.DirectoryTgi.TypeID
+            && e.TGI.GroupID == DbpfWriter.DirectoryTgi.GroupID
+            && e.TGI.InstanceID == DbpfWriter.DirectoryTgi.InstanceID).ToList();
+
+        foreach (var entry in stray)
+        {
+            DbpfFileFixes.RemoveEntry(currentFile, entry.TGI);
+        }
+
+        return stray.Count;
+    }
 
     /// <summary>
     /// Replaces an entry's raw payload with <paramref name="newBytes"/> (its TGI is kept
@@ -285,8 +510,10 @@ public sealed class DbpfService
 
         var newEntry = (DBPFEntry)ctor.Invoke(args);
 
-        CurrentFile.RemoveEntry(tgi);
+        DbpfFileFixes.RemoveEntry(CurrentFile, tgi);
         CurrentFile.AddEntry(newEntry);
+        RecordedEntries.Remove(entry);
+        RecordedEntries.Add(newEntry);
 
         return newEntry;
     }
@@ -307,6 +534,7 @@ public sealed class DbpfService
     {
         exemplar.AddOrUpdateProperty(property);
         ReencodePreservingCompression(exemplar);
+        RecordedEntries.Add(exemplar);
     }
 
     /// <summary>Removes a property (if present) from an exemplar/cohort and rebuilds its raw bytes.</summary>
@@ -314,11 +542,39 @@ public sealed class DbpfService
     {
         exemplar.RemoveProperty(propertyId);
         ReencodePreservingCompression(exemplar);
+        RecordedEntries.Add(exemplar);
     }
 
     private static void ReencodePreservingCompression(DBPFEntryEXMP exemplar)
     {
+        ExemplarEncodeFix.EnsureEncodable(exemplar);
         exemplar.Encode(exemplar.IsCompressed);
+    }
+
+    /// <summary>
+    /// Wipes every property currently on <paramref name="exemplar"/> and replaces it with
+    /// exactly <paramref name="properties"/>, then rebuilds its raw bytes. Used by the T21
+    /// Editor's SAVE instead of a series of individual AddOrUpdateProperty/RemoveProperty
+    /// calls: a T21 (network lot / Prop&amp;Flora) Exemplar is exactly the kind of
+    /// array-property-heavy entry where csDBPF's own decode can leave implausible leftover
+    /// property IDs in <see cref="DBPFEntryEXMP.ListOfProperties"/> (see
+    /// <see cref="ExemplarBinaryParser"/>'s remarks) - starting from a clean slate on every
+    /// save, exactly like Jondor's own T21 Editor does (<c>ex.clearProperties()</c> then
+    /// re-adding every property from scratch), guarantees the file written out matches only
+    /// what the T21 Editor's own fields say, with nothing stale left over from whatever
+    /// csDBPF originally (mis-)decoded.
+    /// </summary>
+    public void ReplaceAllProperties(DBPFEntryEXMP exemplar, IEnumerable<DBPFProperty> properties)
+    {
+        exemplar.Decode();
+        exemplar.RemoveAllProperties();
+        foreach (var property in properties)
+        {
+            exemplar.AddOrUpdateProperty(property);
+        }
+
+        ReencodePreservingCompression(exemplar);
+        RecordedEntries.Add(exemplar);
     }
 
     // ---------------------------------------------------------------
@@ -346,6 +602,14 @@ public sealed class DbpfService
         // Encode() serializes "the current state of the entry's data object", so a fresh
         // Decode() first guarantees that state actually reflects the on-disk payload.
         entry.Decode();
+
+        // See ExemplarEncodeFix: Exemplar/Cohort entries need their csDBPF-internal
+        // _isDecoded flag forced true before Encode() or it silently no-ops.
+        if (entry is DBPFEntryEXMP exemplar)
+        {
+            ExemplarEncodeFix.EnsureEncodable(exemplar);
+        }
+
         entry.Encode(compress);
 
         return entry.IsCompressed;
@@ -374,6 +638,14 @@ public sealed class DbpfService
             try
             {
                 entry.Decode();
+
+                // See ExemplarEncodeFix: Exemplar/Cohort entries need their csDBPF-internal
+                // _isDecoded flag forced true before Encode() or it silently no-ops.
+                if (entry is DBPFEntryEXMP exemplar)
+                {
+                    ExemplarEncodeFix.EnsureEncodable(exemplar);
+                }
+
                 entry.Encode(compress);
                 succeeded++;
             }

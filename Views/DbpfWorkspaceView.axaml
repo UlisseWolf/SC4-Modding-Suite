@@ -1,0 +1,1034 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:views="using:SC4ModdingSuite.Views"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1320" d:DesignHeight="720"
+        x:Class="SC4ModdingSuite.Views.DbpfWorkspaceView"
+        x:DataType="vm:MainWindowViewModel"
+        KeyDown="OnWindowKeyDown">
+<!-- Extracted from the original single-window MainWindow so it can be hosted once per
+     open document inside the MDI shell's TabControl (see Views/MainWindow.axaml,
+     ViewModels/MainWindowShellViewModel) - one MainWindowViewModel per tab, all bound
+     the same way a single MainWindowViewModel used to be bound directly to the Window.
+     Everything below (toolbar, editor mode filters, entry list, TGI editor, previews,
+     S3D/property panels, status bar) is unchanged from before the MDI split. -->
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+
+        <!-- File-operations toolbar (Save/Save As/Export/Import/Options) now lives in the MDI
+             shell's own toolbar (Views/MainWindow.axaml), right next to New/Open, operating on
+             SelectedDocument - having it duplicated here too, one copy per open tab, meant the
+             same buttons appeared in two different places depending on which tab was active.
+             Row 0 is intentionally left empty (Auto height collapses to 0) rather than
+             renumbering every other Grid.Row in this file. -->
+
+
+        <!-- External tools: always-visible separate box below the main toolbar -->
+        <Border Grid.Row="1" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
+            <WrapPanel>
+                <TextBlock Text="{Binding LocalizationService.ExternalToolsHeader}" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <Button Content="SC4 PIM-X" Command="{Binding LaunchPimXCommand}" Margin="0,0,8,4" />
+                <Button Content="SC4 DataNode" Command="{Binding LaunchDataNodeCommand}" Margin="0,0,8,4" />
+                <Button Content="SC4 Mapper" Command="{Binding LaunchMapperCommand}" Margin="0,0,8,4" />
+                <Button Content="SC4 Terraformer" Command="{Binding LaunchTerraformerCommand}" Margin="0,0,8,4" />
+                <Button Content="SC4pac Editor" Command="{Binding LaunchSc4PacEditorCommand}" Margin="0,0,8,4" />
+                <Button Content="NAM Development Suite" Command="{Binding LaunchNamDevelopmentSuiteCommand}"
+                        IsVisible="{Binding IsNamDevelopmentSuiteEnabled}" Margin="0,0,8,4" />
+                <TextBlock Text="(paths configurable in Options)" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,0,4" />
+            </WrapPanel>
+        </Border>
+
+        <!-- Editors: quick format filters over the entry list ("dot buttons"), SC4 Editor
+             (no filter) is the default the moment a file is opened. -->
+        <Border Grid.Row="2" BorderThickness="1" Margin="6,6,6,0" Padding="8,6">
+            <WrapPanel>
+                <TextBlock Text="EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <RadioButton Content="SC4 Editor" GroupName="editorMode" IsChecked="{Binding IsSc4EditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="LTEXT Editor" GroupName="editorMode" IsChecked="{Binding IsLtextEditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="S3D Editor" GroupName="editorMode" IsChecked="{Binding IsS3DEditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="LUA Editor" GroupName="editorMode" IsChecked="{Binding IsLuaEditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="UI Editor" GroupName="editorMode" IsChecked="{Binding IsUiEditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="T21 Editor" GroupName="editorMode" IsChecked="{Binding IsT21EditorMode}" Margin="0,0,8,4" />
+                <RadioButton Content="Analysis" GroupName="editorMode" IsChecked="{Binding IsAnalysisMode}" Margin="0,0,0,4" />
+            </WrapPanel>
+        </Border>
+
+        <!-- Toolbar: preview controls (image zoom/selector or WAV playback), shown contextually -->
+        <Border Grid.Row="3" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasImagePreview}">
+            <WrapPanel Margin="6">
+                <TextBlock Text="PREVIEW:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,6,4" />
+                <Button Content="−" FontWeight="Bold" MinWidth="32" Padding="0" Margin="0,0,6,4"
+                        Command="{Binding ZoomOutCommand}" ToolTip.Tip="Zoom out" />
+                <Button Content="{Binding ZoomFactor, StringFormat='{}{0:P0}'}" MinWidth="64" Margin="0,0,6,4"
+                        Command="{Binding ZoomResetCommand}" ToolTip.Tip="Reset zoom (click)" />
+                <Button Content="+" FontWeight="Bold" MinWidth="32" Padding="0" Margin="0,0,6,4"
+                        Command="{Binding ZoomInCommand}" ToolTip.Tip="Zoom in" />
+                <ComboBox ItemsSource="{Binding PreviewImages}" SelectedItem="{Binding SelectedPreviewImage}"
+                          MinWidth="180" Margin="0,0,0,4">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ImageItemViewModel">
+                            <TextBlock Text="{Binding Label}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </WrapPanel>
+        </Border>
+        <Border Grid.Row="3" BorderThickness="0,0,0,1"
+                IsVisible="{Binding HasWavPreview}">
+            <WrapPanel Margin="6">
+                <TextBlock Text="WAV AUDIO:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,6,4" />
+                <Button Content="▶ PLAY" Command="{Binding PlayWavCommand}" Margin="0,0,6,4" />
+                <Button Content="■ STOP" Command="{Binding StopWavCommand}" Margin="0,0,0,4" />
+            </WrapPanel>
+        </Border>
+        <!-- T21 Editor toolbar: only shown while "T21 Editor" mode is selected above (see
+             IsT21EditorMode). Same box style as the other Row 3 toolbars (LUA SCRIPT/UI
+             EDITOR/ANALYSIS TOOL above) - SAVE T21 and the RHD -> LHD whole-file converter
+             both live here now instead of at the bottom of the scrollable T21 panel, so
+             they're always reachable without scrolling. -->
+        <Border Grid.Row="3" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
+                IsVisible="{Binding IsT21EditorMode}">
+            <WrapPanel>
+                <TextBlock Text="T21 EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <Button Content="{Binding LocalizationService.T21Save}" Command="{Binding SaveT21Command}" FontWeight="Bold" Margin="0,0,8,4"
+                        ToolTip.Tip="Writes every field below back into this entry's properties (still needs the main Save/Save As to write the package to disk)" />
+                <Button Content="{Binding LocalizationService.T21RhdToLhd}" Click="OnRhdToLhdClick" Margin="0,0,8,4"
+                        IsEnabled="{Binding HasOpenFile}"
+                        ToolTip.Tip="Mirrors every T21 exemplar in this whole file for left-hand-drive traffic and writes the result as a brand-new file (this open file itself is left untouched)" />
+                <TextBlock Text="{Binding T21Status}" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,0,4" />
+            </WrapPanel>
+        </Border>
+
+        <!-- LUA Editor toolbar: only shown while "LUA Editor" mode is selected above (see
+             IsLuaEditorMode). The editor itself replaces the TGI/preview panel in the main
+             content row below. Full rectangle border (not just the bottom line the other
+             Row 3 toolbars use) to set it apart as its own box, same style as the
+             "External tools"/"Editors" boxes above. -->
+        <Border Grid.Row="3" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
+                IsVisible="{Binding IsLuaEditorMode}">
+            <WrapPanel>
+                <TextBlock Text="LUA SCRIPT:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
+                <Button Content="{Binding LocalizationService.LuaCompile}" Command="{Binding LuaCompileCommand}" Margin="0,0,8,4"
+                        ToolTip.Tip="Syntax-check the script without running it" />
+                <Button Content="{Binding LocalizationService.LuaRun}" Command="{Binding LuaRunCommand}" Margin="0,0,8,4"
+                        ToolTip.Tip="Execute the script and show its print() output below" />
+                <Button Content="{Binding LocalizationService.LuaClearOutput}" Command="{Binding LuaClearOutputCommand}" Margin="0,0,8,4" />
+                <Button Content="{Binding LocalizationService.LuaSave}" Command="{Binding LuaSaveCommand}" FontWeight="Bold" Margin="0,0,0,4"
+                        ToolTip.Tip="Save this script back into the selected entry (still needs the main Save/Save As to write the package to disk)" />
+            </WrapPanel>
+        </Border>
+
+        <!-- UI Editor toolbar: only shown while "UI Editor" mode is selected above (see
+             IsUiEditorMode). Used to sit inside the element-tree panel itself (removed - see
+             the "UI Editor's live 2D preview" comment further down) alongside the tree/
+             Prop-Value grid; now here instead, same box style as LUA SCRIPT above. Clicking
+             a box in the preview opens that element's own Properties dialog (ADD CHILD/
+             REMOVE NODE/REFRESH PREVIEW are duplicated there too, for convenience while
+             that dialog is open - see UiNodePropertiesDialog). -->
+        <Border Grid.Row="3" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
+                IsVisible="{Binding IsUiEditorMode}">
+            <WrapPanel>
+                <TextBlock Text="UI EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <Button Content="ADD CHILD" Command="{Binding AddUiChildNodeCommand}" Margin="0,0,8,4"
+                        ToolTip.Tip="Adds a new element - a child of the selected one, or a new top-level element if nothing's selected (click empty preview space to deselect)" />
+                <Button Content="REMOVE NODE" Command="{Binding RemoveUiNodeCommand}" Classes="danger" Margin="0,0,8,4" />
+                <Button Content="SAVE" Command="{Binding SaveUiEditorCommand}" FontWeight="Bold" Margin="0,0,0,4"
+                        ToolTip.Tip="Writes this whole element tree back into the entry (still needs the main Save/Save As to write the package to disk)" />
+            </WrapPanel>
+        </Border>
+
+        <!-- Analysis mode's own tool selector - was a nested TabControl's tab strip, which
+             wrapped onto a second line once the five headers didn't fit the window width.
+             Same box style/pattern as the LUA SCRIPT toolbar above, radio buttons instead of
+             tabs so it can never wrap into a ragged two-line header again. -->
+        <Border Grid.Row="3" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
+                IsVisible="{Binding IsAnalysisMode}">
+            <WrapPanel>
+                <TextBlock Text="ANALYSIS TOOL:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
+                <RadioButton Content="Find" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisFindMode}" Margin="0,0,8,4" />
+                <RadioButton Content="Plugins Analyser" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisPluginsMode}" Margin="0,0,8,4" />
+                <RadioButton Content="Exemplar/Cohort" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisExemplarMode}" Margin="0,0,8,4" />
+                <RadioButton Content="Property Find" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisPropertyFindMode}" Margin="0,0,8,4" />
+                <RadioButton Content="Property Manager" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisPropertyManagerMode}" Margin="0,0,8,4" />
+                <RadioButton Content="UI Elements" GroupName="analysisSubMode" IsChecked="{Binding IsAnalysisUiElementsMode}" Margin="0,0,0,4" />
+            </WrapPanel>
+        </Border>
+
+        <!-- SC4 Editor-only batch/insert tools (Ilive Reader's DlgClone/DlgTGIEditor/
+             DlgChangeInstance/DlgGroupPatch/DlgInsertBatch/DlgTemplate/ID_MENU_REINDEX/
+             WorkspaceConvert) - only meaningful in "SC4 Editor" mode (no format filter -
+             the full raw entry list), hidden in every other editor mode. -->
+        <Border Grid.Row="4" BorderThickness="1" Margin="6,6,6,0" Padding="8,6"
+                IsVisible="{Binding IsSc4EditorMode}">
+            <WrapPanel>
+                <TextBlock Text="SC4 TOOLS:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
+                <Button Content="CLONE..." Click="OnCloneClick" Margin="0,0,6,4"
+                        IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Duplicate the selected entr(y/ies), with an optional T/G/I increment per copy" />
+                <Button Content="TGI EDITOR..." Click="OnTgiEditorClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Apply a masked hex pattern to Type/Group/Instance across several entries at once" />
+                <Button Content="CHANGE INSTANCE..." Click="OnChangeInstanceClick" Margin="0,0,6,4"
+                        IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Change just the selected entry's Instance ID, with a duplicate-TGI conflict check" />
+                <Button Content="GROUP PATCH..." Click="OnGroupPatchClick" Margin="0,0,6,4"
+                        IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Apply one new Group ID to every currently selected entry" />
+                <Button Content="INSERT BATCH..." Click="OnInsertBatchClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Import several external files at once from a Type/Group/Instance/path manifest" />
+                <Button Content="INSERT TEMPLATE..." Click="OnInsertTemplateClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Insert a blank Exemplar or Cohort entry to build from" />
+                <Button Content="REINDEX" Click="OnReindexClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Drop any stray on-disk Directory entry from the working set (Save always rebuilds it fresh anyway)" />
+                <Button Content="CONVERT FORMAT..." Click="OnConvertFormatClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Write this package out under a different SC4 extension (.dat/.sc4lot/.sc4desc/.sc4model - same underlying format)" />
+                <Button Content="SAVE DECODED..." Click="OnSaveDecodedClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Export the selected entr(y/ies)' decoded bytes + .TGI file into a folder" />
+                <Button Content="EXPORT READABLE (TXT)..." Click="OnExportReadableClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Export the selected entr(y/ies) as plain-text property dumps (property names/values for Exemplar/Cohort, decoded text for LTEXT/UI...) - for actually reading the content, not re-importing it" />
+                <Button Content="SAVE HEADER (TXT)..." Click="OnSaveHeaderTxtClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Write the selected entr(y/ies)' Type/Group/Instance/Size into one text file" />
+                <Button Content="XML GENERATOR..." Click="OnXmlGenClick" Margin="0,0,6,4"
+                        ToolTip.Tip="Build an SC4PLUGINDESC XML descriptor from an Exemplar's properties (Ilive Reader's DlgXmlGen)" />
+                <Button Content="RECORDER..." Click="OnRecorderClick" Margin="0,0,0,4"
+                        ToolTip.Tip="Entries added/changed this session (Ilive Reader's Patch Manager) - export just those as a patch .dat" />
+            </WrapPanel>
+        </Border>
+
+        <!-- Main content: entry list | TGI editor + details/preview | properties -->
+        <Grid Grid.Row="5" ColumnDefinitions="340,*,380" Margin="6">
+
+            <!-- Entry list -->
+            <Border Grid.Column="0" BorderThickness="1">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <Border Grid.Row="0" BorderThickness="0,0,0,1">
+                        <TextBlock Text="ENTRIES (TGI)" FontWeight="Bold" FontSize="11" Classes="status" Margin="6,4" />
+                    </Border>
+                    <ListBox Grid.Row="1"
+                             x:Name="EntriesListBox"
+                             ItemsSource="{Binding DisplayedEntries}"
+                             SelectedItem="{Binding SelectedEntry}"
+                             SelectionMode="Multiple"
+                             SelectionChanged="OnEntriesListBoxSelectionChanged"
+                             Margin="2">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EntryItemViewModel">
+                                <StackPanel Margin="2">
+                                    <TextBlock Text="{Binding EntryType}" FontWeight="Bold" FontSize="12" />
+                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
+                                        <Run Text="T:" /><Run Text="{Binding TypeHex}" />
+                                        <Run Text="  G:" /><Run Text="{Binding GroupHex}" />
+                                        <Run Text="  I:" /><Run Text="{Binding InstanceHex}" />
+                                    </TextBlock>
+                                    <TextBlock FontSize="10" Classes="status">
+                                        <Run Text="{Binding SizeBytes}" /><Run Text=" bytes · " /><Run Text="{Binding CompressionLabel}" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <WrapPanel Grid.Row="2" Margin="4">
+                        <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" Margin="0,0,4,4" />
+                        <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" Margin="0,0,4,4" />
+                        <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" Margin="0,0,4,4" />
+                        <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" Margin="0,0,0,4" />
+                    </WrapPanel>
+                </Grid>
+            </Border>
+
+            <!-- TGI editor + details/preview - hidden while the LUA Editor is active, replaced by the inline editor below -->
+            <Grid Grid.Column="1" Margin="6,0" RowDefinitions="Auto,Auto,*" IsVisible="{Binding ShowMainEditorPanel}">
+
+                <!-- TGI editor -->
+                <Border Grid.Row="0" BorderThickness="1" Padding="10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="EDIT TGI — TYPE ID MANUAL ONLY — GROUP/INSTANCE MANUAL OR RANDOM"
+                                   FontWeight="Bold" FontSize="11" />
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" >
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="TYPE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding NewTypeText}" Margin="0,4" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="(always manual)" Classes="status"
+                                       VerticalAlignment="Center" FontSize="11" Margin="8,4,0,4" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="GROUP ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewGroupText}"
+                                     IsEnabled="{Binding !RandomizeGroup}" Margin="0,4" />
+                            <CheckBox Grid.Row="1" Grid.Column="2" Content="Random"
+                                      IsChecked="{Binding RandomizeGroup}" Margin="8,4,0,4" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="INSTANCE ID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding NewInstanceText}"
+                                     IsEnabled="{Binding !RandomizeInstance}" Margin="0,4" />
+                            <CheckBox Grid.Row="2" Grid.Column="2" Content="Random"
+                                      IsChecked="{Binding RandomizeInstance}" Margin="8,4,0,4" />
+                        </Grid>
+
+                        <WrapPanel>
+                            <Button Content="APPLY TGI CHANGE" Command="{Binding ApplyTgiCommand}" Margin="0,0,8,4" />
+                            <Button Content="RANDOMIZE G AND I" Command="{Binding RandomizeBothCommand}" Margin="0,0,8,4" />
+                            <Button Content="DELETE ENTRY" Command="{Binding RemoveSelectedCommand}" Classes="danger" Margin="0,0,0,4" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="1" Text="IMAGE PREVIEW" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasImagePreview}" />
+                <TextBlock Grid.Row="1" Text="3D MODEL PREVIEW (S3D)" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasS3DPreview}" />
+                <TextBlock Grid.Row="1" Text="AUDIO PREVIEW (WAV)" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasWavPreview}" />
+                <TextBlock Grid.Row="1" Text="{Binding SimplePreviewLabel}" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding HasSimplePreview}" />
+                <TextBlock Grid.Row="1" Text="ENTRY DETAILS" FontWeight="Bold" FontSize="11"
+                           Margin="0,10,0,4" IsVisible="{Binding ShowTextDetails}" />
+
+                <!-- Image viewer: PNG/FSH entries -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasImagePreview}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  Background="#0A0A0A">
+                        <Image Source="{Binding SelectedPreviewImage.Bitmap}"
+                               Stretch="None"
+                               HorizontalAlignment="Left" VerticalAlignment="Top"
+                               RenderOptions.BitmapInterpolationMode="None"
+                               RenderTransformOrigin="0,0">
+                            <Image.RenderTransform>
+                                <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
+                            </Image.RenderTransform>
+                        </Image>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- S3D wireframe viewer: drag to orbit, scroll to zoom (see S3DViewerControl).
+                     Render/lighting toggles sit to the right of the viewer and show up in
+                     both SC4 Editor and S3D Editor mode - this whole preview already appears
+                     in either, since "S3D Editor" is just an entry-list filter, see
+                     IsS3DEditorMode. The box below (Apply/Save/Merge/Import/Export) is only
+                     enabled while S3D Editor mode is selected above, mirroring the LUA
+                     Editor's own dedicated box below its two panes. -->
+                <Grid Grid.Row="2" RowDefinitions="*,Auto" IsVisible="{Binding HasS3DPreview}">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,170">
+                        <Border Grid.Column="0" BorderThickness="1">
+                            <views:S3DViewerControl Model="{Binding SelectedS3DModel}"
+                                                     Texture="{Binding S3DTexture}"
+                                                     MaterialTextures="{Binding S3DMaterialTextures}"
+                                                     NightMaterialTextures="{Binding S3DMaterialNightTextures}"
+                                                     Solid="{Binding IsS3DSolid}"
+                                                     Night="{Binding IsS3DNight}"
+                                                     CurrentFrame="{Binding S3DCurrentFrame}"
+                                                     HiddenGroups="{Binding S3DHiddenGroupIndices}"
+                                                     HighlightTriangle="{Binding S3DHighlightTriangle}"
+                                                     PickCommand="{Binding PickS3DTriangleCommand}"
+                                                     Background="#0A0A0A" />
+                        </Border>
+                        <Border Grid.Column="1" BorderThickness="1" Margin="6,0,0,0" Padding="8,6">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="RENDER" FontWeight="Bold" FontSize="11" Classes="status" />
+                                    <RadioButton Content="Wireframe" GroupName="s3dRender" IsChecked="{Binding IsS3DWireframe}" />
+                                    <RadioButton Content="Solid (textures)" GroupName="s3dRender" IsChecked="{Binding IsS3DSolid}" />
+                                    <Separator Margin="0,4" />
+                                    <TextBlock Text="LIGHTING" FontWeight="Bold" FontSize="11" Classes="status" />
+                                    <RadioButton Content="Day" GroupName="s3dLighting" IsChecked="{Binding IsS3DDay}" />
+                                    <RadioButton Content="Night" GroupName="s3dLighting" IsChecked="{Binding IsS3DNight}" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+
+                    <!-- S3D Editor: Apply/Save writes the in-memory model (possibly edited by
+                         Merge/Import 3DS below) back into the entry; Merge/Import only change
+                         the in-memory model until Apply/Save is clicked. Disabled outside S3D
+                         Editor mode (IsEnabled cascades to every control inside). -->
+                    <Border Grid.Row="1" BorderThickness="1" Margin="0,6,0,0" Padding="8,6"
+                            IsEnabled="{Binding IsS3DEditorMode}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{Binding S3DInfo}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+                            <WrapPanel>
+                                <TextBlock Text="EDIT (S3D Editor mode only):" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
+                                <Button Content="APPLY / SAVE" Command="{Binding ApplyS3DCommand}" FontWeight="Bold" Margin="0,0,6,4"
+                                        ToolTip.Tip="Write the current model (incl. any merge/3DS import below) back into the entry - still needs the main Save/Save As to write the package to disk" />
+                                <ComboBox ItemsSource="{Binding S3DMergeCandidates}" SelectedItem="{Binding SelectedMergeCandidate}"
+                                          MinWidth="160" PlaceholderText="Merge with..." Margin="0,0,6,4">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:EntryItemViewModel">
+                                            <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="11">
+                                                <Run Text="{Binding GroupHex}" /><Run Text="/" /><Run Text="{Binding InstanceHex}" />
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="MERGE" Command="{Binding MergeS3DCommand}" Margin="0,0,6,4"
+                                        ToolTip.Tip="Append the selected model's groups into this one (Apply/Save afterwards to persist it)" />
+                                <Button Content="IMPORT 3DS..." Click="OnImportS3DClick" Margin="0,0,6,4"
+                                        ToolTip.Tip="Replace this model's geometry from a .3ds file (Apply/Save afterwards to persist it)" />
+                                <Button Content="EXPORT 3DS..." Click="OnExportS3DClick" Margin="0,0,6,4"
+                                        ToolTip.Tip="Save this model's geometry as a .3ds file, editable in Blender/3ds Max" />
+                                <Button Content="EXPORT 3DS (GROUP)..." Click="OnExportS3DGroupClick" Margin="0,0,0,4"
+                                        ToolTip.Tip="Save only the current editing group (S3DEditGroupIndex, below) as a .3ds file, instead of the whole model" />
+                            </WrapPanel>
+
+                            <Separator Margin="0,2" />
+
+                            <!-- Animation playback: Play/Pause/Stop drive S3DCurrentFrame on a timer at the
+                                 model's own ANIM frame rate; disabled (via S3DFrameCount &lt;= 1 in the
+                                 commands' CanExecute) for non-animated models. -->
+                            <WrapPanel>
+                                <TextBlock Text="PLAYBACK:" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="0,0,8,4" />
+                                <Button Content="▶ Play" Command="{Binding PlayS3DCommand}" Margin="0,0,6,4" />
+                                <Button Content="⏸ Pause" Command="{Binding PauseS3DCommand}" Margin="0,0,6,4" />
+                                <Button Content="⏹ Stop" Command="{Binding StopS3DCommand}" Margin="0,0,6,4" />
+                                <TextBlock Text="{Binding S3DCurrentFrame, StringFormat='Frame {0}'}" VerticalAlignment="Center" FontSize="11" Classes="status" Margin="6,0,0,4" />
+                            </WrapPanel>
+
+                            <!-- Per-group visibility: one checkbox per animation mesh (or raw VERT/INDX/PRIM
+                                 group for non-animated models) - unchecking hides that group in the viewer.
+                                 Hidden entirely (not just disabled, unlike the rest of this box) outside S3D
+                                 Editor mode, since it's an editing tool with no purpose in the other modes. -->
+                            <StackPanel Spacing="6" IsVisible="{Binding IsS3DEditorMode}">
+                                <TextBlock Text="GROUP VISIBILITY:" FontSize="11" Classes="status" Margin="0,4,0,0" />
+                                <ItemsControl ItemsSource="{Binding S3DGroupToggles}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:S3DGroupToggleViewModel">
+                                            <CheckBox Content="{Binding Name}" IsChecked="{Binding IsVisible}" Margin="0,0,10,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- WAV: no visual, playback is via the preview toolbar above -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasWavPreview}">
+                    <TextBlock Text="WAV audio file ready to play. Use the controls above."
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Classes="status" />
+                </Border>
+
+                <!-- Simple read-only preview: LTEXT/UI text, or hex dump for Directory/Unknown entries. No editor by design. -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding HasSimplePreview}">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding SimplePreviewContent}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Text details: shown for everything else -->
+                <Border Grid.Row="2" BorderThickness="1" IsVisible="{Binding ShowTextDetails}">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding Details}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- LUA Editor: inline, in place of the TGI/preview panel, only while
+                 IsLuaEditorMode is active (the "LUA Editor" radio above). Code on top,
+                 COMPILE/RUN output log below - same shape as Ilive Reader's own script
+                 editor frame (FrameScript.cpp), just embedded in the main window instead of
+                 a separate dialog. -->
+            <Grid Grid.Column="1" Margin="6,0" RowDefinitions="*,Auto,150" IsVisible="{Binding IsLuaEditorMode}">
+                <Border Grid.Row="0" BorderThickness="1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <TextBox Text="{Binding LuaCode}"
+                                 AcceptsReturn="True"
+                                 AcceptsTab="True"
+                                 TextWrapping="NoWrap"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 FontSize="13"
+                                 BorderThickness="0"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+
+                <TextBlock Grid.Row="1" Text="OUTPUT (compile/run log)" FontWeight="Bold" FontSize="11" Margin="0,8,0,4" />
+
+                <Border Grid.Row="2" BorderThickness="1">
+                    <ScrollViewer>
+                        <TextBox Text="{Binding LuaOutput}"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- T21 Editor: inline, in place of the TGI/preview panel, only while
+                 IsT21EditorMode is active (the "T21 Editor" radio above). A dedicated form
+                 for editing a T21 Exemplar (network lot / base-texture Prop&amp;Flora
+                 placement) instead of its raw property list - ported from Jondor's own
+                 standalone "T21 Editor" tool (see MainWindowViewModel.T21.cs for the
+                 property-ID-level details). The raw EXEMPLAR/COHORT PROPERTIES panel in
+                 Grid.Column="2" is hidden while this is active (see
+                 ShowExemplarPropertiesPanel) - the fields below are the whole editing
+                 surface, so showing the raw list alongside it too was redundant. -->
+            <ScrollViewer Grid.Column="1" Margin="6,0" IsVisible="{Binding IsT21EditorMode}"
+                          HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="8">
+
+                    <!-- Header: name / IID / "no lot config" -->
+                    <Border BorderThickness="1" Padding="10">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="T21 EXEMPLAR" FontWeight="Bold" FontSize="11" />
+                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="NAME:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding T21Name}" Margin="0,4" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="IID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding T21IidHex}" Margin="0,4" />
+                                <Button Grid.Row="1" Grid.Column="2" Content="{Binding LocalizationService.T21ApplyIid}" Command="{Binding ChangeT21IidCommand}" Margin="8,4,0,4"
+                                        ToolTip.Tip="Re-keys this entry's Instance ID (Group stays Network Lots/T21) without touching any property - use SAVE below to also write property changes" />
+                            </Grid>
+                            <CheckBox Content="No lot config (this T21 only cancels the tile's default - Type/Name/IID/Version only)"
+                                      IsChecked="{Binding T21NoLotConfig}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Everything below only applies/gets written when a real lot config is kept -->
+                    <StackPanel Spacing="8" IsVisible="{Binding !T21NoLotConfig}">
+
+                        <Border BorderThickness="1" Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="TILE / SLOPE" FontWeight="Bold" FontSize="11" />
+                                <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="TILE IID:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                    <TextBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding T21TileIidHex}" Margin="0,4"
+                                              ToolTip.Tip="Cross-reference to the base texture/tile exemplar this T21 is bound to" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="MIN SLOPE:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding T21MinSlopeText}" Margin="0,4,16,4" />
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="MAX SLOPE:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                    <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding T21MaxSlopeText}" Margin="0,4" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1" Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="PATTERN" FontWeight="Bold" FontSize="11" />
+                                <WrapPanel>
+                                    <TextBlock Text="Pattern Size:" VerticalAlignment="Center" Margin="0,0,8,4" />
+                                    <RadioButton Content="3" GroupName="t21PatternSize" IsChecked="{Binding T21PatternSizeIs3}" Margin="0,0,8,4" />
+                                    <RadioButton Content="4" GroupName="t21PatternSize" IsChecked="{Binding T21PatternSizeIs4}" Margin="0,0,0,4" />
+                                </WrapPanel>
+                                <TextBlock Text="Which of up to 4 orientations of the network tile this T21 applies to:" FontSize="11" Classes="status" />
+
+                                <!-- Explicit 4x4 grid (not a wrapping ItemsControl) so it always lays out exactly like
+                                     Jondor's own patternButton[] grid: row = orientation group (Toggle.Code / 4),
+                                     column = bit within that group (Toggle.Code % 4). Column 3 and row 3 are only
+                                     meaningful for Pattern Size 4 - they're hidden (not just disabled) while
+                                     Pattern Size 3 is selected, exactly like Jondor's own
+                                     patternSize3ActionPerformed/patternSize4ActionPerformed. -->
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto"
+                                      HorizontalAlignment="Left" Margin="0,4">
+                                    <Grid.Styles>
+                                        <Style Selector="CheckBox">
+                                            <Setter Property="Margin" Value="0,0,6,6" />
+                                            <Setter Property="MinWidth" Value="28" />
+                                        </Style>
+                                    </Grid.Styles>
+
+                                    <CheckBox Grid.Row="0" Grid.Column="0" IsChecked="{Binding T21PatternToggles[0].IsSelected}" />
+                                    <CheckBox Grid.Row="0" Grid.Column="1" IsChecked="{Binding T21PatternToggles[1].IsSelected}" />
+                                    <CheckBox Grid.Row="0" Grid.Column="2" IsChecked="{Binding T21PatternToggles[2].IsSelected}" />
+                                    <CheckBox Grid.Row="0" Grid.Column="3" IsChecked="{Binding T21PatternToggles[3].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+
+                                    <CheckBox Grid.Row="1" Grid.Column="0" IsChecked="{Binding T21PatternToggles[4].IsSelected}" />
+                                    <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding T21PatternToggles[5].IsSelected}" />
+                                    <CheckBox Grid.Row="1" Grid.Column="2" IsChecked="{Binding T21PatternToggles[6].IsSelected}" />
+                                    <CheckBox Grid.Row="1" Grid.Column="3" IsChecked="{Binding T21PatternToggles[7].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+
+                                    <CheckBox Grid.Row="2" Grid.Column="0" IsChecked="{Binding T21PatternToggles[8].IsSelected}" />
+                                    <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding T21PatternToggles[9].IsSelected}" />
+                                    <CheckBox Grid.Row="2" Grid.Column="2" IsChecked="{Binding T21PatternToggles[10].IsSelected}" />
+                                    <CheckBox Grid.Row="2" Grid.Column="3" IsChecked="{Binding T21PatternToggles[11].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+
+                                    <CheckBox Grid.Row="3" Grid.Column="0" IsChecked="{Binding T21PatternToggles[12].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+                                    <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding T21PatternToggles[13].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+                                    <CheckBox Grid.Row="3" Grid.Column="2" IsChecked="{Binding T21PatternToggles[14].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+                                    <CheckBox Grid.Row="3" Grid.Column="3" IsChecked="{Binding T21PatternToggles[15].IsSelected}" IsVisible="{Binding T21PatternSizeIs4}" />
+                                </Grid>
+
+                                <TextBlock Text="{Binding T21PatternHexText}" FontWeight="Bold" FontSize="11" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1" Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="ZONES" FontWeight="Bold" FontSize="11" />
+                                <ItemsControl ItemsSource="{Binding T21ZoneToggles}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:T21ToggleViewModel">
+                                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,10,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderThickness="1" Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="WEALTH / FLIPS / ROTATIONS" FontWeight="Bold" FontSize="11" />
+                                <ItemsControl ItemsSource="{Binding T21WealthToggles}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:T21ToggleViewModel">
+                                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,10,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <WrapPanel>
+                                    <TextBlock Text="Flips:" VerticalAlignment="Center" Margin="0,0,8,4" />
+                                    <ComboBox ItemsSource="{Binding T21FlipOptions}" SelectedItem="{Binding T21FlipsSelected}" MinWidth="160" Margin="0,0,0,4" />
+                                </WrapPanel>
+                                <TextBlock Text="Allowed rotations:" FontSize="11" Classes="status" />
+                                <ItemsControl ItemsSource="{Binding T21RotationToggles}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:T21ToggleViewModel">
+                                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" Margin="0,0,10,4" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Lot objects: one row per Prop/Flora the game can randomly place on this lot -->
+                        <Border BorderThickness="1" Padding="10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="LOT OBJECTS (Prop / Flora)" FontWeight="Bold" FontSize="11" />
+                                <WrapPanel>
+                                    <Button Content="{Binding LocalizationService.T21Add}" Command="{Binding AddT21ObjectCommand}" Margin="0,0,6,4" />
+                                    <Button Content="{Binding LocalizationService.T21Duplicate}" Command="{Binding DuplicateT21ObjectCommand}" Margin="0,0,6,4" />
+                                    <Button Content="{Binding LocalizationService.T21Remove}" Command="{Binding RemoveT21ObjectCommand}" Classes="danger" Margin="0,0,6,4" />
+                                    <Button Content="{Binding LocalizationService.T21Up}" Command="{Binding MoveT21ObjectUpCommand}" Margin="0,0,6,4" />
+                                    <Button Content="{Binding LocalizationService.T21Down}" Command="{Binding MoveT21ObjectDownCommand}" Margin="0,0,0,4" />
+                                </WrapPanel>
+
+                                <DataGrid ItemsSource="{Binding T21Objects}" SelectedItem="{Binding SelectedT21Object}"
+                                          AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                                          Height="200" Margin="0,0,0,6">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Type" Binding="{Binding ObjectType}" Width="70" />
+                                        <DataGridTextColumn Header="LOD" Binding="{Binding Lod}" Width="100" />
+                                        <DataGridCheckBoxColumn Header="Flag" Binding="{Binding Flag}" Width="50" />
+                                        <DataGridTextColumn Header="Object#" Binding="{Binding ObjectKeyHex}" Width="100" />
+                                        <DataGridTextColumn Header="IID(s)" Binding="{Binding IidsText}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- Detail fields for whichever row is selected above (Jondor's own side panel: rotation/position/bounds).
+                                     Deliberately does NOT switch DataContext to SelectedT21Object (unlike a plain per-row edit form) -
+                                     every binding below goes through the "SelectedT21Object.XYZ" path instead, kept on the same
+                                     MainWindowViewModel DataContext as the rest of this panel, exactly like this app's other
+                                     "detail for whichever row is selected" panels (see e.g. SelectedS3DMaterialRow.AlphaTest in
+                                     S3DMaterialEditorDialog.axaml) - simpler and safer than a nested DataContext under compiled
+                                     bindings, and lets the Type/LOD/Rotation combo boxes below bind their ItemsSource directly to
+                                     T21ObjectTypeOptions/T21LodOptions/T21RotationOptions without reaching back up through $parent. -->
+                                <StackPanel Spacing="6" IsVisible="{Binding SelectedT21Object, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                    <TextBlock Text="SELECTED OBJECT" FontWeight="Bold" FontSize="11" Classes="status" />
+                                    <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding T21ObjectTypeOptions}"
+                                                  SelectedItem="{Binding SelectedT21Object.ObjectType}" Margin="0,4,16,4" />
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="LOD:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding T21LodOptions}"
+                                                  SelectedItem="{Binding SelectedT21Object.Lod}" Margin="0,4" />
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Rotation:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding T21RotationOptions}"
+                                                  SelectedItem="{Binding SelectedT21Object.Rotation}" Margin="0,4,16,4" />
+                                        <CheckBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Content="Flag" IsChecked="{Binding SelectedT21Object.Flag}" Margin="0,4" />
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="X / Y / Z:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="6" Margin="0,4">
+                                            <TextBox Text="{Binding SelectedT21Object.X}" Width="90" />
+                                            <TextBox Text="{Binding SelectedT21Object.Y}" Width="90" />
+                                            <TextBox Text="{Binding SelectedT21Object.Z}" Width="90" />
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Bounds:" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="6" Margin="0,4">
+                                            <TextBox Text="{Binding SelectedT21Object.XMin}" Width="70" ToolTip.Tip="XMin" />
+                                            <TextBox Text="{Binding SelectedT21Object.ZMin}" Width="70" ToolTip.Tip="ZMin" />
+                                            <TextBox Text="{Binding SelectedT21Object.XMax}" Width="70" ToolTip.Tip="XMax" />
+                                            <TextBox Text="{Binding SelectedT21Object.ZMax}" Width="70" ToolTip.Tip="ZMax" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <TextBlock Grid.Column="0" Text="Object# / IID(s):" VerticalAlignment="Center" Margin="0,4,8,4" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="0,4">
+                                            <TextBox Text="{Binding SelectedT21Object.ObjectKeyHex}" Width="110" />
+                                            <TextBox Text="{Binding SelectedT21Object.IidsText}" Width="220" ToolTip.Tip="Comma-separated hex IIDs - Prop rows may list several variants" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Analysis mode: Find/Index Analyser, Plugins Analyser, Exemplar/Cohort
+                 Analyser, Property Find/Count, Property Manager (Ilive Reader's
+                 DlgIdxAnalyser/DlgPropFind*/DlgPropCount/FormProperty) - see the
+                 "AnalysisFolder"/"Find*"/"PluginsAnalyser*"/"ExemplarAnalyser*"/
+                 "PropertyFind*"/"PropertyManager*" region of MainWindowViewModel for the logic.
+                 Occupies the same slot as the LUA editor/TGI panel above (only one of the
+                 three is ever visible - see ShowMainEditorPanel/IsAnalysisMode). Which of the
+                 five tools below is showing is picked by the "ANALYSIS TOOL:" radio buttons
+                 above (Grid.Row="3"), not by tabs of their own. -->
+            <Panel Grid.Column="1" Margin="6,0" IsVisible="{Binding IsAnalysisMode}">
+
+                <!-- Find / Index Analyser -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsAnalysisFindMode}">
+                        <StackPanel Spacing="8" Margin="4">
+                            <CheckBox Content="Search the whole Plugins folder (below) instead of just this tab" IsChecked="{Binding FindWholeFolder}" />
+                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding FindWholeFolder}">
+                                <TextBox Grid.Column="0" Text="{Binding AnalysisFolder}" Margin="0,0,8,0" />
+                                <Button Grid.Column="1" Content="Browse..." Click="OnBrowseAnalysisFolderClick" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,Auto,*">
+                                <CheckBox Grid.Column="0" Content="Type" IsChecked="{Binding FindFilterType}" Width="90" />
+                                <TextBox Grid.Column="1" Text="{Binding FindTypeHex}" IsEnabled="{Binding FindFilterType}" FontFamily="Consolas,Menlo,monospace" MinWidth="140" />
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,Auto,*">
+                                <CheckBox Grid.Column="0" Content="Group" IsChecked="{Binding FindFilterGroup}" Width="90" />
+                                <TextBox Grid.Column="1" Text="{Binding FindGroupHex}" IsEnabled="{Binding FindFilterGroup}" FontFamily="Consolas,Menlo,monospace" MinWidth="140" />
+                            </Grid>
+                            <Grid ColumnDefinitions="Auto,Auto,*">
+                                <CheckBox Grid.Column="0" Content="Instance" IsChecked="{Binding FindFilterInstance}" Width="90" />
+                                <TextBox Grid.Column="1" Text="{Binding FindInstanceHex}" IsEnabled="{Binding FindFilterInstance}" FontFamily="Consolas,Menlo,monospace" MinWidth="140" />
+                            </Grid>
+
+                            <TextBlock Text="Hex byte pattern in content (optional, e.g. DE AD BE EF):" FontSize="11" Classes="status" />
+                            <TextBox Text="{Binding FindHexPattern}" FontFamily="Consolas,Menlo,monospace" />
+
+                            <Button Content="SEARCH" Command="{Binding FindSearchCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding FindStatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+
+                            <DataGrid ItemsSource="{Binding FindResults}" Height="220" AutoGenerateColumns="False"
+                                      IsReadOnly="True" GridLinesVisibility="All" FontSize="11" DoubleTapped="OnFindResultDoubleTapped">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="140" />
+                                    <DataGridTextColumn Header="TGI" Binding="{Binding TgiText}" Width="220" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding EntryType}" Width="*" />
+                                    <DataGridTextColumn Header="Size" Binding="{Binding SizeBytes}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Separator Margin="0,4" />
+                            <TextBlock Text="SAVED FILTERS (Ilive Reader's DlgFilters)" FontWeight="Bold" FontSize="11" />
+                            <ListBox ItemsSource="{Binding SavedFilters}" SelectedItem="{Binding SelectedSavedFilter}" Height="90">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:SavedAnalysisFilter">
+                                        <TextBlock Text="{Binding Name}" FontSize="12" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0" Text="{Binding NewFilterName}" Watermark="Filter name" Margin="0,0,8,0" />
+                                <Button Grid.Column="1" Content="SAVE" Command="{Binding SaveFilterCommand}" />
+                            </Grid>
+                            <WrapPanel>
+                                <Button Content="LOAD" Command="{Binding LoadFilterCommand}" Margin="0,4,8,0" />
+                                <Button Content="DELETE" Command="{Binding DeleteFilterCommand}" Classes="danger" Margin="0,4,0,0" />
+                            </WrapPanel>
+                        </StackPanel>
+                </ScrollViewer>
+
+                <!-- Plugins Analyser -->
+                <Grid RowDefinitions="Auto,Auto,*" Margin="4" IsVisible="{Binding IsAnalysisPluginsMode}">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBox Grid.Column="0" Text="{Binding AnalysisFolder}" Margin="0,0,8,0" />
+                            <Button Grid.Column="1" Content="Browse..." Click="OnBrowseAnalysisFolderClick" />
+                        </Grid>
+                        <Button Grid.Row="1" Content="SCAN FOLDER" Command="{Binding PluginsAnalyserCommand}" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <Border Grid.Row="2" BorderThickness="1">
+                            <ScrollViewer>
+                                <TextBox Text="{Binding PluginsAnalyserReport}" IsReadOnly="True" AcceptsReturn="True"
+                                         TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="12"
+                                         BorderThickness="0" Background="Transparent" Margin="6" />
+                            </ScrollViewer>
+                        </Border>
+                </Grid>
+
+                <!-- Exemplar/Cohort Analyser (folds in Ilive Reader's DlgPropCount) -->
+                <Grid RowDefinitions="Auto,Auto,*" Margin="4" IsVisible="{Binding IsAnalysisExemplarMode}">
+                        <CheckBox Grid.Row="0" Content="Whole Plugins folder above instead of just this tab" IsChecked="{Binding ExemplarAnalyserWholeFolder}" Margin="0,0,0,8" />
+                        <Button Grid.Row="1" Content="ANALYSE" Command="{Binding ExemplarAnalyserCommand}" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <Border Grid.Row="2" BorderThickness="1">
+                            <ScrollViewer>
+                                <TextBox Text="{Binding ExemplarAnalyserReport}" IsReadOnly="True" AcceptsReturn="True"
+                                         TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="12"
+                                         BorderThickness="0" Background="Transparent" Margin="6" />
+                            </ScrollViewer>
+                        </Border>
+                </Grid>
+
+                <!-- Property Find/Count (Ilive Reader's DlgPropFind/DlgPropFindValue/DlgPropFindPCohort) -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsAnalysisPropertyFindMode}">
+                        <StackPanel Spacing="8" Margin="4">
+                            <TextBlock Text="Property ID (hex):" FontSize="11" Classes="status" />
+                            <TextBox Text="{Binding PropertyFindIdHex}" FontFamily="Consolas,Menlo,monospace" />
+                            <TextBlock Text="Value to match (optional - leave blank to match any value, just presence):" FontSize="11" Classes="status" />
+                            <TextBox Text="{Binding PropertyFindValueText}" FontFamily="Consolas,Menlo,monospace" />
+                            <CheckBox Content="Whole Plugins folder above instead of just this tab" IsChecked="{Binding PropertyFindWholeFolder}" />
+                            <Button Content="SEARCH" Command="{Binding PropertyFindCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+                            <TextBlock Text="{Binding PropertyFindStatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+                            <DataGrid ItemsSource="{Binding PropertyFindResults}" Height="260" AutoGenerateColumns="False"
+                                      IsReadOnly="True" GridLinesVisibility="All" FontSize="11" DoubleTapped="OnPropertyFindResultDoubleTapped">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="140" />
+                                    <DataGridTextColumn Header="TGI" Binding="{Binding TgiText}" Width="220" />
+                                    <DataGridTextColumn Header="Type" Binding="{Binding EntryType}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                </ScrollViewer>
+
+                <!-- Property Manager (Ilive Reader's FormProperty / ID_MGR_PROP) -->
+                <Grid RowDefinitions="Auto,*" Margin="4" IsVisible="{Binding IsAnalysisPropertyManagerMode}">
+                        <TextBox Grid.Row="0" Text="{Binding PropertyManagerSearchText}" Watermark="Search by name or ID..." Margin="0,0,0,8" />
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding PropertyManagerResults}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" GridLinesVisibility="All" FontSize="11">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id, StringFormat='0x{0:X8}'}" Width="110" />
+                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                </Grid>
+
+                <!-- UI Elements: every UI element (TGI Type 0x00000000) across the SC4
+                     installation folder and the Plugins folder - kept up to date
+                     automatically in the background (App.axaml.cs/UiElementIndexService),
+                     not by a manual search here; double-click a result to jump to it
+                     (opens a new tab first if it's not this document, then switches into
+                     UI Editor mode). RESCAN is only for forcing an update without waiting
+                     for the next time Options closes (see MainWindow.axaml.cs). -->
+                <Grid RowDefinitions="Auto,Auto,*" Margin="4" IsVisible="{Binding IsAnalysisUiElementsMode}">
+                        <TextBlock Grid.Row="0" Text="{Binding UiElementIndex.StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Button Grid.Row="1" Content="RESCAN" Click="OnRescanUiElementsClick"
+                                IsEnabled="{Binding !UiElementIndex.IsScanning}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        <DataGrid Grid.Row="2" ItemsSource="{Binding UiElementIndex.Results}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" GridLinesVisibility="All" FontSize="11" DoubleTapped="OnUiElementResultDoubleTapped">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="180" />
+                                <DataGridTextColumn Header="TGI" Binding="{Binding TgiText}" Width="220" />
+                                <DataGridTextColumn Header="Type" Binding="{Binding EntryType}" Width="*" />
+                                <DataGridTextColumn Header="Size" Binding="{Binding SizeBytes}" Width="80" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                </Grid>
+            </Panel>
+
+            <!-- UI Editor's live 2D preview (Ilive Reader's FormUIPrev) - drag a box to
+                 reposition (writes straight back into that node's "area" prop, live), click
+                 a box to open its Properties dialog (see OnUiPreviewNodeClicked below;
+                 UiNodePropertiesDialog). The element tree + Prop/Value grid used to sit
+                 permanently in Grid.Column="1" next to this, leaving the preview squeezed
+                 into Column 2's ~280-380px - moved into that per-element dialog instead so
+                 the preview itself gets the full Column 1+2 width, only while "UI Editor"
+                 mode is selected above (see IsUiEditorMode). Wrapped in a ScrollViewer and
+                 explicitly sized to the dialog's own full extent (UiPreviewContentWidth/
+                 Height) rather than just the visible panel size, so content bigger than the
+                 panel is reachable by scrolling instead of silently clipped off the edge. -->
+            <Border Grid.Column="1" Grid.ColumnSpan="2" BorderThickness="1" Margin="6,0"
+                    IsVisible="{Binding IsUiEditorMode}">
+                <!-- Centered rather than pinned to the top-left corner, matching how a real
+                     dialog would be laid out relative to the viewport it's shown in - most
+                     UI entries are smaller than this panel, so top-left alignment just left
+                     them looking stuck in a corner instead of presented like the actual
+                     dialog. Still scrolls correctly for content bigger than the panel.
+                     No explicit Width/Height binding here on purpose - UiPreviewControl
+                     sizes itself intrinsically from the same Boxes collection it paints
+                     from (see its own MeasureOverride), so its size and its content can
+                     never end up a frame out of sync with each other. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <views:UiPreviewControl Boxes="{Binding UiPreviewBoxes}"
+                                             SelectCommand="{Binding SelectUiNodeCommand}"
+                                             MoveCommand="{Binding MoveUiNodeCommand}"
+                                             NodeClicked="OnUiPreviewNodeClicked"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </ScrollViewer>
+            </Border>
+
+            <!-- S3D Editor: opens the geometry/material editors in their own windows, only
+                 while "S3D Editor" mode is selected above (see IsS3DEditorMode). -->
+            <Border Grid.Column="2" BorderThickness="1" Padding="8" VerticalAlignment="Top"
+                    IsVisible="{Binding IsS3DEditorMode}">
+                <StackPanel Spacing="6">
+                    <Button Content="GEOMETRY EDITOR..." Click="OnOpenS3DGeometryEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Edit the selected model's VERT/INDX/PRIM groups in a separate window" />
+                    <Button Content="MATERIAL EDITOR..." Click="OnOpenS3DMaterialEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Edit render state, textures and blending for the selected model's materials in a separate window" />
+                    <Button Content="ANIMATION EDITOR..." Click="OnOpenS3DAnimationEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Edit frame rate, mode, displacement and the mesh-to-block frame mapping in a separate window" />
+                    <Button Content="PROP EDITOR..." Click="OnOpenS3DPropEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Add, edit or delete the model's PROP chunk key/value pairs in a separate window" />
+                    <Button Content="UV EDITOR..." Click="OnOpenS3DUVEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="View and drag-edit the editing group's UV coordinates over its texture, in a separate window" />
+                    <Button Content="S3D HEX EDITOR..." Click="OnOpenS3DHexEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Read-only hex dump of each S3D chunk (HEAD/VERT/INDX/PRIM/MATS/ANIM/PROP/REGP), in a separate window" />
+                    <Button Content="REGP EDITOR..." Click="OnOpenS3DRegPointEditorClick" HorizontalAlignment="Stretch"
+                            ToolTip.Tip="Add, edit or delete the model's registration points (REGP) and their per-frame transforms, in a separate window" />
+                </StackPanel>
+            </Border>
+
+            <!-- LTEXT Editor: third panel (Grid.Column="2"), only while "LTEXT Editor" mode
+                 is selected above (see IsLtextEditorMode). Column 1 still shows the ordinary
+                 TGI editor + read-only text preview for the selected entry (LTEXT entries
+                 don't get a dedicated Column 1 replacement, unlike LUA/T21/UI) - this panel
+                 adds the actual editing surface next to it: an editable text box, SAVE FILE
+                 (writes the box into the entry and persists the package to disk in one
+                 click), SAVE ALL FILE FOR LANGUAGE (clones every LTEXT entry to a chosen
+                 target language's TGI - see LtextTgiLanguage for the Group ID offset math
+                 from the SC4Devotion "LTEXT - Language Text Files" tutorial - then saves),
+                 and Export/Import Poedit for round-tripping the whole file's strings
+                 through a translator's .po/.pot workflow. -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsVisible="{Binding IsLtextEditorMode}">
+                <TextBlock Grid.Row="0" Text="LTEXT EDITOR" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
+
+                <!-- Language pickers: Source = the language the on-screen/exported text is
+                     assumed to already sit at (almost always "Default"); Target = the
+                     language being written to (Save all for language, Import Poedit) or
+                     looked up for msgstr pre-fill (Export Poedit). -->
+                <Border Grid.Row="1" BorderThickness="1" Padding="8,6" Margin="0,0,0,6">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="LANGUAGE (Group ID offset - see SC4Devotion topic 532)" FontSize="11" Classes="status" TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="SOURCE:" VerticalAlignment="Center" Margin="0,2,8,2" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding LtextLanguageOptions}"
+                                      SelectedItem="{Binding LtextSourceLanguage}" HorizontalAlignment="Stretch" Margin="0,2">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:LtextLanguage">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="TARGET:" VerticalAlignment="Center" Margin="0,2,8,2" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding LtextLanguageOptions}"
+                                      SelectedItem="{Binding LtextTargetLanguage}" HorizontalAlignment="Stretch" Margin="0,2">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:LtextLanguage">
+                                        <TextBlock Text="{Binding Label}" FontSize="11" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Row="2" Text="TEXT (selected entry)" FontSize="11" Classes="status" Margin="0,0,0,4" />
+                <Border Grid.Row="3" BorderThickness="1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <TextBox Text="{Binding LtextEditText}"
+                                 IsEnabled="{Binding IsLtextEntrySelected}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Consolas,Menlo,monospace"
+                                 FontSize="12"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Margin="6" />
+                    </ScrollViewer>
+                </Border>
+
+                <WrapPanel Grid.Row="4" Margin="0,6,0,0">
+                    <Button Content="{Binding LocalizationService.LtextSaveFile}" Command="{Binding SaveLtextFileCommand}" FontWeight="Bold" Margin="0,0,8,4"
+                            ToolTip.Tip="Writes the text above into the selected LTEXT entry and saves the whole package to disk" />
+                    <Button Content="{Binding LocalizationService.LtextSaveAllForLanguage}" Command="{Binding SaveLtextForLanguageCommand}" Margin="0,0,0,4"
+                            ToolTip.Tip="Clones every LTEXT entry to the TARGET language's TGI (Group ID offset from SOURCE), then saves the whole package to disk" />
+                </WrapPanel>
+
+                <WrapPanel Grid.Row="5" Margin="0,4,0,0">
+                    <Button Content="{Binding LocalizationService.LtextExportPoedit}" Click="OnExportLtextPoeditClick" Margin="0,0,8,4"
+                            ToolTip.Tip="Exports every LTEXT entry's own TGI/text as a .po/.pot file for translation in Poedit" />
+                    <Button Content="{Binding LocalizationService.LtextImportPoedit}" Click="OnImportLtextPoeditClick" Margin="0,0,0,4"
+                            ToolTip.Tip="Applies a translated .po file's msgstr values to the TARGET language's TGI for each string" />
+                </WrapPanel>
+            </Grid>
+
+            <!-- Exemplar/Cohort properties panel - hidden while the T21 Editor is active
+                 (see ShowExemplarPropertiesPanel): the T21 Editor's own dedicated fields
+                 replace it there instead of showing both side by side. -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto" IsVisible="{Binding ShowExemplarPropertiesPanel}">
+                <TextBlock Grid.Row="0" Text="EXEMPLAR/COHORT PROPERTIES" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
+
+                <Border Grid.Row="1" BorderThickness="1">
+                    <ListBox ItemsSource="{Binding Properties}"
+                             SelectedItem="{Binding SelectedProperty}"
+                             Margin="2">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PropertyItemViewModel">
+                                <StackPanel Margin="2">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" TextWrapping="Wrap" />
+                                    <TextBlock FontFamily="Consolas,Menlo,monospace" FontSize="10" Classes="status">
+                                        <Run Text="{Binding IdHex}" /><Run Text="  [" /><Run Text="{Binding DataTypeText}" /><Run Text="]" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding ValuesText}" FontSize="11" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+                    <Button Content="ADD..." Click="OnAddPropertyClick" Margin="0,0,8,4" />
+                    <Button Content="EDIT..." Click="OnEditPropertyClick"
+                            IsEnabled="{Binding SelectedProperty, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,4" />
+                    <Button Content="REMOVE" Command="{Binding RemoveSelectedPropertyCommand}" Classes="danger" Margin="0,0,0,4" />
+                </WrapPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="6" BorderThickness="0,1,0,0" Padding="8,4">
+            <TextBlock Text="{Binding StatusMessage}" Classes="status" FontSize="11" />
+        </Border>
+    </Grid>
+
+</UserControl>

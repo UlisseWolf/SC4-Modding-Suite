@@ -42,6 +42,12 @@
 
         <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Classes="status" MinHeight="20" />
 
+        <!-- In-window loading indicator (same pattern SC4 PIM-X uses for its own startup
+             panel: an animated progress bar visible for as long as the download/parse
+             actually takes) instead of just a disabled Continue button with no other
+             feedback while ContinueCommand runs. -->
+        <ProgressBar IsIndeterminate="True" Height="6" IsVisible="{Binding IsBusy}" Margin="0,4,0,0" />
+
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
             <Button Content="Continue" Command="{Binding ContinueCommand}" IsDefault="True"
                     IsEnabled="{Binding !IsBusy}" MinWidth="90" HorizontalContentAlignment="Center" />

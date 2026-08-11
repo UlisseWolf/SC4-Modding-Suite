@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="220"
+        x:Class="SC4ModdingSuite.Views.GroupPatchDialog"
+        x:DataType="vm:GroupPatchDialogViewModel"
+        Title="Group Patch"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="420" Height="220"
+        MinWidth="380" MinHeight="200"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+
+    <!-- Port of Ilive Reader's DlgGroupPatch, scoped to the current multi-selection - see
+         GroupPatchDialogViewModel's doc comment for why the original's automatic lot-family
+         discovery isn't reproduced. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="{Binding TargetCount, StringFormat='Patching Group ID on {0} selected entry(ies).'}"
+                   FontWeight="Bold" FontSize="12" Margin="0,0,0,10" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="New Group ID:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Grid.Column="1" Text="{Binding NewGroupHex}" FontFamily="Consolas,Menlo,monospace" />
+        </Grid>
+
+        <Button Grid.Row="3" Content="APPLY" Command="{Binding ApplyCommand}" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,8" />
+        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" VerticalAlignment="Bottom" />
+    </Grid>
+
+</Window>

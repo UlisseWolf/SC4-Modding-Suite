@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using csDBPF;
 
 namespace SC4ModdingSuite.Models;
@@ -70,10 +71,34 @@ public static class EntryExporter
     /// problem never costs the person their data), but a non-null return value means the
     /// bytes didn't decode cleanly as a well-formed binary Exemplar and the caller should
     /// surface that as a warning instead of assuming the export is trustworthy.
+    ///
+    /// <para>
+    /// LTEXT is special-cased to write its <b>decoded</b> plain text (UTF-8) instead of the
+    /// raw on-disk bytes: unlike every other format here, an LTEXT entry's raw layout is a
+    /// 2-byte character count plus a 2-byte 0x1000 control marker in front of the actual
+    /// UTF-16LE string - not plain text - so writing those raw bytes to a file that
+    /// <see cref="ExtensionFor"/> already names ".txt" produced a handful of garbage bytes
+    /// up front and, without a UTF-16 byte-order-mark, an inconsistent encoding guess by
+    /// whatever text editor opens it. This is the one raw-bytes-vs-decoded exception -
+    /// every other exported format (PNG, FSH, S3D, WAV, UI, and binary Exemplar/Cohort) is
+    /// either already meant to be opened by a dedicated tool, or - UI's case - is stored as
+    /// plain UTF-8 text on disk already, so the raw bytes already are the readable form.
+    /// For a readable dump of formats that are still genuinely binary on disk (Exemplar/
+    /// Cohort above all), see <see cref="MainWindowViewModel.ExportSelectedEntriesReadable"/>
+    /// instead, which decodes the whole property list by name/value rather than just the
+    /// payload bytes.
+    /// </para>
     /// </summary>
     /// <returns>A human-readable warning if validation found a problem; null if the export looks clean (or isn't an Exemplar/Cohort at all).</returns>
     public static string? ExportEntryTo(DBPFEntry entry, string filePath)
     {
+        if (entry is DBPFEntryLTEXT ltext)
+        {
+            entry.Decode();
+            File.WriteAllText(filePath, ltext.Text ?? string.Empty, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            return null;
+        }
+
         var bytes = RawEntryBytes.GetDecompressed(entry) ?? Array.Empty<byte>();
         File.WriteAllBytes(filePath, bytes);
 

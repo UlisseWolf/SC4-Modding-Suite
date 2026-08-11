@@ -25,3 +25,8 @@ listboxitem_selected_background = "#6B1B00"
 
 status_foreground = "#009E73"
 danger_foreground = "#D55E00"
+
+header_background = "#6B1B00"
+header_foreground = "#F0F0F0"
+alternating_row_background = "#161616"
+gridlines = "#D55E00"

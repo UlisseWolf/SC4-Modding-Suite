@@ -56,6 +56,7 @@ public sealed class OptionsDialogViewModel : ViewModelBase
 
         SaveCommand = new RelayCommand(_ => Save());
         CloseCommand = new RelayCommand(_ => CloseRequested?.Invoke(this, EventArgs.Empty));
+        CleanTempFilesCommand = new RelayCommand(_ => CleanTempFiles());
     }
 
     // --- Protected SC4 data file paths (reference only) ---
@@ -177,6 +178,25 @@ public sealed class OptionsDialogViewModel : ViewModelBase
     public RelayCommand CloseCommand { get; }
 
     public event EventHandler? CloseRequested;
+
+    // --- Temp file cleanup (Ilive Reader's DlgOption::OnBnClickedclean) ---
+
+    private string _cleanTempFilesStatus = string.Empty;
+    public string CleanTempFilesStatus
+    {
+        get => _cleanTempFilesStatus;
+        private set => SetField(ref _cleanTempFilesStatus, value);
+    }
+
+    public RelayCommand CleanTempFilesCommand { get; }
+
+    private void CleanTempFiles()
+    {
+        var (count, bytes) = TempFileCleaner.Clean();
+        CleanTempFilesStatus = count == 0
+            ? "No leftover temporary files found."
+            : $"Deleted {count} temporary file(s) ({bytes / 1024.0:N1} KB).";
+    }
 
     private void Save()
     {

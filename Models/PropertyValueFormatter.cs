@@ -4,25 +4,22 @@ using csDBPF;
 namespace SC4ModdingSuite.Models;
 
 /// <summary>
-/// Formats a single property value, choosing hexadecimal - the SC4 modding community's own
+/// Formats a single property value as hexadecimal - the SC4 modding community's own
 /// convention, matching how <c>new_properties.xml</c> itself writes every <c>OPTION</c>
-/// value - for categorical/enum-like properties (those with a matching
-/// <see cref="PropertyDefinition"/> that declares named <see cref="PropertyDefinition.Options"/>),
-/// and plain decimal for everything else (counts, sizes, coordinates, ...), where a hex
-/// rendering would only make an ordinary number harder to read.
+/// value, Ilive Reader's own property grid, and how every other SC4 modding tool
+/// displays Exemplar/Cohort property values - for every integer property type (UINT8/16/32,
+/// SINT32/64), regardless of whether the property has a matching, named
+/// <see cref="PropertyDefinition"/> in the database. FLOAT32, STRING and BOOL values are
+/// shown in their normal form (a hex rendering of a float's bit pattern, or of "true"/
+/// "false", would not be more readable).
 /// </summary>
 public static class PropertyValueFormatter
 {
-    public static string Format(object? value, DBPFProperty.PropertyDataType dataType, bool preferHex)
+    public static string Format(object? value, DBPFProperty.PropertyDataType dataType)
     {
         if (value is null)
         {
             return string.Empty;
-        }
-
-        if (!preferHex)
-        {
-            return value.ToString() ?? string.Empty;
         }
 
         try

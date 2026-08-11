@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="440"
+        x:Class="SC4ModdingSuite.Views.UiNodePropertiesDialog"
+        x:DataType="vm:UiNodePropertiesDialogViewModel"
+        Title="UI Element Properties"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="520" Height="440"
+        MinWidth="360" MinHeight="300"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Opened by DbpfWorkspaceView.axaml.cs whenever a box in the UI preview is clicked
+         (UiPreviewControl.NodeClicked) - the Prop/Value grid that used to always sit next
+         to the preview permanently, now shown per-element on demand so the preview itself
+         gets the full panel width instead. -->
+    <Grid Margin="10" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <TextBlock Grid.Row="0" Text="{Binding NodeName}" FontWeight="Bold" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+            <Button Content="ADD CHILD" Command="{Binding AddChildCommand}" Margin="0,0,8,4"
+                    ToolTip.Tip="Adds a new child element under this one" />
+            <Button Content="REMOVE NODE" Command="{Binding RemoveNodeCommand}" Classes="danger" Margin="0,0,8,4"
+                    ToolTip.Tip="Removes this element (and any children it has)" />
+            <Button Content="REFRESH PREVIEW" Command="{Binding RefreshPreviewCommand}" Margin="0,0,0,4"
+                    ToolTip.Tip="Property edits already refresh the preview automatically when you leave the cell - use this to force a refresh anyway" />
+        </WrapPanel>
+
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Properties}" SelectedItem="{Binding SelectedProperty}"
+                  AutoGenerateColumns="False" GridLinesVisibility="All" FontSize="11"
+                  CellEditEnded="OnPropertyCellEditEnded">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Prop" Binding="{Binding Key}" Width="160" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <WrapPanel Grid.Row="3" Margin="0,8,0,0">
+            <Button Content="ADD PROPERTY" Command="{Binding AddPropertyCommand}" Margin="0,0,8,4" />
+            <Button Content="REMOVE" Command="{Binding RemovePropertyCommand}" Classes="danger" Margin="0,0,0,4" />
+        </WrapPanel>
+
+        <TextBlock Grid.Row="4" Text="SAVE in the UI EDITOR toolbar writes this whole tree back into the entry; the shell's own SAVE then writes the package to disk."
+                   FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,8,0,0" />
+    </Grid>
+
+</Window>

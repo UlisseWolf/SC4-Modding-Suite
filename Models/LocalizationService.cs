@@ -86,7 +86,9 @@ public sealed class LocalizationService : INotifyPropertyChanged
     // (see the class-level remarks above for why these exist instead of only Get(key)).
 
     public string ToolbarNew => Get("toolbar_new");
+    public string ToolbarNewTooltip => Get("toolbar_new_tooltip");
     public string ToolbarOpen => Get("toolbar_open");
+    public string ToolbarOpenTooltip => Get("toolbar_open_tooltip");
     public string ToolbarSave => Get("toolbar_save");
     public string ToolbarSaveAs => Get("toolbar_save_as");
     public string ToolbarExportEntry => Get("toolbar_export_entry");
@@ -95,10 +97,44 @@ public sealed class LocalizationService : INotifyPropertyChanged
     public string ToolbarOptions => Get("toolbar_options");
     public string ExternalToolsHeader => Get("external_tools_header");
 
+    // --- MDI shell toolbar (Views/MainWindow.axaml) - Compare/Merge/Directory sync live
+    // only here since they're multi-file tools, not tied to any one open tab. ---
+    public string ShellNavigatorHeader => Get("shell_navigator_header");
+    public string ShellCompare => Get("shell_compare");
+    public string ShellCompareTooltip => Get("shell_compare_tooltip");
+    public string ShellMerge => Get("shell_merge");
+    public string ShellMergeTooltip => Get("shell_merge_tooltip");
+    public string ShellDirectorySync => Get("shell_directory_sync");
+    public string ShellDirectorySyncTooltip => Get("shell_directory_sync_tooltip");
+    public string ShellCloseTabTooltip => Get("shell_close_tab_tooltip");
+
+
     public string LuaCompile => Get("lua_compile");
     public string LuaRun => Get("lua_run");
     public string LuaClearOutput => Get("lua_clear_output");
     public string LuaSave => Get("lua_save");
+
+    // --- T21 Editor (Views/DbpfWorkspaceView.axaml, "T21 Editor" mode) - only the
+    // action buttons are localized, same scope as the LUA Editor above; the panel's
+    // field labels/headers/tooltips stay hardcoded English, matching how the UI/S3D/
+    // Analysis editor panels elsewhere in this app are handled. ---
+    public string T21ApplyIid => Get("t21_apply_iid");
+    public string T21Add => Get("t21_add");
+    public string T21Duplicate => Get("t21_duplicate");
+    public string T21Remove => Get("t21_remove");
+    public string T21Up => Get("t21_up");
+    public string T21Down => Get("t21_down");
+    public string T21Save => Get("t21_save");
+    public string T21RhdToLhd => Get("t21_rhd_to_lhd");
+
+    // --- LTEXT Editor (Views/DbpfWorkspaceView.axaml, "LTEXT Editor" mode) - only the
+    // action buttons are localized, same scope as the LUA/T21 Editors above; the panel's
+    // field labels/headers/tooltips (LANGUAGE, SOURCE:, TARGET:, TEXT (selected entry)...)
+    // stay hardcoded English. ---
+    public string LtextSaveFile => Get("ltext_save_file");
+    public string LtextSaveAllForLanguage => Get("ltext_save_all_for_language");
+    public string LtextExportPoedit => Get("ltext_export_poedit");
+    public string LtextImportPoedit => Get("ltext_import_poedit");
 
     public string OptionsTitle => Get("options_title");
     public string OptionsSectionProtectedFiles => Get("options_section_protected_files");

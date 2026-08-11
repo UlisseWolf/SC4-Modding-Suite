@@ -30,8 +30,10 @@ options_save = "Enregistrer"
 options_close = "Fermer"
 
 # --- Barre d'outils principale ---
-toolbar_new = "NOUVEAU"
+toolbar_new = "NOUVEL ONGLET"
+toolbar_new_tooltip = "Ouvre un nouvel onglet vide"
 toolbar_open = "OUVRIR..."
+toolbar_open_tooltip = "Ouvre un ou plusieurs fichiers .dat, chacun dans son propre nouvel onglet"
 toolbar_save = "ENREGISTRER"
 toolbar_save_as = "ENREGISTRER SOUS..."
 toolbar_export_entry = "EXPORTER L'ENTRÉE..."
@@ -39,6 +41,16 @@ toolbar_import_entry = "IMPORTER DANS L'ENTRÉE..."
 toolbar_export_all = "TOUT EXPORTER..."
 toolbar_options = "OPTIONS..."
 external_tools_header = "OUTILS EXTERNES"
+
+# --- Barre d'outils de la coquille MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATEUR"
+shell_compare = "COMPARER DES DAT..."
+shell_compare_tooltip = "Compare deux fichiers .dat entrée par entrée et inspecte les octets différents"
+shell_merge = "FUSIONNER DES DAT..."
+shell_merge_tooltip = "Fusionne plusieurs fichiers .dat dans un nouveau fichier, ou dans l'onglet actif"
+shell_directory_sync = "SYNCHRO RÉPERTOIRE..."
+shell_directory_sync_tooltip = "Compare le sous-fichier Directory (DIR) de l'onglet actif à ses entrées réelles et permet de passer à celle sélectionnée"
+shell_close_tab_tooltip = "Fermer cet onglet"
 
 # NOTE : pas de clé "toolbar_property_db" ici, volontairement - l'ancien bouton autonome
 # "PROPERTY DATABASE..." de la barre d'outils a été remplacé par "Changer la source de
@@ -50,3 +62,19 @@ lua_compile = "COMPILER"
 lua_run = "▶ EXÉCUTER"
 lua_clear_output = "EFFACER LA SORTIE"
 lua_save = "ENREGISTRER"
+
+# --- Éditeur T21 (Views/DbpfWorkspaceView.axaml, mode "T21 Editor") ---
+t21_apply_iid = "APPLIQUER L'IID"
+t21_add = "AJOUTER"
+t21_duplicate = "DUPLIQUER"
+t21_remove = "SUPPRIMER"
+t21_up = "▲ MONTER"
+t21_down = "▼ DESCENDRE"
+t21_save = "ENREGISTRER T21"
+t21_rhd_to_lhd = "CONVERTIR RHD → LHD..."
+
+# --- Éditeur LTEXT (Views/DbpfWorkspaceView.axaml, mode "LTEXT Editor") ---
+ltext_save_file = "ENREGISTRER LE FICHIER"
+ltext_save_all_for_language = "ENREGISTRER TOUT LE FICHIER POUR LA LANGUE"
+ltext_export_poedit = "EXPORTER POEDIT..."
+ltext_import_poedit = "IMPORTER POEDIT..."

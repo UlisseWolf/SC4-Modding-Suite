@@ -2,6 +2,12 @@
 # Ogni riga e' "chiave = "#RRGGBB"". Puoi copiare questo file, rinominarlo e cambiare i
 # colori per creare un tuo tema personalizzato: comparira' automaticamente nel selettore
 # tema in Opzioni al prossimo avvio (o riaprendo la finestra Opzioni).
+#
+# header_background/header_foreground/alternating_row_background/gridlines sono opzionali
+# (intestazioni colonna DataGrid, striscia schede non selezionate, righe alternate delle
+# griglie, linee divisorie) - se li ometti, l'app usa automaticamente i colori dei pulsanti/
+# della lista come prima di questa aggiunta, quindi un tema vecchio senza queste righe
+# continua a funzionare identico a prima.
 
 name = "Bloomberg Terminal"
 
@@ -24,3 +30,8 @@ listboxitem_selected_background = "#332000"
 
 status_foreground = "#33FF66"
 danger_foreground = "#FF3333"
+
+header_background = "#1A1000"
+header_foreground = "#FFCC33"
+alternating_row_background = "#0D0800"
+gridlines = "#4D3000"

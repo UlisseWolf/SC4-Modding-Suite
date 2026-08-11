@@ -149,6 +149,31 @@ public static class EntryDescriber
             // Property may be missing; ignore.
         }
 
+        // Prefer the independent binary parser over csDBPF's own ListOfProperties - same
+        // reasoning and fallback order as MainWindowViewModel.LoadPropertiesForSelectedEntry
+        // (see ExemplarBinaryParser's own class comment): csDBPF's decoder desyncs on
+        // array-mode properties in some real files (Lot Configuration Exemplars especially),
+        // which would otherwise make an "EXPORT READABLE" dump for exactly the entries that
+        // most need it (large, heavily-arrayed lot configs) show wrong IDs/values instead of
+        // the readable text it promises.
+        var rawBytes = RawEntryBytes.GetDecompressed(exmp);
+        var parsed = ExemplarBinaryParser.Parse(rawBytes);
+
+        if (parsed.IsWellFormed)
+        {
+            sb.AppendLine($"Property count: {parsed.Properties.Count}");
+            sb.AppendLine();
+
+            foreach (var property in parsed.Properties.OrderBy(p => p.Id))
+            {
+                AppendProperty(sb, property.Id, property.DataType, property.Values, propertyRegistry);
+            }
+
+            return;
+        }
+
+        // Independent parser couldn't make sense of the bytes either - fall back to
+        // csDBPF's own decode rather than showing nothing.
         sb.AppendLine($"Property count: {exmp.ListOfProperties.Count}");
         sb.AppendLine();
 
@@ -157,39 +182,55 @@ public static class EntryDescriber
         {
             var propertyId = kvp.Key;
             var prop = kvp.Value;
-            var definition = propertyRegistry?.FindById(propertyId);
-            var name = definition?.Name ?? "(not present in the property database)";
-            var preferHex = definition is { Options.Count: > 0 };
 
-            string values;
+            object[] values;
             try
             {
                 // GetData() is obsolete in favour of GetTypedData(), which returns the
                 // property's values as an array of their exact CLR type (byte[], uint[],
                 // float[], bool[], or char[] for STRING-typed properties - see csDBPF docs).
                 var data = prop.GetTypedData();
-                if (data is char[] chars)
-                {
-                    values = new string(chars);
-                }
-                else
-                {
-                    values = string.Join(
-                        ", ",
-                        data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, prop.DataType, preferHex)));
-                }
+                values = data is char[] chars
+                    ? new object[] { new string(chars) }
+                    : data.Cast<object>().ToArray();
             }
             catch
             {
-                values = "(unreadable)";
+                values = Array.Empty<object>();
             }
 
-            if (values.Length > 120)
-            {
-                values = values[..120] + "...";
-            }
-
-            sb.AppendLine($"0x{propertyId:X8}  {name}  [{prop.DataType}]  {values}");
+            AppendProperty(sb, propertyId, prop.DataType, values, propertyRegistry);
         }
+    }
+
+    /// <summary>Formats one property as a single readable line: <c>0xID  Name  [Type]  values...</c>, truncated if very long (e.g. a big LotConfigPropertyLotObject array).</summary>
+    private static void AppendProperty(
+        StringBuilder sb,
+        uint propertyId,
+        DBPFProperty.PropertyDataType dataType,
+        object[] values,
+        PropertyDefinitionsRegistry? propertyRegistry)
+    {
+        var definition = propertyRegistry?.FindById(propertyId);
+        var name = definition?.Name ?? "(not present in the property database)";
+
+        string valuesText;
+        try
+        {
+            valuesText = values.Length == 1 && values[0] is string s
+                ? s
+                : string.Join(", ", values.Select(v => PropertyValueFormatter.Format(v, dataType)));
+        }
+        catch
+        {
+            valuesText = "(unreadable)";
+        }
+
+        if (valuesText.Length > 120)
+        {
+            valuesText = valuesText[..120] + "...";
+        }
+
+        sb.AppendLine($"0x{propertyId:X8}  {name}  [{dataType}]  {valuesText}");
     }
 }

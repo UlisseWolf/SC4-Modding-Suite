@@ -25,6 +25,21 @@ public sealed class ThemeDefinition
 
     public string StatusForeground { get; init; } = "#66CC66";
     public string DangerForeground { get; init; } = "#CC5555";
+
+    // --- Added to cover DataGrid/TabControl chrome, which previously fell back to plain
+    // FluentTheme colors regardless of the active palette (see Styles/AppTheme.axaml). All
+    // four fall back to an existing field's value when a theme .toml doesn't define them,
+    // so every theme file written before this addition keeps rendering exactly as before. ---
+
+    /// <summary>DataGrid column headers, and the unselected-tab "chrome" strip of TabControl/TabItem.</summary>
+    public string HeaderBackground { get; init; } = "#1E1E1E";
+    public string HeaderForeground { get; init; } = "#DDDDDD";
+
+    /// <summary>DataGrid zebra-striping for every other row - defaults to the plain row background (no visible stripe) so older theme files render unchanged.</summary>
+    public string AlternatingRowBackground { get; init; } = "#1E1E1E";
+
+    /// <summary>DataGrid horizontal/vertical cell divider lines.</summary>
+    public string GridLines { get; init; } = "#555555";
 }
 
 /// <summary>A theme entry for display in a selector: its file key and human-readable name.</summary>

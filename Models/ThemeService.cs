@@ -104,6 +104,10 @@ public sealed class ThemeService
         SetBrush(app, "ThemeListBoxItemSelectedBackground", def.ListBoxItemSelectedBackground);
         SetBrush(app, "ThemeStatusForeground", def.StatusForeground);
         SetBrush(app, "ThemeDangerForeground", def.DangerForeground);
+        SetBrush(app, "ThemeHeaderBackground", def.HeaderBackground);
+        SetBrush(app, "ThemeHeaderForeground", def.HeaderForeground);
+        SetBrush(app, "ThemeAlternatingRowBackground", def.AlternatingRowBackground);
+        SetBrush(app, "ThemeGridLines", def.GridLines);
 
         var style = new StyleInclude(new Uri("avares://SC4ModdingSuite/"))
         {

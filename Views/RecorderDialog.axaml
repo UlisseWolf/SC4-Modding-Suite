@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="480"
+        x:Class="SC4ModdingSuite.Views.RecorderDialog"
+        x:DataType="vm:RecorderDialogViewModel"
+        Title="Recorder (Patch Manager)"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="560" Height="480"
+        MinWidth="420" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgRecorder (Patch Manager): entries added/changed this
+         session, exportable as a standalone patch .dat. -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="Added/changed this session:" FontWeight="Bold" FontSize="11" Margin="0,0,0,6" />
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding RecordedEntries}" SelectedItem="{Binding SelectedEntry}"
+                  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="All" FontSize="11">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Type" Binding="{Binding TypeHex}" Width="120" />
+                <DataGridTextColumn Header="Group" Binding="{Binding GroupHex}" Width="120" />
+                <DataGridTextColumn Header="Instance" Binding="{Binding InstanceHex}" Width="120" />
+                <DataGridTextColumn Header="Entry type" Binding="{Binding EntryType}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <WrapPanel Grid.Row="2" Margin="0,8,0,8">
+            <Button Content="REMOVE FROM LIST" Command="{Binding RemoveCommand}" Classes="danger" Margin="0,0,8,0"
+                    ToolTip.Tip="Only removes it from this patch list - the entry stays in the open package" />
+            <Button Content="EXPORT PATCH AS .DAT..." Click="OnExportPatchClick" FontWeight="Bold" />
+        </WrapPanel>
+
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>

@@ -1,0 +1,37 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="440"
+        x:Class="SC4ModdingSuite.Views.InsertBatchDialog"
+        x:DataType="vm:InsertBatchDialogViewModel"
+        Title="Insert Batch"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="640" Height="440"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Port of Ilive Reader's DlgInsertBatch: a manifest of Type/Group/Instance/file
+         path/compress-flag, one new entry inserted per line. -->
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="Type&#9;Group&#9;Instance&#9;file path&#9;Y/N (compress) - one entry per line:"
+                   FontWeight="Bold" FontSize="11" Margin="0,0,0,6" />
+
+        <Border Grid.Row="1" BorderThickness="1">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding ManifestText}" AcceptsReturn="True" AcceptsTab="True"
+                         TextWrapping="NoWrap" FontFamily="Consolas,Menlo,monospace" FontSize="12"
+                         BorderThickness="0" Margin="6" />
+            </ScrollViewer>
+        </Border>
+
+        <WrapPanel Grid.Row="2" Margin="0,10,0,10">
+            <Button Content="LOAD FROM FILE..." Click="OnLoadFileClick" Margin="0,0,8,0" />
+            <Button Content="PROCESS" Command="{Binding ProcessCommand}" FontWeight="Bold" />
+        </WrapPanel>
+
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>
