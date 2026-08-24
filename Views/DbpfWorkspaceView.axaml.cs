@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using SC4ModdingSuite.Models;
@@ -195,6 +196,38 @@ public partial class DbpfWorkspaceView : UserControl
         // by the time this handler runs - see UiPreviewControl.OnPointerReleased.
         var dialog = new UiNodePropertiesDialog(new UiNodePropertiesDialogViewModel(ViewModel));
         await dialog.ShowDialog(OwnerWindow);
+    }
+
+    /// <summary>Double-clicking a row in the element tree opens the same Properties dialog a double-click in the preview does - TreeView's own SelectedItem two-way binding already updated ViewModel.SelectedUiNode by the time this fires.</summary>
+    private async void OnUiTreeDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (ViewModel.SelectedUiNode is null)
+        {
+            return;
+        }
+
+        var dialog = new UiNodePropertiesDialog(new UiNodePropertiesDialogViewModel(ViewModel));
+        await dialog.ShowDialog(OwnerWindow);
+    }
+
+    /// <summary>"ALL ELEMENTS..." - Ilive Reader's own CFormUI spreadsheet-style whole-tree view (see UiElementsGridDialog).</summary>
+    private async void OnShowUiElementsGridClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel.RefreshUiElementsGrid();
+        var dialog = new UiElementsGridDialog(ViewModel);
+        await dialog.ShowDialog(OwnerWindow);
+    }
+
+    /// <summary>"ADD CHILD" (main UI EDITOR toolbar copy - see UiNodePropertiesDialog.axaml.cs for its own copy of this same button): opens the template picker (AddUiElementDialog) instead of creating a bare-bones element straight away.</summary>
+    private async void OnAddUiChildClick(object? sender, RoutedEventArgs e)
+    {
+        var templates = ViewModel.BuildUiElementTemplates();
+        var dialog = new AddUiElementDialog(templates, ViewModel.BuildSingleElementPreview);
+        await dialog.ShowDialog(OwnerWindow);
+        if (dialog.Confirmed)
+        {
+            ViewModel.AddUiChildNode(dialog.SelectedTemplate);
+        }
     }
 
     private async void OnOpenS3DMaterialEditorClick(object? sender, RoutedEventArgs e)

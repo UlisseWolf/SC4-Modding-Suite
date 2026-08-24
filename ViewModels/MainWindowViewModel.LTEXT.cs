@@ -7,15 +7,18 @@ using SC4ModdingSuite.Models;
 namespace SC4ModdingSuite.ViewModels;
 
 /// <summary>
-/// LTEXT Editor: only active/shown while <see cref="IsLtextEditorMode"/> is selected (see
-/// <c>DbpfWorkspaceView.axaml</c>'s "LTEXT Editor" radio button). Lives in the third panel
-/// (Grid.Column="2") next to the ordinary TGI editor/preview in Column 1 - the panel there
-/// already shows the selected LTEXT entry's TGI and read-only text (see
-/// <c>LoadSimplePreview</c>); this one adds the actual editing surface: an editable text
-/// box, SAVE FILE (writes the box into the selected entry and saves the package to disk in
-/// one step), SAVE ALL FILE FOR LANGUAGE (clones every LTEXT entry currently in the package
-/// to a chosen target language's TGI, then saves), and Export/Import Poedit for round-
-/// tripping the whole file's strings through a translator's .po/.pot workflow.
+/// LTEXT Editor: not its own editor mode/radio button - shows automatically in the third
+/// panel (see <see cref="ShowLtextEditor"/>) whenever "SC4 Editor" (the default, no-filter
+/// mode) is active and the selected entry happens to be LTEXT-family, the same way the
+/// Exemplar/Cohort properties panel already appears just for an Exemplar selection rather
+/// than needing a dedicated mode. Lives in the third panel (Grid.Column="2") next to the
+/// ordinary TGI editor/preview in Column 1 - the panel there already shows the selected
+/// LTEXT entry's TGI and read-only text (see <c>LoadSimplePreview</c>); this one adds the
+/// actual editing surface: an editable text box, SAVE FILE (writes the box into the
+/// selected entry and saves the package to disk in one step), SAVE ALL FILE FOR LANGUAGE
+/// (clones every LTEXT entry currently in the package to a chosen target language's TGI,
+/// then saves), and Export/Import Poedit for round-tripping the whole file's strings
+/// through a translator's .po/.pot workflow.
 ///
 /// <para>
 /// <b>The critical piece</b> - and the reason none of the above is just "swap some text" -
@@ -70,6 +73,19 @@ public sealed partial class MainWindowViewModel
 
     /// <summary>True while the selected entry is something this panel can actually save (a real, writable DBPFEntryLTEXT).</summary>
     public bool IsLtextEntrySelected => SelectedEntry?.Entry is DBPFEntryLTEXT;
+
+    /// <summary>
+    /// Whether the third panel (Grid.Column="2" in DbpfWorkspaceView.axaml) should show the
+    /// LTEXT editor - there is no dedicated "LTEXT Editor" mode/radio button anymore; this
+    /// panel now appears directly inside "SC4 Editor" (the default, no-filter mode) whenever
+    /// the currently selected entry happens to be LTEXT-family (see
+    /// <see cref="IsLtextFamilyEntry"/>), the same way the Exemplar/Cohort properties panel
+    /// already only shows for an Exemplar selection rather than needing its own mode. Raised
+    /// from both <c>SetEditorMode</c> (switching away from SC4 Editor hides this even if an
+    /// LTEXT entry is still technically selected) and <see cref="LoadLtextEditorForSelectedEntry"/>
+    /// (selecting/deselecting an LTEXT entry while already in SC4 Editor mode).
+    /// </summary>
+    public bool ShowLtextEditor => IsSc4EditorMode && SelectedEntry is not null && IsLtextFamilyEntry(SelectedEntry);
 
     public RelayCommand SaveLtextFileCommand { get; private set; } = null!;
     public RelayCommand SaveLtextForLanguageCommand { get; private set; } = null!;
@@ -136,6 +152,7 @@ public sealed partial class MainWindowViewModel
     private void LoadLtextEditorForSelectedEntry()
     {
         OnPropertyChanged(nameof(IsLtextEntrySelected));
+        OnPropertyChanged(nameof(ShowLtextEditor));
         SaveLtextFileCommand.RaiseCanExecuteChanged();
 
         if (SelectedEntry is null)

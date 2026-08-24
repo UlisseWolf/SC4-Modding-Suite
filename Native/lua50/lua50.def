@@ -1,0 +1,24 @@
+; MSVC needs an explicit export list (lua.h's LUA_API/LUALIB_API expand to plain `extern`,
+; not __declspec(dllexport)) - unlike GCC/mingw, which can export every global symbol via
+; -Wl,--export-all-symbols (used for the Linux/win-mingw builds; see build.sh). This lists
+; exactly the symbols Models/NativeLua50.cs P/Invokes - if that file's DllImport list grows,
+; add the new symbol here too.
+LIBRARY lua50
+EXPORTS
+    lua_open
+    lua_close
+    lua_gettop
+    lua_settop
+    lua_pushvalue
+    lua_tostring
+    lua_pushstring
+    lua_pushcclosure
+    lua_settable
+    lua_gettable
+    luaL_loadbuffer
+    lua_pcall
+    lua_call
+    luaopen_base
+    luaopen_table
+    luaopen_string
+    luaopen_math

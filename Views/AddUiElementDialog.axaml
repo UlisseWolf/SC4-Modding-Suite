@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:views="using:SC4ModdingSuite.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="520"
+        x:Class="SC4ModdingSuite.Views.AddUiElementDialog"
+        Title="Add UI Element"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="560" Height="520"
+        MinWidth="420" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Opened by both "ADD CHILD" buttons (the main UI EDITOR toolbar, and
+         UiNodePropertiesDialog's own copy) instead of creating a bare-bones element
+         straight away - see MainWindowViewModel.BuildUiElementTemplates()'s own doc comment
+         for why: a brand-new node used to only ever get a placeholder "clsid" prop, none of
+         the dozens a real element (area, fillcolor, font, winflag_*, ...) actually needs to
+         look/behave right, so every "ADD CHILD" meant manually filling all of that in by
+         hand from scratch. Every entry here is a real, already-correctly-configured element
+         from somewhere in this package - copied as the new node's starting point (children
+         are not copied - see AddUiChildNode's own doc comment) - shown with its own actual
+         rendered preview (UiPreviewControl on a single-box list - see
+         MainWindowViewModel.BuildSingleElementPreview) rather than just a type name, so you
+         can see what you're about to add, not just read it. -->
+    <Grid Margin="12" RowDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="Start the new element from:" FontSize="12" Margin="0,0,0,8" />
+
+        <ListBox Grid.Row="1" x:Name="TemplateList" SelectedIndex="0">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:UiElementTemplateRowViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,4">
+                        <Border Width="140" Height="90" BorderThickness="1" ClipToBounds="True"
+                                HorizontalAlignment="Left" Background="#1A1A1A">
+                            <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="4">
+                                <views:UiPreviewControl Boxes="{Binding Preview}" />
+                            </Viewbox>
+                        </Border>
+                        <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <WrapPanel Grid.Row="2" Margin="0,10,0,0" HorizontalAlignment="Right">
+            <Button Content="CANCEL" Click="OnCancelClick" Margin="0,0,8,0" />
+            <Button Content="ADD" Click="OnAddClick" FontWeight="Bold" x:Name="AddButton" />
+        </WrapPanel>
+    </Grid>
+
+</Window>

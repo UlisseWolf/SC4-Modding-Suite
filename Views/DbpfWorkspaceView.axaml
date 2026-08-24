@@ -47,7 +47,6 @@
             <WrapPanel>
                 <TextBlock Text="EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
                 <RadioButton Content="SC4 Editor" GroupName="editorMode" IsChecked="{Binding IsSc4EditorMode}" Margin="0,0,8,4" />
-                <RadioButton Content="LTEXT Editor" GroupName="editorMode" IsChecked="{Binding IsLtextEditorMode}" Margin="0,0,8,4" />
                 <RadioButton Content="S3D Editor" GroupName="editorMode" IsChecked="{Binding IsS3DEditorMode}" Margin="0,0,8,4" />
                 <RadioButton Content="LUA Editor" GroupName="editorMode" IsChecked="{Binding IsLuaEditorMode}" Margin="0,0,8,4" />
                 <RadioButton Content="UI Editor" GroupName="editorMode" IsChecked="{Binding IsUiEditorMode}" Margin="0,0,8,4" />
@@ -133,9 +132,11 @@
                 IsVisible="{Binding IsUiEditorMode}">
             <WrapPanel>
                 <TextBlock Text="UI EDITOR:" FontWeight="Bold" FontSize="11" Classes="status" VerticalAlignment="Center" Margin="0,0,8,4" />
-                <Button Content="ADD CHILD" Command="{Binding AddUiChildNodeCommand}" Margin="0,0,8,4"
-                        ToolTip.Tip="Adds a new element - a child of the selected one, or a new top-level element if nothing's selected (click empty preview space to deselect)" />
+                <Button Content="ADD CHILD" Click="OnAddUiChildClick" Margin="0,0,8,4"
+                        ToolTip.Tip="Adds a new element - a child of the selected one, or a new top-level element if nothing's selected (click empty preview space to deselect). Opens a picker to start from an already-configured element instead of a bare placeholder." />
                 <Button Content="REMOVE NODE" Command="{Binding RemoveUiNodeCommand}" Classes="danger" Margin="0,0,8,4" />
+                <Button Content="ALL ELEMENTS..." Click="OnShowUiElementsGridClick" Margin="0,0,8,4"
+                        ToolTip.Tip="Spreadsheet-style view of every element at once (Ilive Reader's own CFormUI grid) - quick bulk editing of Id/Caption/Area/FillColor across the whole tree" />
                 <Button Content="SAVE" Command="{Binding SaveUiEditorCommand}" FontWeight="Bold" Margin="0,0,0,4"
                         ToolTip.Tip="Writes this whole element tree back into the entry (still needs the main Save/Save As to write the package to disk)" />
             </WrapPanel>
@@ -203,11 +204,34 @@
 
             <!-- Entry list -->
             <Border Grid.Column="0" BorderThickness="1">
-                <Grid RowDefinitions="Auto,*,Auto">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
                     <Border Grid.Row="0" BorderThickness="0,0,0,1">
                         <TextBlock Text="ENTRIES (TGI)" FontWeight="Bold" FontSize="11" Classes="status" Margin="6,4" />
                     </Border>
-                    <ListBox Grid.Row="1"
+
+                    <!-- Sort "header": click to sort by that field, click again to reverse -
+                         same interaction as Ilive Reader's own Workspace entry list column
+                         headers (reader/WorkspaceList.cpp). TYPE sorts by the classified
+                         label above (e.g. "FSH_BASE_OVERLAY"); T/G/I sort by the raw
+                         numeric Type/Group/Instance ID, matching Ilive Reader's own
+                         Type/Group/Instance columns. The arrow shows the active column and
+                         direction; unsorted columns show none. -->
+                    <WrapPanel Grid.Row="1" Margin="4,0,4,2">
+                        <Button Content="{Binding EntrySortLabelType}" Command="{Binding SortEntriesCommand}"
+                                CommandParameter="{x:Static vm:EntrySortColumn.Type}" Padding="6,2" Margin="0,0,4,0" FontSize="10"
+                                ToolTip.Tip="Sort by entry type" />
+                        <Button Content="{Binding EntrySortLabelTypeId}" Command="{Binding SortEntriesCommand}"
+                                CommandParameter="{x:Static vm:EntrySortColumn.TypeId}" Padding="6,2" Margin="0,0,4,0" FontSize="10"
+                                ToolTip.Tip="Sort by Type ID (T)" />
+                        <Button Content="{Binding EntrySortLabelGroupId}" Command="{Binding SortEntriesCommand}"
+                                CommandParameter="{x:Static vm:EntrySortColumn.GroupId}" Padding="6,2" Margin="0,0,4,0" FontSize="10"
+                                ToolTip.Tip="Sort by Group ID (G)" />
+                        <Button Content="{Binding EntrySortLabelInstanceId}" Command="{Binding SortEntriesCommand}"
+                                CommandParameter="{x:Static vm:EntrySortColumn.InstanceId}" Padding="6,2" Margin="0,0,0,0" FontSize="10"
+                                ToolTip.Tip="Sort by Instance ID (I)" />
+                    </WrapPanel>
+
+                    <ListBox Grid.Row="2"
                              x:Name="EntriesListBox"
                              ItemsSource="{Binding DisplayedEntries}"
                              SelectedItem="{Binding SelectedEntry}"
@@ -230,7 +254,7 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <WrapPanel Grid.Row="2" Margin="4">
+                    <WrapPanel Grid.Row="3" Margin="4">
                         <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" Margin="0,0,4,4" />
                         <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" Margin="0,0,4,4" />
                         <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" Margin="0,0,4,4" />
@@ -866,9 +890,15 @@
             </Panel>
 
             <!-- UI Editor's live 2D preview (Ilive Reader's FormUIPrev) - drag a box to
-                 reposition (writes straight back into that node's "area" prop, live), click
-                 a box to open its Properties dialog (see OnUiPreviewNodeClicked below;
-                 UiNodePropertiesDialog). The element tree + Prop/Value grid used to sit
+                 reposition (writes straight back into that node's "area" prop, live), one
+                 click selects a box (highlighted with corner handles - see
+                 UiPreviewControl.DrawSelectionHighlight; every other box gets a faint dashed
+                 outline too, so overlapping/caption-less elements are still easy to find and
+                 click), double-click opens its Properties dialog (see
+                 OnUiPreviewNodeClicked below; UiNodePropertiesDialog). Once selected, WASD or
+                 the arrow keys nudge the element 1px at a time (10px with Shift) - see
+                 UiPreviewControl.OnKeyDown - reusing the same MoveCommand a mouse drag ends
+                 with. The element tree + Prop/Value grid used to sit
                  permanently in Grid.Column="1" next to this, leaving the preview squeezed
                  into Column 2's ~280-380px - moved into that per-element dialog instead so
                  the preview itself gets the full Column 1+2 width, only while "UI Editor"
@@ -878,22 +908,76 @@
                  panel is reachable by scrolling instead of silently clipped off the edge. -->
             <Border Grid.Column="1" Grid.ColumnSpan="2" BorderThickness="1" Margin="6,0"
                     IsVisible="{Binding IsUiEditorMode}">
-                <!-- Centered rather than pinned to the top-left corner, matching how a real
-                     dialog would be laid out relative to the viewport it's shown in - most
-                     UI entries are smaller than this panel, so top-left alignment just left
-                     them looking stuck in a corner instead of presented like the actual
-                     dialog. Still scrolls correctly for content bigger than the panel.
-                     No explicit Width/Height binding here on purpose - UiPreviewControl
-                     sizes itself intrinsically from the same Boxes collection it paints
-                     from (see its own MeasureOverride), so its size and its content can
-                     never end up a frame out of sync with each other. -->
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                    <views:UiPreviewControl Boxes="{Binding UiPreviewBoxes}"
-                                             SelectCommand="{Binding SelectUiNodeCommand}"
-                                             MoveCommand="{Binding MoveUiNodeCommand}"
-                                             NodeClicked="OnUiPreviewNodeClicked"
-                                             HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </ScrollViewer>
+                <Grid ColumnDefinitions="260,Auto,*">
+                    <!-- Element hierarchy tree (Ilive Reader's WorkspaceUILegacy.cpp tree) -
+                         lets every node be found and selected regardless of whether it
+                         currently draws a box at all in the preview to the right (zero
+                         size, fully hidden under a sibling, or off the visible canvas -
+                         none of those are reachable by clicking the preview alone). The
+                         checkbox per row is IsDisplayed (bound below), matching Ilive
+                         Reader's own per-item "show in preview" tree checkboxes - a
+                         preview-time-only toggle, independent per node, that doesn't touch
+                         the node's own saved data. Selecting a row here or a box in the
+                         preview both write the same SelectedUiNode, so they always agree. -->
+                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                        <Border Grid.Row="0" BorderThickness="0,0,0,1">
+                            <TextBlock Text="ELEMENT TREE" FontWeight="Bold" FontSize="11" Classes="status" Margin="6,4" />
+                        </Border>
+                        <!-- HorizontalScrollBarVisibility="Disabled" (rather than "Auto", the
+                             usual default) is deliberate: it forces every row to fit within
+                             the panel's own width instead of being free to grow arbitrarily
+                             wide off-screen - which is exactly what was happening before
+                             (long captions like "Local Limousine Funding" got hard-clipped
+                             at the panel edge, with the horizontal scrollbar that should
+                             reveal the rest not visibly working inside a virtualized
+                             TreeView). Combined with the item template below wrapping its
+                             text within a bounded Grid column instead of an unbounded
+                             horizontal StackPanel, a long caption now wraps onto a second
+                             line and stays fully readable, rather than being cut off with no
+                             way to see the rest. The GridSplitter to the right also lets you
+                             widen the whole panel if two-line rows still feel cramped. -->
+                        <TreeView Grid.Row="1" ItemsSource="{Binding UiRootNodes}"
+                                  SelectedItem="{Binding SelectedUiNode}"
+                                  DoubleTapped="OnUiTreeDoubleTapped"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="vm:UiLegacyNodeViewModel" ItemsSource="{Binding Children}">
+                                    <Grid ColumnDefinitions="Auto,Auto,*">
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsDisplayed}" VerticalAlignment="Top" Margin="0,2,4,0"
+                                                  ToolTip.Tip="Show/hide this element in the preview (preview-only, not saved)" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Iid}" FontWeight="Bold" FontSize="11"
+                                                   VerticalAlignment="Top" Margin="0,3,4,0"
+                                                   IsVisible="{Binding Iid, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="11"
+                                                   VerticalAlignment="Top" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                    </Grid>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource ThemeBorder}"
+                                  HorizontalAlignment="Stretch" ResizeDirection="Columns"
+                                  ToolTip.Tip="Drag to widen/narrow the element tree" />
+
+                    <!-- Centered rather than pinned to the top-left corner, matching how a real
+                         dialog would be laid out relative to the viewport it's shown in - most
+                         UI entries are smaller than this panel, so top-left alignment just left
+                         them looking stuck in a corner instead of presented like the actual
+                         dialog. Still scrolls correctly for content bigger than the panel.
+                         No explicit Width/Height binding here on purpose - UiPreviewControl
+                         sizes itself intrinsically from the same Boxes collection it paints
+                         from (see its own MeasureOverride), so its size and its content can
+                         never end up a frame out of sync with each other. -->
+                    <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <views:UiPreviewControl Boxes="{Binding UiPreviewBoxes}"
+                                                 SelectCommand="{Binding SelectUiNodeCommand}"
+                                                 MoveCommand="{Binding MoveUiNodeCommand}"
+                                                 SelectedNode="{Binding SelectedUiNode.Node}"
+                                                 NodeClicked="OnUiPreviewNodeClicked"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </ScrollViewer>
+                </Grid>
             </Border>
 
             <!-- S3D Editor: opens the geometry/material editors in their own windows, only
@@ -918,18 +1002,22 @@
                 </StackPanel>
             </Border>
 
-            <!-- LTEXT Editor: third panel (Grid.Column="2"), only while "LTEXT Editor" mode
-                 is selected above (see IsLtextEditorMode). Column 1 still shows the ordinary
-                 TGI editor + read-only text preview for the selected entry (LTEXT entries
-                 don't get a dedicated Column 1 replacement, unlike LUA/T21/UI) - this panel
-                 adds the actual editing surface next to it: an editable text box, SAVE FILE
+            <!-- LTEXT Editor: third panel (Grid.Column="2") - no longer its own editor
+                 mode/radio button; shows automatically inside "SC4 Editor" (the default,
+                 no-filter mode) whenever the currently selected entry is LTEXT-family (see
+                 ShowLtextEditor/IsLtextFamilyEntry), the same way the Exemplar/Cohort
+                 properties panel already only appears for an Exemplar selection rather than
+                 needing a dedicated mode of its own. Column 1 still shows the ordinary TGI
+                 editor + read-only text preview for the selected entry (LTEXT entries don't
+                 get a dedicated Column 1 replacement, unlike LUA/T21/UI) - this panel adds
+                 the actual editing surface next to it: an editable text box, SAVE FILE
                  (writes the box into the entry and persists the package to disk in one
                  click), SAVE ALL FILE FOR LANGUAGE (clones every LTEXT entry to a chosen
                  target language's TGI - see LtextTgiLanguage for the Group ID offset math
                  from the SC4Devotion "LTEXT - Language Text Files" tutorial - then saves),
                  and Export/Import Poedit for round-tripping the whole file's strings
                  through a translator's .po/.pot workflow. -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsVisible="{Binding IsLtextEditorMode}">
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsVisible="{Binding ShowLtextEditor}">
                 <TextBlock Grid.Row="0" Text="LTEXT EDITOR" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
 
                 <!-- Language pickers: Source = the language the on-screen/exported text is

@@ -15,6 +15,11 @@
     <AssemblyTitle>SC4 Modding Suite</AssemblyTitle>
     <LangVersion>latest</LangVersion>
 
+    <!-- NativeLua50.cs P/Invokes into the real Lua 5.0 C library (Native/lua50/) via
+         function pointers obtained from [UnmanagedCallersOnly] methods (the print()
+         override - see LuaScriptRunner.cs), which requires unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
     <!--
       NU1903: Avalonia.Desktop pulls in Tmds.DBus.Protocol transitively for D-Bus desktop
       integration (clipboard/tray) on Linux only; it is never loaded/reachable on Windows
@@ -40,17 +45,46 @@
     <!-- csDBPF's only transitive dependency, per csDBPF.deps.json -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
 
-    <!-- LUA Editor: MoonSharp is a pure-managed Lua interpreter (no native lua5x.dll/P-Invoke,
-         unlike Ilive Reader's own embedded C Lua VM under LuaLib/) used to give the "LUA
-         Editor" mode a real Compile (syntax check) and Run button - see
-         Models/LuaScriptRunner.cs. -->
-    <PackageReference Include="MoonSharp" Version="2.0.0" />
-
     <!-- S3D Editor's VERT/INDX/PRIM grid editors (Tab3DMVert/Indx/Prim equivalents): the
          official first-party Avalonia grid control - not shipped in the Avalonia base
          package, but the standard choice here over hand-rolling row/column/edit/selection
          plumbing on top of ItemsControl. -->
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- LUA Editor: real Lua 5.0 (see Native/lua50/LUA_SOURCE_NOTES.md - the same version
+         SimCity 4 itself embeds), P/Invoked directly via NativeLua50.cs - not MoonSharp
+         (a pure-managed but Lua 5.2-targeting interpreter, this project's previous engine
+         for this feature) and not Ilive Reader's own choice either (its bundled LuaLib/ is
+         actually Lua 5.1.4, confirmed against that source directly - a different, if
+         closely related, version). Whichever platform's native binary exists under
+         Native/lua50/runtimes/<rid>/native/ is copied next to this app's own executable,
+         where .NET's default P/Invoke library search already looks; see build.sh/build.bat
+         there for how to produce a given platform's binary (linux-x64 and win-x64 are
+         already built and committed - macOS needs a Mac to build/test on, which this dev
+         environment didn't have; win-x64 was itself cross-compiled from Linux via
+         mingw-w64, see build.sh's own notes on that). All three platforms also get rebuilt
+         automatically as part of `dotnet build` itself now (see the BuildLua50* MSBuild
+         targets near the end of this file) whenever a compiler is available, so this is
+         only "the binary that happens to already be committed", not "the only way to get
+         one" - running build.sh/build.bat by hand is never required. -->
+    <None Include="Native/lua50/runtimes/linux-x64/native/liblua50.so" Condition="Exists('Native/lua50/runtimes/linux-x64/native/liblua50.so')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>liblua50.so</Link>
+    </None>
+    <None Include="Native/lua50/runtimes/win-x64/native/lua50.dll" Condition="Exists('Native/lua50/runtimes/win-x64/native/lua50.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>lua50.dll</Link>
+    </None>
+    <None Include="Native/lua50/runtimes/osx-x64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-x64/native/liblua50.dylib')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>liblua50.dylib</Link>
+    </None>
+    <None Include="Native/lua50/runtimes/osx-arm64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-arm64/native/liblua50.dylib')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>liblua50.dylib</Link>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -76,5 +110,61 @@
     <EmbeddedResource Include="Localization\**" />
     <EmbeddedResource Include="Themes\**" />
   </ItemGroup>
+
+  <!-- ===================================================================
+       Automatic native Lua 5.0 build (see Native/lua50/LUA_SOURCE_NOTES.md) - compiles
+       Native/lua50/*.c into this machine's platform's native library as part of an
+       ordinary `dotnet build`/`dotnet publish`, so nobody needs to remember to separately
+       run build.sh/build.bat by hand first. Each platform's own Target below only actually
+       runs on that platform (the others' Condition is false and they're skipped entirely -
+       there is no cross-compiling toolchain assumed here beyond what build.sh's own mingw
+       fallback documents), is incremental (Inputs/Outputs: skipped entirely if the .c/.h
+       sources haven't changed since the library was last built), and never fails the whole
+       build if no C compiler is available (ContinueOnError="WarnAndContinue" - falls back
+       to whichever native library is already committed under Native/lua50/runtimes/, same
+       as before this was automated; linux-x64 and win-x64 both already have one, verified
+       working - win-x64's own was in fact produced this exact way, cross-compiled via
+       mingw-w64 from Linux - checked into the repository).
+       =================================================================== -->
+  <PropertyGroup>
+    <Lua50Dir>$(MSBuildProjectDirectory)/Native/lua50</Lua50Dir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Lua50Source Include="$(Lua50Dir)/*.c;$(Lua50Dir)/*.h" />
+  </ItemGroup>
+
+  <Target Name="BuildLua50Linux" BeforeTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('Linux'))"
+          Inputs="@(Lua50Source)" Outputs="$(Lua50Dir)/runtimes/linux-x64/native/liblua50.so">
+    <Exec Command="sh build.sh" WorkingDirectory="$(Lua50Dir)" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <Target Name="BuildLua50Windows" BeforeTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          Inputs="@(Lua50Source)" Outputs="$(Lua50Dir)/runtimes/win-x64/native/lua50.dll">
+    <Exec Command="build.bat" WorkingDirectory="$(Lua50Dir)" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <Target Name="BuildLua50Mac" BeforeTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('OSX'))"
+          Inputs="@(Lua50Source)" Outputs="$(Lua50Dir)/runtimes/osx-x64/native/liblua50.dylib">
+    <Exec Command="sh build.sh" WorkingDirectory="$(Lua50Dir)" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+  <!-- Safety net for a *fresh* build (the library didn't exist yet when this .csproj was
+       first evaluated, so the static <None Include Condition="Exists(...)"> items further
+       above - which handle the "already built and committed" case, regardless of which OS
+       is currently building/publishing - never picked it up): explicitly copies whichever
+       native library the current platform's Target above just produced (or already had)
+       straight into the build output, without needing a second project-evaluation pass. -->
+  <Target Name="CopyFreshLua50Native" AfterTargets="BuildLua50Linux;BuildLua50Windows;BuildLua50Mac" BeforeTargets="Build">
+    <ItemGroup>
+      <Lua50FreshNative Include="$(Lua50Dir)/runtimes/linux-x64/native/liblua50.so" Condition="Exists('$(Lua50Dir)/runtimes/linux-x64/native/liblua50.so') AND $([MSBuild]::IsOSPlatform('Linux'))" />
+      <Lua50FreshNative Include="$(Lua50Dir)/runtimes/win-x64/native/lua50.dll" Condition="Exists('$(Lua50Dir)/runtimes/win-x64/native/lua50.dll') AND $([MSBuild]::IsOSPlatform('Windows'))" />
+      <Lua50FreshNative Include="$(Lua50Dir)/runtimes/osx-x64/native/liblua50.dylib" Condition="Exists('$(Lua50Dir)/runtimes/osx-x64/native/liblua50.dylib') AND $([MSBuild]::IsOSPlatform('OSX'))" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Lua50FreshNative)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="'@(Lua50FreshNative)' != ''" />
+  </Target>
 
 </Project>

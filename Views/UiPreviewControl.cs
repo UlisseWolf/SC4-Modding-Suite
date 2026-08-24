@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -43,10 +44,10 @@ public sealed class UiPreviewControl : Control
         set => SetValue(SelectCommandProperty, value);
     }
 
-    /// <summary>Fired whenever an actual box (not empty space) is clicked, in addition to
-    /// SelectCommand above - unlike a ViewModel property change, this fires every time,
-    /// even if the same node was already selected, which is what the owning view needs to
-    /// reliably open that node's Properties dialog on every click.</summary>
+    /// <summary>Fired on a double-click on an actual box (not empty space, and not a single
+    /// click - see UiPreviewControl.OnPointerReleased) - what the owning view uses to open
+    /// that node's Properties dialog, kept separate from selection (SelectCommand above, on
+    /// every click) so clicking something to select/move it doesn't also pop a dialog over it.</summary>
     public event EventHandler<UiLegacyNode>? NodeClicked;
 
     /// <summary>Executed with (UiLegacyNode Node, int Left, int Top) once a drag ends.</summary>
@@ -57,6 +58,23 @@ public sealed class UiPreviewControl : Control
     {
         get => GetValue(MoveCommandProperty);
         set => SetValue(MoveCommandProperty, value);
+    }
+
+    /// <summary>
+    /// The currently-selected node (bound from MainWindowViewModel.SelectedUiNode.Node) -
+    /// drawn with a distinct highlighted box + corner handles (see <see cref="Render"/>),
+    /// and the target of WASD/arrow-key nudging (see <see cref="OnKeyDown"/>). Selection
+    /// itself still happens through <see cref="SelectCommand"/> on click - this property
+    /// only controls what gets drawn/moved, so it stays in sync however the ViewModel's own
+    /// selection changed (clicking a box here, picking a node in the tree elsewhere, ...).
+    /// </summary>
+    public static readonly StyledProperty<UiLegacyNode?> SelectedNodeProperty =
+        AvaloniaProperty.Register<UiPreviewControl, UiLegacyNode?>(nameof(SelectedNode));
+
+    public UiLegacyNode? SelectedNode
+    {
+        get => GetValue(SelectedNodeProperty);
+        set => SetValue(SelectedNodeProperty, value);
     }
 
     private PreviewBox? _dragging;
@@ -76,7 +94,7 @@ public sealed class UiPreviewControl : Control
         // reactive to switching UI entries, adding/removing nodes, or editing "area"/
         // "caption"/"fillcolor" props, instead of only ever painting whatever was loaded
         // the first time.
-        AffectsRender<UiPreviewControl>(BoxesProperty);
+        AffectsRender<UiPreviewControl>(BoxesProperty, SelectedNodeProperty);
     }
 
     public UiPreviewControl()
@@ -168,6 +186,8 @@ public sealed class UiPreviewControl : Control
         return null;
     }
 
+    private int _pressClickCount = 1;
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -176,7 +196,15 @@ public sealed class UiPreviewControl : Control
         _dragStartPointer = pos;
         _dragStartArea = _dragging?.Area ?? default;
         _dragged = false;
+        // Avalonia's own multi-click tracking (time/distance threshold between presses) -
+        // 2 here means this press was recognized as the second half of a double-click.
+        _pressClickCount = e.ClickCount;
         e.Pointer.Capture(this);
+
+        // Needed for WASD/arrow-key nudging (see OnKeyDown) to receive input right after a
+        // click - a Control doesn't get keyboard focus automatically just from a pointer
+        // press the way a real input element would.
+        Focus();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -215,10 +243,21 @@ public sealed class UiPreviewControl : Control
                     MoveCommand.Execute(parameter);
                 }
             }
-            else if (SelectCommand?.CanExecute(box.Node) == true)
+            else
             {
-                SelectCommand.Execute(box.Node);
-                NodeClicked?.Invoke(this, box.Node);
+                // One click selects only; NodeClicked (which opens the Properties dialog -
+                // see OnUiPreviewNodeClicked in DbpfWorkspaceView.axaml.cs) fires only on an
+                // actual double-click, matching how a file/desktop icon behaves - selecting
+                // something to inspect/move it shouldn't also immediately pop a dialog over it.
+                if (SelectCommand?.CanExecute(box.Node) == true)
+                {
+                    SelectCommand.Execute(box.Node);
+                }
+
+                if (_pressClickCount >= 2)
+                {
+                    NodeClicked?.Invoke(this, box.Node);
+                }
             }
         }
         else if (!_dragged && SelectCommand?.CanExecute(null) == true)
@@ -230,6 +269,55 @@ public sealed class UiPreviewControl : Control
         _dragged = false;
         e.Pointer.Capture(null);
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// WASD/arrow-key nudging of <see cref="SelectedNode"/> - 1px per press, or 10px with
+    /// Shift held (a common "fine vs. coarse" convention, e.g. most vector/layout editors).
+    /// Reuses the exact same <see cref="MoveCommand"/> a mouse drag ends with
+    /// (MainWindowViewModel.MoveUiNode), so both paths write to the node's "area" prop
+    /// identically - keyboard nudging is just a drag with the mouse in the loop.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (SelectedNode is not { } node || Boxes is not { } boxes)
+        {
+            return;
+        }
+
+        var (dx, dy) = e.Key switch
+        {
+            Key.Left or Key.A => (-1, 0),
+            Key.Right or Key.D => (1, 0),
+            Key.Up or Key.W => (0, -1),
+            Key.Down or Key.S => (0, 1),
+            _ => (0, 0),
+        };
+
+        if (dx == 0 && dy == 0)
+        {
+            return;
+        }
+
+        var step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
+
+        var box = boxes.FirstOrDefault(b => b.Node == node);
+        if (box is null)
+        {
+            return;
+        }
+
+        var newLeft = box.Area.X + dx * step;
+        var newTop = box.Area.Y + dy * step;
+        var parameter = (node, newLeft, newTop);
+        if (MoveCommand?.CanExecute(parameter) == true)
+        {
+            MoveCommand.Execute(parameter);
+        }
+
+        e.Handled = true;
     }
 
     public override void Render(DrawingContext context)
@@ -420,6 +508,74 @@ public sealed class UiPreviewControl : Control
                 };
                 context.DrawText(formatted, new AvPoint(rect.X + 3, rect.Y + 2));
             }
+        }
+
+        // Faint outline for every box, regardless of iid/kind - drawn LAST, after every
+        // element's own image/fill/text above, so it's always visible on top instead of
+        // being painted over by an opaque image or filled rect that exactly fills the same
+        // area (that was the bug in an earlier version of this: drawing the outlines first
+        // meant any element with an image - most icons, badges, sliders, button/panel
+        // backgrounds - completely hid its own outline underneath itself). Several kinds
+        // (IGZWinText/IGZWinBtn/IGZWinTextEdit especially) otherwise draw no box at all
+        // normally - fine for a read-only preview, but makes it hard to see what's actually
+        // there to click/select/nudge into place when editing a layout with several
+        // overlapping or caption-less elements.
+        //
+        // Drawn as a black stroke directly under a white dashed one ("marching ants", the
+        // same technique image editors use for a selection outline) rather than a single
+        // gray line - a single mid-tone color has poor contrast against either a light UI
+        // skin (like the light-blue/gray panel this was reported against) or the dark
+        // canvas background showing through anywhere the panel doesn't cover, and this app
+        // can't know in advance which one any given box will sit on top of.
+        foreach (var outlineBox in boxes)
+        {
+            var outlineArea = outlineBox.Area;
+            var outlineRect = new Rect(outlineArea.X, outlineArea.Y, Math.Max(1, outlineArea.Width), Math.Max(1, outlineArea.Height));
+            context.DrawRectangle(DimOutlinePenDark, outlineRect);
+            context.DrawRectangle(DimOutlinePenLight, outlineRect);
+        }
+
+        DrawSelectionHighlight(context, boxes);
+    }
+
+    private static readonly IPen SelectionPen = new Pen(new SolidColorBrush(AvColor.Parse("#3B82F6")), 2);
+    private static readonly IBrush SelectionHandleBrush = new SolidColorBrush(AvColor.Parse("#3B82F6"));
+    private const double HandleSize = 7;
+
+    // "Marching ants" pair for the faint per-box outline drawn near the end of Render() -
+    // black underneath, white dashed on top, offset by half a dash so neither line's own
+    // gaps line up with the other's, giving a continuous-looking outline against any
+    // background color it happens to cross.
+    private static readonly IPen DimOutlinePenDark = new Pen(new SolidColorBrush(AvColor.Parse("#000000"), 0.55), 1.5);
+    private static readonly IPen DimOutlinePenLight = new Pen(new SolidColorBrush(AvColor.Parse("#FFFFFF"), 0.85), 1) { DashStyle = DashStyle.Dash };
+
+    /// <summary>
+    /// The selected element's own box, outlined and with a small square "handle" at each
+    /// corner (same look as a selected shape/textbox in a layout editor - see the reference
+    /// screenshot this was requested from). Drawn last, on top of everything else, so it's
+    /// never obscured by another element's own fill/image.
+    /// </summary>
+    private void DrawSelectionHighlight(DrawingContext context, IReadOnlyList<PreviewBox> boxes)
+    {
+        if (SelectedNode is not { } node)
+        {
+            return;
+        }
+
+        var selected = boxes.FirstOrDefault(b => b.Node == node);
+        if (selected is null)
+        {
+            return;
+        }
+
+        var area = selected.Area;
+        var rect = new Rect(area.X, area.Y, Math.Max(1, area.Width), Math.Max(1, area.Height));
+        context.DrawRectangle(SelectionPen, rect);
+
+        var half = HandleSize / 2;
+        foreach (var corner in new[] { rect.TopLeft, rect.TopRight, rect.BottomLeft, rect.BottomRight })
+        {
+            context.FillRectangle(SelectionHandleBrush, new Rect(corner.X - half, corner.Y - half, HandleSize, HandleSize));
         }
     }
 }

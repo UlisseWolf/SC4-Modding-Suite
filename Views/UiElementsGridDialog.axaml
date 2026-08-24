@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="820" d:DesignHeight="520"
+        x:Class="SC4ModdingSuite.Views.UiElementsGridDialog"
+        x:DataType="vm:MainWindowViewModel"
+        Title="All UI Elements"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="820" Height="520"
+        MinWidth="520" MinHeight="320"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Opened from the UI Editor toolbar's "ALL ELEMENTS..." button - the whole tree as
+         one spreadsheet, every node a row, matching Ilive Reader's own CFormUI grid (which
+         goes further still: every *known* property as its own column, ~90 of them, most
+         empty for any given row). This is intentionally narrower - just the handful of
+         properties an element is most likely to actually have - as a quick bulk-editing
+         overview alongside (not a replacement for) the richer, type-aware per-node
+         UiNodePropertiesDialog (double-click a row here, or a box in the preview, or a row
+         in the element tree, to open that instead). -->
+    <Grid Margin="10" RowDefinitions="Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="{Binding UiElementsGrid.Count, StringFormat='{}{0} element(s) - edit a cell directly, or double-click a row to open its full Properties dialog'}"
+                   FontSize="11" Classes="status" Margin="0,0,0,6" />
+
+        <DataGrid Grid.Row="1" ItemsSource="{Binding UiElementsGrid}"
+                  AutoGenerateColumns="False" GridLinesVisibility="All" FontSize="11"
+                  CellEditEnded="OnGridCellEditEnded" DoubleTapped="OnRowDoubleTapped">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Element" Binding="{Binding Label}" Width="220" IsReadOnly="True" />
+                <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="90" />
+                <DataGridTextColumn Header="Caption" Binding="{Binding Caption}" Width="180" />
+                <DataGridTextColumn Header="Area (L,T,R,B)" Binding="{Binding Area}" Width="150" />
+                <DataGridTextColumn Header="FillColor (R,G,B)" Binding="{Binding FillColor}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+            <Button Content="REFRESH" Click="OnRefreshClick" Margin="0,0,8,0"
+                    ToolTip.Tip="Re-flattens the tree - use if you've added/removed elements while this was open" />
+            <Button Content="CLOSE" Click="OnCloseClick" />
+        </WrapPanel>
+    </Grid>
+
+</Window>

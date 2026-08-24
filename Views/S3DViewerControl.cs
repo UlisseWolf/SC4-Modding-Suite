@@ -188,6 +188,20 @@ public sealed class S3DViewerControl : Control
     private static readonly IPen WirePenNight = new Pen(new SolidColorBrush(AvColor.Parse("#3355AA")), 1);
     private static readonly IPen HighlightPen = new Pen(new SolidColorBrush(AvColor.Parse("#FF33FF")), 2.5);
 
+    // Coordinate axes + origin marker - drawn in the model's own local S3D coordinate
+    // space (never re-centered on the bounding box, unlike the model geometry itself - see
+    // Geometry3D.ToView), so the offset between a mesh's true origin/pivot and where its
+    // geometry actually sits is visible at a glance, same convention as Blender/3ds Max/most
+    // 3D tools: Red=X, Green=Y, Blue=Z. Always drawn on top (no depth test against the
+    // model), since the point is to always be able to find the origin, even when it falls
+    // behind or outside the mesh.
+    private static readonly IPen AxisPenX = new Pen(new SolidColorBrush(AvColor.Parse("#E84C4C")), 1.5);
+    private static readonly IPen AxisPenY = new Pen(new SolidColorBrush(AvColor.Parse("#4CD964")), 1.5);
+    private static readonly IPen AxisPenZ = new Pen(new SolidColorBrush(AvColor.Parse("#4C9CE8")), 1.5);
+    private static readonly IBrush OriginBrush = new SolidColorBrush(AvColor.Parse("#FFFFFF"));
+    private static readonly IPen OriginPen = new Pen(new SolidColorBrush(AvColor.Parse("#000000")), 1);
+    private static readonly IBrush DiagnosticBrush = new SolidColorBrush(AvColor.Parse("#FFCC33"));
+
     static S3DViewerControl()
     {
         AffectsRender<S3DViewerControl>(ModelProperty, BackgroundProperty, TextureProperty, MaterialTexturesProperty, NightMaterialTexturesProperty, SolidProperty, NightProperty, CurrentFrameProperty, HiddenGroupsProperty, HighlightTriangleProperty);
@@ -268,7 +282,11 @@ public sealed class S3DViewerControl : Control
     }
 
     /// <summary>Camera-space geometry shared by <see cref="Render"/> and <see cref="PickTriangle"/> - computed once per call site rather than duplicated, since both need the same rotate/project pipeline.</summary>
-    private readonly record struct Geometry3D(int[] BlockOffsets, Vector3[] RotatedPositions, double Cx, double Cy, double Scale);
+    private readonly record struct Geometry3D(int[] BlockOffsets, Vector3[] RotatedPositions, double Cx, double Cy, double Scale, Vector3 Center, Matrix4x4 Rotation, float Radius)
+    {
+        /// <summary>Transforms a world-space point (in the model's own local S3D coordinate system, e.g. Vector3.Zero for the true origin) into this frame's rotated view space - same transform every vertex went through, but for a point that isn't necessarily one of the model's own vertices (the origin, an axis endpoint, ...).</summary>
+        public Vector3 ToView(Vector3 worldPoint) => Vector3.Transform(worldPoint - Center, Rotation);
+    }
 
     private Geometry3D? BuildGeometry(S3DModel model, Rect bounds)
     {
@@ -322,7 +340,7 @@ public sealed class S3DViewerControl : Control
             rotatedPositions[i] = Vector3.Transform(allPositions[i] - center, rotation);
         }
 
-        return new Geometry3D(blockOffsets, rotatedPositions, cx, cy, scale);
+        return new Geometry3D(blockOffsets, rotatedPositions, cx, cy, scale, center, rotation, radius);
     }
 
     private static AvPoint Project(in Geometry3D g, Vector3 rotated) =>
@@ -440,6 +458,8 @@ public sealed class S3DViewerControl : Control
         var wirePen = night ? WirePenNight : WirePenDay;
         var texture = solid ? Texture : null;
 
+        var visibleTriangleCount = 0;
+
         if (!solid)
         {
             // Wireframe mode: simple, no sorting/shading needed.
@@ -450,6 +470,7 @@ public sealed class S3DViewerControl : Control
                     continue;
                 }
 
+                visibleTriangleCount++;
                 var pa = Project(g, rotatedPositions[ia]);
                 var pb = Project(g, rotatedPositions[ib]);
                 var pc = Project(g, rotatedPositions[ic]);
@@ -457,6 +478,12 @@ public sealed class S3DViewerControl : Control
                 context.DrawLine(wirePen, pa, pb);
                 context.DrawLine(wirePen, pb, pc);
                 context.DrawLine(wirePen, pc, pa);
+            }
+
+            DrawOriginAndAxes(context, g);
+            if (visibleTriangleCount == 0)
+            {
+                DrawNoGeometryDiagnostic(context, bounds, model, HiddenGroups);
             }
 
             DrawHighlight(HighlightPen);
@@ -554,7 +581,80 @@ public sealed class S3DViewerControl : Control
         }
 
         context.DrawImage(bitmap, new Rect(bitmap.PixelSize.ToSize(1)), new Rect(bounds.Size));
+        DrawOriginAndAxes(context, g);
+        if (triangles.Count == 0)
+        {
+            DrawNoGeometryDiagnostic(context, bounds, model, HiddenGroups);
+        }
+
         DrawHighlight(HighlightPen);
+    }
+
+    /// <summary>
+    /// Draws the model's own local-space X/Y/Z axes (red/green/blue, Blender/3ds Max
+    /// convention) and a small marker at the true origin (0,0,0) - i.e. the object's own
+    /// pivot/placement point, which is <b>not</b> necessarily where its geometry is
+    /// centered (see <see cref="Geometry3D.ToView"/>: the model itself is drawn re-centered
+    /// on its bounding box for a nicely-framed view, but the axes/origin here use the
+    /// model's real, un-recentered coordinate space) - useful to spot a mesh that's placed
+    /// oddly relative to its own origin (a common authoring mistake: in-game the object
+    /// then appears offset from where it was clicked/placed). Always drawn on top of the
+    /// model, not depth-tested against it, since the whole point is to always be able to
+    /// find the origin.
+    /// </summary>
+    private static void DrawOriginAndAxes(DrawingContext context, in Geometry3D g)
+    {
+        var axisLength = Math.Max(g.Radius * 0.5f, 0.5f);
+
+        var origin = Project(g, g.ToView(Vector3.Zero));
+        var xEnd = Project(g, g.ToView(new Vector3(axisLength, 0, 0)));
+        var yEnd = Project(g, g.ToView(new Vector3(0, axisLength, 0)));
+        var zEnd = Project(g, g.ToView(new Vector3(0, 0, axisLength)));
+
+        context.DrawLine(AxisPenX, origin, xEnd);
+        context.DrawLine(AxisPenY, origin, yEnd);
+        context.DrawLine(AxisPenZ, origin, zEnd);
+
+        context.DrawEllipse(OriginBrush, OriginPen, origin, 3.5, 3.5);
+    }
+
+    /// <summary>
+    /// Shown instead of a silently-blank canvas when the model reports real
+    /// geometry/materials (see the "S3D vX.Y - N groups, M vertices, ..." info line above
+    /// the viewer) but the *current* frame/group selection resolves to zero actually
+    /// drawable triangles - e.g. every animation mesh's frame 0 references a VERT/INDX/PRIM
+    /// block index that's out of range for this file (see
+    /// <see cref="S3DModel.EnumerateTriangles"/>'s own bounds checks, and
+    /// <see cref="S3DParser.Parse"/>'s doc comment on how a coincidental "VERT"/"INDX"/...
+    /// byte sequence inside another chunk's own payload - a long mesh name, texture name, or
+    /// just unlucky vertex data - can shift a chunk boundary and desync block counts for a
+    /// specific file, faithfully replicating the same linear-tag-scan Ilive Reader's own
+    /// DecodeS3D() uses). The axes/origin above are still drawn either way, so this state is
+    /// distinguishable at a glance from "the camera math itself is broken".
+    /// </summary>
+    private static void DrawNoGeometryDiagnostic(DrawingContext context, Rect bounds, S3DModel model, IReadOnlySet<int>? hiddenGroups)
+    {
+        var groupCount = model.Animation.Meshes.Count > 0
+            ? model.Animation.Meshes.Count
+            : Math.Min(model.IndexBlocks.Count, model.PrimBlocks.Count);
+        var allGroupsHidden = groupCount > 0 && hiddenGroups is not null && hiddenGroups.Count >= groupCount;
+
+        var line1 = new FormattedText(
+            "No visible geometry for this frame/group selection.",
+            System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            Typeface.Default, 13, DiagnosticBrush);
+
+        var explanation = allGroupsHidden
+            ? "Every group is currently hidden (see GROUP VISIBILITY below) - check a box to show it again."
+            : $"Model reports data ({model.TotalVertexCount} vertices, {model.MaterialCount} materials) - " +
+              "every group's current-frame VertBlock/IndexBlock/PrimBlock reference is out of range for this file.";
+        var line2 = new FormattedText(
+            explanation,
+            System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            Typeface.Default, 11, DiagnosticBrush);
+
+        context.DrawText(line1, new AvPoint(10, bounds.Height - 46));
+        context.DrawText(line2, new AvPoint(10, bounds.Height - 26));
     }
 
     /// <summary>

@@ -40,6 +40,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         RemoveSelectedCommand = new RelayCommand(_ => RemoveSelected(), _ => SelectedEntry is not null);
         ApplyTgiCommand = new RelayCommand(_ => ApplyTgiEdit(), _ => SelectedEntry is not null);
         RandomizeBothCommand = new RelayCommand(_ => RandomizeBoth(), _ => SelectedEntry is not null);
+        SortEntriesCommand = new RelayCommand(param => SortEntriesBy((EntrySortColumn)param!));
 
         RemoveSelectedPropertyCommand = new RelayCommand(_ => RemoveSelectedProperty(), _ => SelectedProperty is not null);
 
@@ -114,6 +115,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         AddUiChildNodeCommand = new RelayCommand(_ => AddUiChildNode());
         RemoveUiNodeCommand = new RelayCommand(_ => RemoveUiNode(), _ => SelectedUiNode is not null);
         AddUiPropertyCommand = new RelayCommand(_ => AddUiProperty(), _ => SelectedUiNode is not null);
+        InsertUiPropertyBeforeCommand = new RelayCommand(_ => InsertUiPropertyBefore(), _ => SelectedUiNode is not null);
         RemoveUiPropertyCommand = new RelayCommand(_ => RemoveUiProperty(), _ => SelectedUiProperty is not null);
         RefreshUiPreviewCommand = new RelayCommand(_ => RefreshUiPreview());
         SaveUiEditorCommand = new RelayCommand(_ => SaveUiEditor(), _ => SelectedEntry is not null && _uiRoot is not null);
@@ -215,7 +217,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private const uint LuaTypeId = 0xCA63E2A3;
     private const uint T21GroupId = 0x89AC5643;
 
-    private enum EditorMode { None, Sc4, Ltext, S3D, Lua, Ui, T21, Analysis }
+    private enum EditorMode { None, Sc4, S3D, Lua, Ui, T21, Analysis }
 
     private EditorMode _editorMode;
 
@@ -234,7 +236,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         _editorMode = mode;
         OnPropertyChanged(nameof(IsSc4EditorMode));
-        OnPropertyChanged(nameof(IsLtextEditorMode));
         OnPropertyChanged(nameof(IsS3DEditorMode));
         OnPropertyChanged(nameof(IsLuaEditorMode));
         OnPropertyChanged(nameof(IsUiEditorMode));
@@ -242,6 +243,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsAnalysisMode));
         OnPropertyChanged(nameof(ShowMainEditorPanel));
         OnPropertyChanged(nameof(ShowExemplarPropertiesPanel));
+        OnPropertyChanged(nameof(ShowLtextEditor));
         RefreshDisplayedEntries();
     }
 
@@ -249,12 +251,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         get => _editorMode == EditorMode.Sc4;
         set { if (value) SetEditorMode(EditorMode.Sc4); }
-    }
-
-    public bool IsLtextEditorMode
-    {
-        get => _editorMode == EditorMode.Ltext;
-        set { if (value) SetEditorMode(EditorMode.Ltext); }
     }
 
     public bool IsS3DEditorMode
@@ -365,6 +361,101 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>True while the ordinary TGI editor/preview panel (Grid.Column="1") should show - hidden for LUA Editor, Analysis and UI Editor modes, which each replace that whole panel with their own.</summary>
     public bool ShowMainEditorPanel => !IsLuaEditorMode && !IsAnalysisMode && !IsUiEditorMode && !IsT21EditorMode;
 
+    // ---------------------------------------------------------------
+    // Entries (TGI) list sorting - clickable column headers, same interaction as Ilive
+    // Reader's own Workspace entry list (reader/WorkspaceList.cpp, CWorkspaceBarList):
+    // clicking a header sorts by that field; clicking the *same* header again reverses
+    // direction (Ilive Reader: "m_iSortCol = iSubItem; m_iSortAsc *= -1;" on every click,
+    // even when switching column - this app instead resets a newly-clicked column to
+    // ascending first, which is the more common/expected convention, and the one
+    // deliberate difference from Ilive Reader's raw click-toggles-sign-regardless logic).
+    // Ilive Reader's own sortable columns are Type/Group/Instance (TypeID/GroupID/
+    // InstanceID, always numeric, never the entry's display text) plus file size/offset/
+    // compression, which this app doesn't expose as columns; EntryType (the classified
+    // label like "FSH_BASE_OVERLAY" shown in bold - Ilive Reader has no equivalent
+    // sortable column for this at all, it only shows an icon there) is this app's own
+    // addition on top of parity with Ilive Reader, per request.
+    // ---------------------------------------------------------------
+
+    private EntrySortColumn _entrySortColumn = EntrySortColumn.None;
+    public EntrySortColumn EntrySortColumn
+    {
+        get => _entrySortColumn;
+        private set => SetField(ref _entrySortColumn, value);
+    }
+
+    private bool _entrySortAscending = true;
+    public bool EntrySortAscending
+    {
+        get => _entrySortAscending;
+        private set => SetField(ref _entrySortAscending, value);
+    }
+
+    /// <summary>Bound by each of the four clickable "header" buttons above the entry list (TYPE/T/G/I).</summary>
+    public RelayCommand SortEntriesCommand { get; private set; } = null!;
+
+    public string EntrySortLabelType => "TYPE" + SortArrow(EntrySortColumn.Type);
+    public string EntrySortLabelTypeId => "T" + SortArrow(EntrySortColumn.TypeId);
+    public string EntrySortLabelGroupId => "G" + SortArrow(EntrySortColumn.GroupId);
+    public string EntrySortLabelInstanceId => "I" + SortArrow(EntrySortColumn.InstanceId);
+
+    private string SortArrow(EntrySortColumn column) =>
+        EntrySortColumn != column ? string.Empty : EntrySortAscending ? " \u25B2" : " \u25BC";
+
+    private void RaiseEntrySortLabelsChanged()
+    {
+        OnPropertyChanged(nameof(EntrySortLabelType));
+        OnPropertyChanged(nameof(EntrySortLabelTypeId));
+        OnPropertyChanged(nameof(EntrySortLabelGroupId));
+        OnPropertyChanged(nameof(EntrySortLabelInstanceId));
+    }
+
+    private void SortEntriesBy(EntrySortColumn column)
+    {
+        if (EntrySortColumn == column)
+        {
+            EntrySortAscending = !EntrySortAscending;
+        }
+        else
+        {
+            EntrySortColumn = column;
+            EntrySortAscending = true;
+        }
+
+        RaiseEntrySortLabelsChanged();
+        RefreshDisplayedEntries();
+    }
+
+    private void ApplyEntrySort()
+    {
+        if (EntrySortColumn == EntrySortColumn.None || DisplayedEntries.Count < 2)
+        {
+            return;
+        }
+
+        Func<EntryItemViewModel, IComparable> keySelector = EntrySortColumn switch
+        {
+            EntrySortColumn.Type => vm => vm.EntryType,
+            EntrySortColumn.TypeId => vm => vm.Entry.TGI.TypeID,
+            EntrySortColumn.GroupId => vm => vm.Entry.TGI.GroupID,
+            EntrySortColumn.InstanceId => vm => vm.Entry.TGI.InstanceID,
+            _ => vm => vm.EntryType,
+        };
+
+        var sorted = EntrySortAscending
+            ? DisplayedEntries.OrderBy(keySelector).ToList()
+            : DisplayedEntries.OrderByDescending(keySelector).ToList();
+
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var current = DisplayedEntries.IndexOf(sorted[i]);
+            if (current != i)
+            {
+                DisplayedEntries.Move(current, i);
+            }
+        }
+    }
+
 
     private void RefreshDisplayedEntries()
     {
@@ -377,6 +468,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 DisplayedEntries.Add(vm);
             }
         }
+
+        ApplyEntrySort();
     }
 
     private bool MatchesCurrentEditorMode(EntryItemViewModel vm)
@@ -406,11 +499,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (IsT21EditorMode)
         {
             return vm.Entry is DBPFEntryEXMP && tgi.GroupID == T21GroupId;
-        }
-
-        if (IsLtextEditorMode)
-        {
-            return IsLtextFamilyEntry(vm);
         }
 
         return true;
@@ -1481,7 +1569,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     // ---------------------------------------------------------------
     // LUA Editor: inline in the main window (Grid.Column 1), only shown while
     // IsLuaEditorMode is active - see MainWindow.axaml. Loads the selected script entry's
-    // text on selection; COMPILE/RUN go through Models/LuaScriptRunner (MoonSharp); SAVE
+    // text on selection; COMPILE/RUN go through Models/LuaScriptRunner (real Lua 5.0, see Native/lua50); SAVE
     // writes back into the entry via SaveLuaScriptToSelectedEntry, same as every other
     // in-place entry edit in this app.
     // ---------------------------------------------------------------
@@ -4092,6 +4180,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<UiLegacyNodeViewModel> UiRootNodes { get; } = new();
 
+    /// <summary>
+    /// "ALL ELEMENTS" grid data (see UiElementsGridDialog) - the whole tree flattened into
+    /// one row per node, indentation-prefixed, matching what Ilive Reader's own CFormUI
+    /// shows as a single spreadsheet-style view of every element at once. Populated on
+    /// demand (see RefreshUiElementsGrid) rather than kept live like UiRootNodes, since it's
+    /// only ever open in its own dialog, not always on screen.
+    /// </summary>
+    public ObservableCollection<UiElementGridRowViewModel> UiElementsGrid { get; } = new();
+
+    /// <summary>Flattens the whole UI tree into <see cref="UiElementsGrid"/> - called right before opening UiElementsGridDialog, and again by that dialog's own REFRESH so edits made through the tree/preview/per-node dialog while it's open aren't stale.</summary>
+    public void RefreshUiElementsGrid()
+    {
+        UiElementsGrid.Clear();
+        foreach (var root in _uiRoot?.Children ?? Enumerable.Empty<UiLegacyNode>())
+        {
+            FlattenUiNode(root, 0);
+        }
+    }
+
+    private void FlattenUiNode(UiLegacyNode node, int depth)
+    {
+        UiElementsGrid.Add(new UiElementGridRowViewModel(node, depth));
+        foreach (var child in node.Children)
+        {
+            FlattenUiNode(child, depth + 1);
+        }
+    }
+
     private UiLegacyNodeViewModel? _selectedUiNode;
     public UiLegacyNodeViewModel? SelectedUiNode
     {
@@ -4156,6 +4272,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public RelayCommand AddUiChildNodeCommand { get; private set; } = null!;
     public RelayCommand RemoveUiNodeCommand { get; private set; } = null!;
     public RelayCommand AddUiPropertyCommand { get; private set; } = null!;
+    public RelayCommand InsertUiPropertyBeforeCommand { get; private set; } = null!;
     public RelayCommand RemoveUiPropertyCommand { get; private set; } = null!;
     public RelayCommand RefreshUiPreviewCommand { get; private set; } = null!;
     public RelayCommand SaveUiEditorCommand { get; private set; } = null!;
@@ -4240,7 +4357,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
             foreach (var child in _uiRoot.Children)
             {
-                UiRootNodes.Add(new UiLegacyNodeViewModel(child));
+                UiRootNodes.Add(new UiLegacyNodeViewModel(child, RefreshUiPreview));
             }
 
             UiEditorStatusMessage = $"{_uiRoot.Children.Count} top-level node(s) parsed.";
@@ -4266,7 +4383,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void AddUiChildNode()
+    private void AddUiChildNode() => AddUiChildNode(null);
+
+    /// <summary>
+    /// "ADD CHILD": creates a new element under the selected node (or a new top-level
+    /// element if nothing's selected). With <paramref name="template"/> null, this is the
+    /// original bare-bones behavior (just a placeholder "clsid" prop - see
+    /// <see cref="BuildUiElementTemplates"/>'s own doc comment for why that alone usually
+    /// isn't useful enough to work with). With a template, every one of that node's own
+    /// properties is copied onto the new node (a fresh <see cref="UiLegacyProp"/> per
+    /// property - never the same instance, so editing the new node's copy can never mutate
+    /// the template's original) - children are deliberately NOT copied, so picking, say, an
+    /// existing "IGZWinText" as a template gives you a second, independently-editable label
+    /// with the same starting font/color/area/etc., not an accidental duplicate of whatever
+    /// happened to be nested under that original label.
+    /// </summary>
+    public void AddUiChildNode(UiLegacyNode? template)
     {
         var parent = SelectedUiNode?.Node ?? _uiRoot;
         if (parent is null)
@@ -4275,10 +4407,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         var node = new UiLegacyNode { Parent = parent };
-        node.Properties.Add(new UiLegacyProp { Key = "clsid", Value = "\"NewElement\"" });
+        if (template is null)
+        {
+            node.Properties.Add(new UiLegacyProp { Key = "clsid", Value = "\"NewElement\"" });
+        }
+        else
+        {
+            foreach (var prop in template.Properties)
+            {
+                node.Properties.Add(new UiLegacyProp { Key = prop.Key, Value = prop.Value });
+            }
+        }
+
         parent.Children.Add(node);
 
-        var nodeVm = new UiLegacyNodeViewModel(node);
+        var nodeVm = new UiLegacyNodeViewModel(node, RefreshUiPreview);
         if (SelectedUiNode is not null)
         {
             SelectedUiNode.Children.Add(nodeVm);
@@ -4290,6 +4433,70 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         SelectedUiNode = nodeVm;
         RefreshUiPreview();
+    }
+
+    /// <summary>
+    /// Builds the "add child from template" picker's own catalog: one representative node
+    /// per distinct "iid" (element type - IGZWinText, IGZWinBtn, IGZWinSlider, ...) found
+    /// across every UI entry already open in this package (TGI Type ID 0 - see
+    /// <see cref="LoadUiEditorForSelectedEntry"/>'s own check), not just the one currently
+    /// being edited. A brand-new node's only property is a bare "clsid" - none of the
+    /// dozens of props (area, fillcolor, font, winflag_*, ...) a given element type
+    /// actually needs to look/behave right, which real UI files this package already has
+    /// open are guaranteed to have filled in correctly (having been authored by hand or by
+    /// Maxis itself) - reusing one of those as a starting point is strictly more reliable
+    /// than this app guessing a "typical" property set for each IID from scratch, and
+    /// mirrors the whole point of "cache" here: every UI entry in the currently open
+    /// package has necessarily already been read, so this is free information already
+    /// sitting in memory (or one decode away), not a new file scan.
+    /// </summary>
+    public IReadOnlyList<UiLegacyNode> BuildUiElementTemplates()
+    {
+        var bestByIid = new Dictionary<string, (UiLegacyNode Node, int PropertyCount)>();
+
+        void Consider(UiLegacyNode node)
+        {
+            var iid = node.GetProp("iid");
+            if (!string.IsNullOrEmpty(iid))
+            {
+                var count = node.Properties.Count;
+                if (!bestByIid.TryGetValue(iid, out var current) || count > current.PropertyCount)
+                {
+                    bestByIid[iid] = (node, count);
+                }
+            }
+
+            foreach (var child in node.Children)
+            {
+                Consider(child);
+            }
+        }
+
+        foreach (var entryVm in Entries)
+        {
+            if (entryVm.Entry.TGI.TypeID != 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var bytes = RawEntryBytes.GetDecompressed(entryVm.Entry) ?? Array.Empty<byte>();
+                var text = Encoding.UTF8.GetString(bytes);
+                var root = UiLegacyParser.Parse(text);
+                foreach (var child in root.Children)
+                {
+                    Consider(child);
+                }
+            }
+            catch
+            {
+                // Not every "TypeID 0" entry necessarily parses as this text format - skip
+                // it for the catalog rather than letting one bad entry block the whole picker.
+            }
+        }
+
+        return bestByIid.Values.Select(v => v.Node).OrderBy(n => n.GetProp("iid"), StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private void RemoveUiNode()
@@ -4309,7 +4516,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         UiRootNodes.Clear();
         foreach (var child in _uiRoot.Children)
         {
-            UiRootNodes.Add(new UiLegacyNodeViewModel(child));
+            UiRootNodes.Add(new UiLegacyNodeViewModel(child, RefreshUiPreview));
         }
 
         SelectedUiNode = null;
@@ -4326,6 +4533,39 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var prop = new UiLegacyProp { Key = "prop", Value = "value" };
         SelectedUiNode.Node.Properties.Add(prop);
         UiProperties.Add(prop);
+        SelectedUiNode.RefreshName();
+        RefreshUiPreview();
+    }
+
+    /// <summary>
+    /// "INSERT BEFORE": Ilive Reader's CDlgUIProp::OnInsertBefore - inserts a new blank
+    /// property immediately above the selected one (Add above only ever appends to the
+    /// end), matching Ilive Reader's own three property-list buttons (Add/Remove/Insert
+    /// Before) exactly. With nothing selected, falls back to appending, same as ADD.
+    /// </summary>
+    private void InsertUiPropertyBefore()
+    {
+        if (SelectedUiNode is null)
+        {
+            return;
+        }
+
+        var prop = new UiLegacyProp { Key = "prop", Value = "value" };
+
+        if (SelectedUiProperty is { } before)
+        {
+            var modelIndex = SelectedUiNode.Node.Properties.IndexOf(before);
+            var uiIndex = UiProperties.IndexOf(before);
+            SelectedUiNode.Node.Properties.Insert(Math.Max(0, modelIndex), prop);
+            UiProperties.Insert(Math.Max(0, uiIndex), prop);
+        }
+        else
+        {
+            SelectedUiNode.Node.Properties.Add(prop);
+            UiProperties.Add(prop);
+        }
+
+        SelectedUiProperty = prop;
         SelectedUiNode.RefreshName();
         RefreshUiPreview();
     }
@@ -4424,6 +4664,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Builds a single-box preview list for one element on its own (see
+    /// <see cref="UiPreviewControl.Boxes"/>) - used by AddUiElementDialog to show what a
+    /// template actually looks like instead of just its type name, reusing the exact same
+    /// rendering logic (image resolution, fill/text color, blttype 9-slicing) the real UI
+    /// preview uses for this node inside its own tree. The node's own "area" position is
+    /// normalized to (0,0) - only its size matters for a standalone preview, not wherever
+    /// it happened to sit in the dialog it came from - and no children are included, same
+    /// as AddUiChildNode itself only copying the template's own properties, not its subtree.
+    /// </summary>
+    public IReadOnlyList<UiPreviewControl.PreviewBox> BuildSingleElementPreview(UiLegacyNode node)
+    {
+        var area = ParseRect(node.GetProp("area"));
+        var normalized = new Avalonia.PixelRect(0, 0, area.Width, area.Height);
+
+        var captionRaw = node.GetProp("caption");
+        var caption = captionRaw is { Length: >= 2 } && captionRaw[0] == '"' && captionRaw[^1] == '"'
+            ? captionRaw.Substring(1, captionRaw.Length - 2)
+            : captionRaw ?? string.Empty;
+
+        var box = new UiPreviewControl.PreviewBox(node, normalized, caption, node.GetProp("iid") ?? string.Empty,
+            ParseColor(node.GetProp("fillcolor")), ParseColor(node.GetProp("colorfontnormal")) ?? ParseColor(node.GetProp("forecolor")),
+            node.GetProp("blttype") ?? string.Empty, ResolveUiImage(node, normalized),
+            node.GetProp("style")?.Contains("radiocheck") ?? false);
+
+        return new[] { box };
+    }
+
     private void CollectPreviewBoxes(UiLegacyNode node, Avalonia.PixelRect parentArea, bool isTopLevel, List<UiPreviewControl.PreviewBox> into)
     {
         var areaRaw = node.GetProp("area");
@@ -4448,15 +4716,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             area = new Avalonia.PixelRect(area.X + parentArea.X, area.Y + parentArea.Y, area.Width, area.Height);
         }
 
+        // The tree's own per-row checkbox (UiLegacyNodeViewModel.IsDisplayed) - matching
+        // Ilive Reader's WorkspaceUILegacy.cpp tree checkboxes (_preview_ui::displayed): a
+        // purely preview-time "hide this one box" toggle, independent per node (unchecking
+        // a parent does not hide its children - they get their own checkbox each), so
+        // children are still collected below even when this node's own box is skipped.
+        var isDisplayed = FindUiNodeViewModel(node)?.IsDisplayed ?? true;
+
         var captionRaw = node.GetProp("caption");
         var caption = captionRaw is { Length: >= 2 } && captionRaw[0] == '"' && captionRaw[^1] == '"'
             ? captionRaw.Substring(1, captionRaw.Length - 2)
             : captionRaw ?? string.Empty;
 
-        into.Add(new UiPreviewControl.PreviewBox(node, area, caption, node.GetProp("iid") ?? string.Empty,
-            ParseColor(node.GetProp("fillcolor")), ParseColor(node.GetProp("colorfontnormal")) ?? ParseColor(node.GetProp("forecolor")),
-            node.GetProp("blttype") ?? string.Empty, ResolveUiImage(node, area),
-            node.GetProp("style")?.Contains("radiocheck") ?? false));
+        if (isDisplayed)
+        {
+            into.Add(new UiPreviewControl.PreviewBox(node, area, caption, node.GetProp("iid") ?? string.Empty,
+                ParseColor(node.GetProp("fillcolor")), ParseColor(node.GetProp("colorfontnormal")) ?? ParseColor(node.GetProp("forecolor")),
+                node.GetProp("blttype") ?? string.Empty, ResolveUiImage(node, area),
+                node.GetProp("style")?.Contains("radiocheck") ?? false));
+        }
 
         foreach (var child in node.Children)
         {
@@ -4854,23 +5132,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// <summary>Parses Ilive Reader's "(left,top,right,bottom)" rect text (ui_common.cpp's TextToCRect) into an Avalonia-friendly X/Y/Width/Height rectangle.</summary>
     private static Avalonia.PixelRect ParseRect(string? text)
     {
-        if (string.IsNullOrEmpty(text))
-        {
-            return new Avalonia.PixelRect(0, 0, 0, 0);
-        }
-
-        var parts = text.Trim('(', ')').Split(',');
-        if (parts.Length != 4)
-        {
-            return new Avalonia.PixelRect(0, 0, 0, 0);
-        }
-
-        if (!int.TryParse(parts[0], out var l) || !int.TryParse(parts[1], out var t) ||
-            !int.TryParse(parts[2], out var r) || !int.TryParse(parts[3], out var b))
-        {
-            return new Avalonia.PixelRect(0, 0, 0, 0);
-        }
-
+        var (l, t, r, b) = UiValueFormat.ParseRect(text);
         return new Avalonia.PixelRect(l, t, r - l, b - t);
     }
 
@@ -4882,13 +5144,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return null;
         }
 
-        var parts = text.Trim('(', ')').Split(',');
-        if (parts.Length != 3 ||
-            !byte.TryParse(parts[0], out var r) || !byte.TryParse(parts[1], out var g) || !byte.TryParse(parts[2], out var b))
-        {
-            return null;
-        }
-
+        var (r, g, b) = UiValueFormat.ParseColor(text);
         return new Avalonia.Media.Color(255, r, g, b);
     }
 
@@ -4898,7 +5154,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         var area = ParseRect(node.GetProp("area"));
         var width = area.Width;
         var height = area.Height;
-        var newArea = $"({newLeft},{newTop},{newLeft + width},{newTop + height})";
+        var newArea = UiValueFormat.FormatRect(newLeft, newTop, newLeft + width, newTop + height);
 
         var existing = node.Properties.FirstOrDefault(p => p.Key == "area");
         if (existing is not null)
