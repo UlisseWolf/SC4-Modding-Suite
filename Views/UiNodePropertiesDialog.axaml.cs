@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using SC4ModdingSuite.ViewModels;
 
 namespace SC4ModdingSuite.Views;
@@ -18,12 +19,32 @@ public partial class UiNodePropertiesDialog : Window
 
     private UiNodePropertiesDialogViewModel ViewModel => (UiNodePropertiesDialogViewModel)DataContext!;
 
-    private void OnPropertyCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e)
+    private void OnPropertyCellEditEnded(object? sender, DataGridCellEditEndedEventArgs e) => RefreshPreview();
+
+    /// <summary>
+    /// Same purpose as OnPropertyCellEditEnded above, for the type-aware editors (checkbox/
+    /// color/rect/xy fields - see UiNodePropertiesDialog.axaml's DataGridTemplateColumn):
+    /// those commit through their own two-way bindings on UiLegacyProp immediately (no
+    /// DataGrid cell-edit lifecycle involved), so the preview needs its own nudge here too.
+    /// </summary>
+    private void OnTypedPropertyEdited(object? sender, RoutedEventArgs e) => RefreshPreview();
+
+    private void OnTypedPropertyEdited(object? sender, NumericUpDownValueChangedEventArgs e) => RefreshPreview();
+
+    /// <summary>This dialog's own copy of the main toolbar's "ADD CHILD" button (see DbpfWorkspaceView.axaml.cs.OnAddUiChildClick) - opens the same template picker, then adds under whichever node this dialog is currently showing.</summary>
+    private async void OnAddChildClick(object? sender, RoutedEventArgs e)
     {
-        // Editing a Prop/Value cell directly (e.g. changing "area" or "caption") used to
-        // only show up in the preview after manually pressing REFRESH PREVIEW - now it
-        // updates as soon as the cell is committed, matching every other edit here
-        // (add/remove node, add/remove property) already refreshing automatically.
+        var templates = ViewModel.Document.BuildUiElementTemplates();
+        var dialog = new AddUiElementDialog(templates, ViewModel.Document.BuildSingleElementPreview);
+        await dialog.ShowDialog(this);
+        if (dialog.Confirmed)
+        {
+            ViewModel.Document.AddUiChildNode(dialog.SelectedTemplate);
+        }
+    }
+
+    private void RefreshPreview()
+    {
         if (ViewModel.RefreshPreviewCommand.CanExecute(null))
         {
             ViewModel.RefreshPreviewCommand.Execute(null);

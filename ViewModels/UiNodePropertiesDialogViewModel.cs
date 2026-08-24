@@ -16,6 +16,9 @@ public sealed class UiNodePropertiesDialogViewModel
 {
     private readonly MainWindowViewModel _document;
 
+    /// <summary>Exposed so UiNodePropertiesDialog.axaml.cs's own "ADD CHILD" handler can reach the same MainWindowViewModel DbpfWorkspaceView.axaml.cs already has direct access to, for opening AddUiElementDialog (needs BuildUiElementTemplates()/AddUiChildNode(template) - not simple proxy-property commands like the others below).</summary>
+    public MainWindowViewModel Document => _document;
+
     public UiNodePropertiesDialogViewModel(MainWindowViewModel document)
     {
         _document = document;
@@ -32,8 +35,8 @@ public sealed class UiNodePropertiesDialogViewModel
     }
 
     public RelayCommand AddPropertyCommand => _document.AddUiPropertyCommand;
+    public RelayCommand InsertPropertyBeforeCommand => _document.InsertUiPropertyBeforeCommand;
     public RelayCommand RemovePropertyCommand => _document.RemoveUiPropertyCommand;
-    public RelayCommand AddChildCommand => _document.AddUiChildNodeCommand;
     public RelayCommand RemoveNodeCommand => _document.RemoveUiNodeCommand;
     public RelayCommand RefreshPreviewCommand => _document.RefreshUiPreviewCommand;
 }

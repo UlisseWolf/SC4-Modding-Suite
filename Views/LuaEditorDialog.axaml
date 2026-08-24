@@ -16,8 +16,10 @@
 
         <!-- Toolbar: mirrors Ilive Reader's own script editor toolbar (FrameScript.cpp:
              Save/Go/Stop/Compile). "Stop" is omitted - scripts run synchronously in-process
-             via MoonSharp (Models/LuaScriptRunner.cs) instead of Ilive Reader's separate
-             native Lua VM/pipe setup, so there is no background run to interrupt. -->
+             via the real, embedded Lua 5.0 interpreter (Models/LuaScriptRunner.cs,
+             Native/lua50/ - the same version SimCity 4 itself embeds) instead of Ilive
+             Reader's separate native Lua VM/pipe setup, so there is no background run to
+             interrupt. -->
         <WrapPanel Grid.Row="0" Margin="0,0,0,8">
             <Button Content="COMPILE" Command="{Binding CompileCommand}" Margin="0,0,8,0"
                     ToolTip.Tip="Syntax-check the script without running it" />
@@ -62,7 +64,7 @@
         </Border>
 
         <TextBlock Grid.Row="4"
-                    Text="Runs via MoonSharp (a managed Lua interpreter) for syntax-checking and execution - not SC4's own in-game Lua runtime, so game-injected APIs aren't available here."
+                    Text="Runs via the real, embedded Lua 5.0 interpreter (the same version SimCity 4 itself embeds) for syntax-checking and execution - SC4's own game-injected globals/APIs still aren't available here (this is a standalone Lua 5.0, not SC4's actual running game process)."
                     FontSize="10" Classes="status" TextWrapping="Wrap" Margin="0,6,0,0" />
     </Grid>
 
