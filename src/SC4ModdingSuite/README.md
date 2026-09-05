@@ -2,7 +2,7 @@
 
 A desktop tool for inspecting and editing **SimCity 4** (SC4) DBPF package files
 (`.dat`, `.sc4lot`, `.sc4desc`, `.sc4model`) — built with **.NET 10** and **Avalonia UI**,
-on top of the [csDBPF](https://github.com/NAMTeam) library, with several routines ported
+on top of the [csDBPF](https://github.com/noah-severyn/csDBPF) library, with several routines ported
 directly from **Ilive Reader**'s C++ source.
 
 Browse every entry in a package, edit TGIs, add/edit/remove Exemplar properties, preview
@@ -116,11 +116,10 @@ main toolbar and top-level editor actions - see that panel's own scope note in
 ## Requirements
 
 - **.NET SDK 10** or later.
-- `csDBPF.dll` — **not included** in this repository (see [Third-party
-  components](#third-party-components) below); place it in `Libs/csDBPF.dll` before
-  building.
 - An internet connection for the first `dotnet restore` (NuGet packages) and for
-  downloading the property database / theme defaults on first run.
+  downloading the property database / theme defaults on first run. `csDBPF.dll` itself
+  needs no separate download - it's committed in this repository (see
+  [Third-party components](#third-party-components) below).
 
 ## Building and running
 
@@ -129,7 +128,6 @@ This project lives at `src/SC4ModdingSuite/` in the repository - see the
 projects. From this folder directly:
 
 ```bash
-# Place csDBPF.dll in Libs/csDBPF.dll (see "Third-party components" below)
 dotnet restore
 dotnet build
 dotnet run
@@ -147,14 +145,33 @@ enumerating them all. Keep the repository in its own dedicated folder.
 
 ```
 SC4ModdingSuite.csproj      This project (see ../../SC4ModdingSuite.slnx at the repo root)
-Libs/csDBPF.dll             Third-party dependency (not included, see below)
+Libs/csDBPF.dll             Third-party dependency, committed directly (see below)
 Assets/, Styles/            Icon and TOML-driven theme system
 Localization/               Built-in language files (embedded into the assembly)
 Themes/                     Built-in color palettes (embedded into the assembly)
 Mcp/                        MCP server - JSON-RPC/HTTP protocol + tools (see below)
 Models/                     Application/domain logic, csDBPF integration, file I/O
+  ├─ Dbpf/                    Core package I/O: DbpfService, DbpfWriter, entry export/clipboard, TGI/format helpers
+  ├─ Exemplar/                Exemplar/Cohort property parsing, validation, and the property-name database
+  ├─ FormatCodecs/            TRK/MCO/LDAT/LEV/HLS/AVP/SC4Path binary format codecs
+  ├─ S3D/                     3D model parsing, editing, encoding, and 3DS import/export
+  ├─ T21/                     T21 (network lot) exemplar helpers
+  ├─ UiLegacy/                Legacy UI dialog-definition format (distinct from this app's own Avalonia UI)
+  ├─ Ltext/                   LTEXT/translation helpers (Poedit, per-language grouping, LLM translation)
+  ├─ Lua/                     Native Lua 5.0 interpreter integration
+  ├─ Theming/                 TOML-driven theme definitions
+  └─ (root)                   App-wide utilities: AppOptions, LocalizationService, TomlParser, ...
 ViewModels/                 MVVM view models (no external MVVM toolkit dependency)
+  ├─ Dialogs/                 One ViewModel per dialog window
+  ├─ Rows/                    Row/item ViewModels for lists and grids
+  ├─ S3D/                     S3D editor row/toggle ViewModels
+  ├─ T21/                     T21 editor row ViewModels
+  └─ (root)                   MainWindowViewModel (+ its LTEXT/T21 partial-class files), MainWindowShellViewModel, MVVM infrastructure
 Views/                      Avalonia windows/controls (XAML + code-behind)
+  ├─ Dialogs/                 One window per dialog
+  ├─ S3D/                     S3D editor sub-dialogs (Geometry/Material/UV/Animation/Prop/RegPoint/Hex)
+  ├─ Controls/                Custom-drawn controls with no XAML (S3D viewer/UV canvas, UI preview canvas)
+  └─ (root)                   MainWindow (app shell), DbpfWorkspaceView (the main per-document UserControl)
 ```
 
 ## MCP Server Mode
@@ -325,11 +342,14 @@ before they're written to disk (see the Import/export feature above).
 
 ## Third-party components
 
-This repository does **not** bundle `csDBPF.dll`. You will need to obtain it separately
-(from the [NAM Team](https://github.com/NAMTeam)'s csDBPF project or your own build) and
-place it at `Libs/csDBPF.dll` before building — **check that library's own license terms**
-before distributing a build that includes it; the MIT license below covers the original
-source code in this repository only, not third-party binaries it links against.
+`Libs/csDBPF.dll` ([noah-severyn/csDBPF](https://github.com/noah-severyn/csDBPF), MIT
+license) **is committed directly in this repository**, rather than restored via NuGet or
+downloaded from a release - the upstream project publishes neither a NuGet package nor
+GitHub releases with a pre-built binary, so vendoring the compiled DLL (which its MIT
+license permits) is what keeps `dotnet restore`/`build`/`publish` working out of the box,
+including in CI, without an extra source-build step for a dependency this project doesn't
+otherwise touch. If you'd rather build your own copy instead, replace
+`Libs/csDBPF.dll` with your own build.
 
 Several file-format and save-routine details in this project were derived by reading the
 publicly available C++ source of **Ilive Reader** and **DarkMatter's DatGen 4** (SC4
@@ -354,6 +374,8 @@ are especially valuable.
 Original source code in this repository is licensed under the [MIT License](../../LICENSE)
 (at the repository root - this project doesn't carry its own separate copy).
 
-This does **not** extend to third-party components referenced above (notably
-`csDBPF.dll`, which is not distributed with this repository) — confirm their own license
-terms independently before redistributing a built copy of this application.
+This does **not** extend to third-party components referenced above (`csDBPF.dll` is
+separately MIT-licensed by its own author - see
+[Third-party components](#third-party-components) - but confirm its license terms
+independently before redistributing a build, since this repository's own LICENSE file
+doesn't cover code it didn't write).
