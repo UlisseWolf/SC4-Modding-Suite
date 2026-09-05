@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+        x:Class="SC4ModdingSuite.Views.McpServerDialog"
+        x:DataType="vm:McpServerDialogViewModel"
+        Title="MCP Server"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="600" Height="420"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Starts/stops an in-process MCP server over HTTP (see Mcp/McpHttpServer.cs), right
+         inside this same app - no separate process, no command-line mode. A real MCP
+         client (Claude Desktop, Claude Code, or any other HTTP-capable MCP client) is
+         configured with this server's own URL and connects to it directly while this app
+         keeps running. START performs a real opening handshake against it to confirm it
+         actually answers correctly, not just that it started listening. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="PORT (127.0.0.1 only - never reachable from the network)"
+                   FontWeight="Bold" FontSize="11" Margin="0,0,0,4" />
+        <TextBox Grid.Row="1" Text="{Binding PortText}" Width="120" HorizontalAlignment="Left" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="2" Text="{Binding StatusText}" FontWeight="Bold" FontSize="13" Margin="0,0,0,10"
+                    TextWrapping="Wrap" />
+
+        <WrapPanel Grid.Row="3" Margin="0,0,0,14">
+            <Button Content="START" Click="OnStartClick" FontWeight="Bold" Margin="0,0,8,0"
+                    IsEnabled="{Binding !IsRunning}" IsVisible="{Binding !IsBusy}"
+                    ToolTip.Tip="Starts the HTTP server on the port above and sends it the same opening handshake a real MCP client would, to confirm it responds correctly" />
+            <Button Content="STARTING..." IsEnabled="False" Margin="0,0,8,0" IsVisible="{Binding IsBusy}" />
+            <Button Content="STOP" Click="OnStopClick" Margin="0,0,8,0"
+                    IsEnabled="{Binding IsRunning}"
+                    ToolTip.Tip="Stops listening - any real MCP client connected to this server loses its connection" />
+            <Button Content="COPY CLIENT CONFIG" Click="OnCopyConfigClick"
+                    IsEnabled="{Binding IsRunning}"
+                    ToolTip.Tip="Copies the exact JSON your MCP client's own config file needs under its 'mcpServers' object, with this server's own URL already filled in" />
+        </WrapPanel>
+
+        <Border Grid.Row="4" BorderThickness="1" Padding="10">
+            <ScrollViewer>
+                <StackPanel Spacing="8">
+                    <TextBlock Text="This server runs inside this same app's own process - there is no separate program to install or keep up to date. Start it here, then point your MCP client's own configuration at the URL it reports (COPY CLIENT CONFIG does this for you)."
+                               TextWrapping="Wrap" FontSize="12" Classes="status" />
+                    <TextBlock Text="The server stops the moment this app closes (or STOP is pressed) - a client relying on it needs this app running the whole time it wants to use it."
+                               TextWrapping="Wrap" FontSize="12" Classes="status" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <WrapPanel Grid.Row="5" Margin="0,10,0,0" HorizontalAlignment="Right">
+            <Button Content="CLOSE" Click="OnCloseClick" />
+        </WrapPanel>
+    </Grid>
+
+</Window>

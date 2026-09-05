@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore SC4ModdingSuite.csproj
+        run: dotnet restore SC4ModdingSuite.slnx
 
       - name: Build
-        run: dotnet build SC4ModdingSuite.csproj -c Release --no-restore
+        run: dotnet build SC4ModdingSuite.slnx -c Release --no-restore

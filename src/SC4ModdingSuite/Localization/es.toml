@@ -1,0 +1,94 @@
+# SC4 Modding Suite - cadenas en español
+# Archivo de texto sencillo (TOML): se puede editar y recargar sin recompilar.
+# Cada entrada es "clave = "valor"". Las líneas que empiezan por # son comentarios.
+
+language_name = "Español"
+
+# --- Ventana de Opciones ---
+options_title = "Opciones"
+options_section_protected_files = "Archivos de sistema de SC4 (protegidos)"
+options_simcitylocale_label = "Ruta de SimCityLocale.DAT:"
+options_sc4_install_folder_label = "Carpeta de instalación de SC4:"
+options_plugins_folder_label = "Carpeta de Plugins (usada por defecto al abrir archivos):"
+options_section_external_tools = "Herramientas externas"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Abrir estos archivos siempre es posible; el guardado directo se bloquea automáticamente sin importar las rutas de abajo - están aquí solo por comodidad/referencia."
+options_appearance_note = "El idioma y el tema se aplican de inmediato en cuanto los eliges."
+options_section_properties = "Base de datos de propiedades de Exemplar"
+options_change_property_source = "Cambiar el origen de new_properties.xml..."
+options_section_appearance = "Idioma y apariencia"
+options_language_label = "Idioma:"
+options_theme_label = "Tema:"
+options_browse = "Examinar..."
+options_save = "Guardar"
+options_close = "Cerrar"
+
+# --- Barra de herramientas principal ---
+toolbar_new = "NUEVA PESTAÑA"
+toolbar_new_tooltip = "Abre una nueva pestaña vacía"
+toolbar_open = "ABRIR..."
+toolbar_open_tooltip = "Abre uno o varios archivos .dat, cada uno en su propia pestaña nueva"
+toolbar_save = "GUARDAR"
+toolbar_save_as = "GUARDAR COMO..."
+toolbar_export_entry = "EXPORTAR ENTRADA..."
+toolbar_import_entry = "IMPORTAR EN ENTRADA..."
+toolbar_export_all = "EXPORTAR TODO..."
+toolbar_options = "OPCIONES..."
+toolbar_mcp_server = "SERVIDOR MCP..."
+external_tools_header = "HERRAMIENTAS EXTERNAS"
+
+# --- Barra de herramientas de la shell MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVEGADOR"
+shell_compare = "COMPARAR DAT..."
+shell_compare_tooltip = "Compara dos archivos .dat entrada por entrada e inspecciona los bytes diferentes"
+shell_merge = "FUSIONAR DAT..."
+shell_merge_tooltip = "Fusiona varios archivos .dat en uno nuevo, o en la pestaña activa"
+shell_directory_sync = "SINCRONIZAR DIRECTORIO..."
+shell_directory_sync_tooltip = "Compara el subarchivo Directory (DIR) de la pestaña activa con sus entradas reales y permite saltar a la seleccionada"
+shell_close_tab_tooltip = "Cerrar esta pestaña"
+
+# NOTA: no hay una clave "toolbar_property_db" aquí, a propósito - el antiguo botón
+# independiente "PROPERTY DATABASE..." de la barra de herramientas fue sustituido por
+# "Cambiar el origen de new_properties.xml..." dentro de Opciones (ver
+# options_change_property_source más arriba, conectado a
+# OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- Editor LUA ---
+lua_compile = "COMPILAR"
+lua_run = "▶ EJECUTAR"
+lua_clear_output = "LIMPIAR SALIDA"
+lua_save = "GUARDAR"
+
+# --- Editor T21 (Views/DbpfWorkspaceView.axaml, modo "T21 Editor") ---
+t21_apply_iid = "APLICAR IID"
+t21_add = "AÑADIR"
+t21_duplicate = "DUPLICAR"
+t21_remove = "ELIMINAR"
+t21_up = "▲ SUBIR"
+t21_down = "▼ BAJAR"
+t21_save = "GUARDAR T21"
+t21_rhd_to_lhd = "CONVERTIR RHD → LHD..."
+
+# --- Editor LTEXT (Views/DbpfWorkspaceView.axaml, modo "LTEXT Editor") ---
+ltext_save_file = "GUARDAR ARCHIVO"
+ltext_save_all_for_language = "GUARDAR TODO EL ARCHIVO PARA EL IDIOMA"
+ltext_export_poedit = "EXPORTAR POEDIT..."
+ltext_import_poedit = "IMPORTAR POEDIT..."
+ltext_translations = "TRADUCCIONES..."
+
+# --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
+# and the generic text fallback) ---
+structured_save_text = "GUARDAR TEXTO"
+structured_save_trk = "GUARDAR TRK"
+structured_save = "GUARDAR"
+
+# --- SC4 Editor: Exemplar/Cohort properties panel ---
+properties_add = "AÑADIR..."
+properties_edit = "EDITAR..."
+properties_remove = "ELIMINAR"

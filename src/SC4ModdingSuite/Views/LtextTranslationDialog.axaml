@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        x:Class="SC4ModdingSuite.Views.LtextTranslationDialog"
+        x:DataType="vm:LtextTranslationDialogViewModel"
+        Title="LTEXT Translation Grid"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="900" Height="600"
+        MinWidth="560" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Opened from the LTEXT panel's "TRANSLATIONS..." button - every LTEXT "family"
+         (same Type+Instance ID, only Group differing by language offset) as its own row,
+         every language currently present as its own editable cell, side by side, so
+         comparing/translating several languages of the same string doesn't mean selecting
+         one entry at a time in the main list. "+ ADD" appends an empty cell for the
+         language picked in the combo above (e.g. to start a brand-new translation); the AI
+         button next to it (only enabled once an API key is set in Options) asks the
+         configured LLM for a first-draft translation into that same language, using
+         whichever cell already has text as the source - the result lands in the grid for
+         review, never auto-saved. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto">
+
+        <TextBlock Grid.Row="0" Text="Every LTEXT entry in this package, grouped by string - edit any language directly, or use ADD/AI to start a new one."
+                   FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="LANGUAGE:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" Width="220">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:LtextLanguage">
+                        <TextBlock Text="{Binding Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Grid.Column="2" Text="{Binding AiStatusText}" FontSize="11" Classes="status" Margin="12,0,0,0" VerticalAlignment="Center" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Rows}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LtextTranslationRowViewModel">
+                        <Border BorderThickness="1" Padding="8" Margin="0,0,0,8">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <TextBlock Grid.Column="0" Text="{Binding RowLabel}" FontWeight="Bold" FontSize="11" Classes="status" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Content="+ ADD" Margin="6,0,0,0"
+                                            Click="OnAddLanguageClick" Tag="{Binding}"
+                                            ToolTip.Tip="Adds an empty cell here for the language picked above" />
+                                    <Button Grid.Column="2" Content="AI TRANSLATE →" Margin="6,0,0,0"
+                                            Click="OnAiTranslateClick" Tag="{Binding}"
+                                            ToolTip.Tip="Fills the language picked above with a first-draft translation from the configured AI provider (requires an API key in Options)" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding Cells}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:LtextTranslationCellViewModel">
+                                            <Border BorderThickness="1" Padding="6" Margin="0,0,8,8" Width="260">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding LanguageLabel}" FontWeight="Bold" FontSize="11" Classes="status" />
+                                                    <TextBox Text="{Binding Text}" AcceptsReturn="True" TextWrapping="Wrap"
+                                                             MinHeight="60" MaxHeight="140" FontSize="12"
+                                                             IsEnabled="{Binding !IsTranslating}" />
+                                                    <TextBlock Text="translating..." FontSize="10" Classes="status"
+                                                               IsVisible="{Binding IsTranslating}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <WrapPanel Grid.Row="3" Margin="0,10,0,0">
+            <Button Content="SAVE ALL" Click="OnSaveAllClick" FontWeight="Bold" Margin="0,0,8,0"
+                    ToolTip.Tip="Writes every non-empty cell across every row into the package and saves it to disk" />
+            <Button Content="REFRESH" Click="OnRefreshClick" Margin="0,0,8,0"
+                    ToolTip.Tip="Re-scans the package for LTEXT entries - use if you've added/removed any while this was open" />
+            <Button Content="CLOSE" Click="OnCloseClick" />
+        </WrapPanel>
+    </Grid>
+
+</Window>
