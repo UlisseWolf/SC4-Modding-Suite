@@ -1,5 +1,32 @@
-bin/
-obj/
-.vs/
-.idea/
+# --- Build output ---
+[Bb]in/
+[Oo]bj/
 *.user
+*.userosscache
+*.suo
+
+# --- IDE ---
+.vs/
+.vscode/
+*.swp
+.idea/
+*.DotSettings.user
+
+# --- .NET / NuGet ---
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Third-party binary dependency (see README's "Third-party components") ---
+src/SC4ModdingSuite/Libs/csDBPF.dll
+
+# --- User-machine local settings (Options/Localization/Themes are seeded to
+#     %APPDATA%/LocalAppData at runtime, not written into the repo checkout, but
+#     excluded here too in case a local run ever writes into the working tree) ---
+*.local.json

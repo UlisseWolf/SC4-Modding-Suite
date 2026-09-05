@@ -1,0 +1,114 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:models="using:SC4ModdingSuite.Models"
+        xmlns:conv="using:SC4ModdingSuite.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="460"
+        x:Class="SC4ModdingSuite.Views.UiNodePropertiesDialog"
+        x:DataType="vm:UiNodePropertiesDialogViewModel"
+        Title="UI Element Properties"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="640" Height="460"
+        MinWidth="480" MinHeight="320"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Opened by DbpfWorkspaceView.axaml.cs whenever a box in the UI preview (or a row in
+         the element tree) is clicked/double-clicked - the Prop/Value grid that used to
+         always sit next to the preview permanently, now shown per-element on demand so the
+         preview itself gets the full panel width instead. -->
+    <Grid Margin="10" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <TextBlock Grid.Row="0" Text="{Binding NodeName}" FontWeight="Bold" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+            <Button Content="ADD CHILD" Click="OnAddChildClick" Margin="0,0,8,4"
+                    ToolTip.Tip="Adds a new child element under this one. Opens a picker to start from an already-configured element instead of a bare placeholder." />
+            <Button Content="REMOVE NODE" Command="{Binding RemoveNodeCommand}" Classes="danger" Margin="0,0,8,4"
+                    ToolTip.Tip="Removes this element (and any children it has)" />
+            <Button Content="REFRESH PREVIEW" Command="{Binding RefreshPreviewCommand}" Margin="0,0,0,4"
+                    ToolTip.Tip="Property edits already refresh the preview automatically when you leave the cell - use this to force a refresh anyway" />
+        </WrapPanel>
+
+        <!-- Value column is type-aware, same idea as Ilive Reader's own CWorkspaceUIProp
+             property grid (g_aUIPropType[]): a checkbox for boolean-kind props
+             (winflag_visible, autosize, transparent, ...), R/G/B number fields + a swatch
+             for color-kind props (fillcolor, forecolor, colorfontnormal, ...), and
+             Left/Top/Right/Bottom or X/Y number fields for rect-/xy-kind props (area,
+             imagerect, gutters, textoffsets, ...) - see UiPropertyTypeCatalog for the full
+             list, and UiLegacyProp for how each of these edits the SAME underlying "(...)"
+             text Value uses under the hood, so nothing here changes what actually gets
+             saved. Everything else (plain strings, and the few genuinely enum-like props -
+             font/align/blttype/direction - this app doesn't have a verified complete list
+             of legal values for) still shows as plain text, same as before. -->
+        <DataGrid Grid.Row="2" ItemsSource="{Binding Properties}" SelectedItem="{Binding SelectedProperty}"
+                  AutoGenerateColumns="False" GridLinesVisibility="All" FontSize="11"
+                  CellEditEnded="OnPropertyCellEditEnded">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Prop" Binding="{Binding Key}" Width="150" />
+                <DataGridTemplateColumn Header="Value" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="models:UiLegacyProp">
+                            <Panel Margin="4,0">
+                                <CheckBox IsVisible="{Binding IsBool}" IsChecked="{Binding BoolValue}"
+                                          Checked="OnTypedPropertyEdited" Unchecked="OnTypedPropertyEdited"
+                                          Content="{Binding Value}" FontSize="11" />
+
+                                <StackPanel IsVisible="{Binding IsColor}" Orientation="Horizontal" Spacing="3">
+                                    <Border Width="16" Height="16" BorderThickness="1" BorderBrush="Gray"
+                                            Background="{Binding Value, Converter={x:Static conv:UiPropColorPreviewConverter.Instance}}" VerticalAlignment="Center" />
+                                    <TextBlock Text="R" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding ColorR}" ValueChanged="OnTypedPropertyEdited"
+                                                   Minimum="0" Maximum="255" Width="62" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="G" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding ColorG}" ValueChanged="OnTypedPropertyEdited"
+                                                   Minimum="0" Maximum="255" Width="62" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="B" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding ColorB}" ValueChanged="OnTypedPropertyEdited"
+                                                   Minimum="0" Maximum="255" Width="62" FontSize="10" ShowButtonSpinner="False" />
+                                </StackPanel>
+
+                                <StackPanel IsVisible="{Binding IsRect}" Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="L" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding RectLeft}" ValueChanged="OnTypedPropertyEdited" Width="66" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="T" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding RectTop}" ValueChanged="OnTypedPropertyEdited" Width="66" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="R" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding RectRight}" ValueChanged="OnTypedPropertyEdited" Width="66" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="B" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding RectBottom}" ValueChanged="OnTypedPropertyEdited" Width="66" FontSize="10" ShowButtonSpinner="False" />
+                                </StackPanel>
+
+                                <StackPanel IsVisible="{Binding IsXy}" Orientation="Horizontal" Spacing="3">
+                                    <TextBlock Text="X" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding XyX}" ValueChanged="OnTypedPropertyEdited" Width="70" FontSize="10" ShowButtonSpinner="False" />
+                                    <TextBlock Text="Y" VerticalAlignment="Center" FontSize="10" />
+                                    <NumericUpDown Value="{Binding XyY}" ValueChanged="OnTypedPropertyEdited" Width="70" FontSize="10" ShowButtonSpinner="False" />
+                                </StackPanel>
+
+                                <TextBlock IsVisible="{Binding IsPlainText}" Text="{Binding Value}" VerticalAlignment="Center" FontSize="11" />
+                            </Panel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate x:DataType="models:UiLegacyProp">
+                            <TextBox Text="{Binding Value}" FontSize="11" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <WrapPanel Grid.Row="3" Margin="0,8,0,0">
+            <Button Content="ADD PROPERTY" Command="{Binding AddPropertyCommand}" Margin="0,0,8,4" />
+            <Button Content="INSERT BEFORE" Command="{Binding InsertPropertyBeforeCommand}" Margin="0,0,8,4"
+                    ToolTip.Tip="Inserts a new property directly above the selected one" />
+            <Button Content="REMOVE" Command="{Binding RemovePropertyCommand}" Classes="danger" Margin="0,0,0,4" />
+        </WrapPanel>
+
+        <TextBlock Grid.Row="4" Text="SAVE in the UI EDITOR toolbar writes this whole tree back into the entry; the shell's own SAVE then writes the package to disk."
+                   FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,8,0,0" />
+    </Grid>
+
+</Window>

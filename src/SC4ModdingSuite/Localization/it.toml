@@ -1,0 +1,93 @@
+# SC4 Modding Suite - stringhe italiane
+# File di testo semplice (TOML): puoi modificarlo e ricaricarlo senza ricompilare.
+# Ogni voce e' "chiave = "valore"". Le righe che iniziano per # sono commenti.
+
+language_name = "Italiano"
+
+# --- Finestra Opzioni ---
+options_title = "Opzioni"
+options_section_protected_files = "File di sistema SC4 (protetti)"
+options_simcitylocale_label = "Percorso SimCityLocale.DAT:"
+options_sc4_install_folder_label = "Cartella di installazione SC4:"
+options_plugins_folder_label = "Cartella Plugins (usata come predefinita all'apertura dei file):"
+options_section_external_tools = "Strumenti esterni"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Aprire questi file è sempre possibile; il salvataggio diretto è bloccato automaticamente a prescindere dai percorsi sottostanti - sono qui solo per comodità/riferimento."
+options_appearance_note = "Lingua e tema vengono applicati immediatamente non appena selezionati."
+options_section_properties = "Database proprietà Exemplar"
+options_change_property_source = "Cambia sorgente new_properties.xml..."
+options_section_appearance = "Lingua e aspetto"
+options_language_label = "Lingua:"
+options_theme_label = "Tema:"
+options_browse = "Sfoglia..."
+options_save = "Salva"
+options_close = "Chiudi"
+
+# --- Toolbar principale ---
+toolbar_new = "NUOVA TAB"
+toolbar_new_tooltip = "Apre una nuova tab vuota"
+toolbar_open = "APRI..."
+toolbar_open_tooltip = "Apre uno o più file .dat, ciascuno in una nuova tab"
+toolbar_save = "SALVA"
+toolbar_save_as = "SALVA CON NOME..."
+toolbar_export_entry = "ESPORTA ENTRY..."
+toolbar_import_entry = "IMPORTA IN ENTRY..."
+toolbar_export_all = "ESPORTA TUTTO..."
+toolbar_options = "OPZIONI..."
+toolbar_mcp_server = "SERVER MCP..."
+external_tools_header = "STRUMENTI ESTERNI"
+
+# --- Toolbar della shell MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATORE"
+shell_compare = "CONFRONTA DAT..."
+shell_compare_tooltip = "Confronta due file .dat entry per entry e ispeziona i byte differenti"
+shell_merge = "UNISCI DAT..."
+shell_merge_tooltip = "Unisce più file .dat in un nuovo file, oppure nella tab attiva"
+shell_directory_sync = "SINCRONIZZA DIRECTORY..."
+shell_directory_sync_tooltip = "Confronta il subfile Directory (DIR) della tab attiva con le sue entry effettive e permette di saltare a quella selezionata"
+shell_close_tab_tooltip = "Chiudi questa tab"
+
+# NOTA: nessuna chiave "toolbar_property_db" qui di proposito - il vecchio pulsante
+# separato "PROPERTY DATABASE..." nella toolbar è stato sostituito da "Cambia sorgente
+# new_properties.xml..." dentro Opzioni (vedi options_change_property_source sotto,
+# collegato a OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- LUA Editor ---
+lua_compile = "COMPILA"
+lua_run = "▶ ESEGUI"
+lua_clear_output = "PULISCI OUTPUT"
+lua_save = "SALVA"
+
+# --- T21 Editor (Views/DbpfWorkspaceView.axaml, modalità "T21 Editor") ---
+t21_apply_iid = "APPLICA IID"
+t21_add = "AGGIUNGI"
+t21_duplicate = "DUPLICA"
+t21_remove = "RIMUOVI"
+t21_up = "▲ SU"
+t21_down = "▼ GIÙ"
+t21_save = "SALVA T21"
+t21_rhd_to_lhd = "CONVERTI RHD → LHD..."
+
+# --- LTEXT Editor (Views/DbpfWorkspaceView.axaml, modalità "LTEXT Editor") ---
+ltext_save_file = "SALVA FILE"
+ltext_save_all_for_language = "SALVA TUTTO IL FILE PER LINGUA"
+ltext_export_poedit = "ESPORTA POEDIT..."
+ltext_import_poedit = "IMPORTA POEDIT..."
+ltext_translations = "TRADUZIONI..."
+
+# --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
+# and the generic text fallback) ---
+structured_save_text = "SALVA TESTO"
+structured_save_trk = "SALVA TRK"
+structured_save = "SALVA"
+
+# --- SC4 Editor: Exemplar/Cohort properties panel ---
+properties_add = "AGGIUNGI..."
+properties_edit = "MODIFICA..."
+properties_remove = "RIMUOVI"

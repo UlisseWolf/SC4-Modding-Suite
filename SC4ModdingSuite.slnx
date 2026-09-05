@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SC4ModdingSuite/SC4ModdingSuite.csproj" />
+  </Folder>
+</Solution>

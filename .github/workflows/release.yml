@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: [staging]
+    branches: [master]
     tags: ["v*.*.*"]
 
 permissions:
@@ -76,7 +76,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore SC4ModdingSuite.csproj
+        run: dotnet restore src/SC4ModdingSuite/SC4ModdingSuite.csproj
 
       - name: Set archive name
         shell: bash
@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish
         run: >
-          dotnet publish SC4ModdingSuite.csproj -c Release
+          dotnet publish src/SC4ModdingSuite/SC4ModdingSuite.csproj -c Release
           -r ${{ matrix.platform.rid }}
           --self-contained true
           -p:Version=${{ needs.prepare.outputs.version }}
@@ -154,6 +154,12 @@ jobs:
           ```sh
           xattr -rd com.apple.quarantine SC4ModdingSuite
           ```
+
+          ## MCP server
+
+          This build includes a built-in Model Context Protocol server (HTTP), started/stopped
+          from its own toolbar button inside the app - no separate install or process. See the
+          "MCP Server Mode" section of the README for client setup.
           EOF
 
       - name: Replace rolling release
@@ -172,7 +178,7 @@ jobs:
           fi
           gh release create "${{ needs.prepare.outputs.release_tag }}" release-artifacts/* \
             --repo "${{ github.repository }}" \
-            --title "${{ needs.prepare.outputs.release_tag == 'latest' && 'Latest (staging)' || needs.prepare.outputs.release_tag }}" \
+            --title "${{ needs.prepare.outputs.release_tag == 'latest' && 'Latest (master)' || needs.prepare.outputs.release_tag }}" \
             --notes-file release-notes.md \
             --target "${{ github.sha }}" \
             "${PRERELEASE_FLAG[@]}"

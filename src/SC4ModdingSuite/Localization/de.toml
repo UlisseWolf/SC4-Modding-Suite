@@ -1,0 +1,94 @@
+# SC4 Modding Suite - deutsche Texte
+# Einfache Textdatei (TOML): kann bearbeitet und ohne Neukompilierung neu geladen werden.
+# Jeder Eintrag lautet "schlüssel = "wert"". Zeilen, die mit # beginnen, sind Kommentare.
+
+language_name = "Deutsch"
+
+# --- Optionen-Fenster ---
+options_title = "Optionen"
+options_section_protected_files = "SC4-Systemdateien (geschützt)"
+options_simcitylocale_label = "Pfad zu SimCityLocale.DAT:"
+options_sc4_install_folder_label = "SC4-Installationsordner:"
+options_plugins_folder_label = "Plugins-Ordner (Standardordner beim Öffnen von Dateien):"
+options_section_external_tools = "Externe Tools"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Diese Dateien können jederzeit geöffnet werden; das direkte Speichern wird unabhängig von den unten angegebenen Pfaden automatisch blockiert - sie dienen hier nur der Übersicht/als Referenz."
+options_appearance_note = "Sprache und Design werden sofort übernommen, sobald du sie auswählst."
+options_section_properties = "Exemplar-Eigenschaftsdatenbank"
+options_change_property_source = "Quelle für new_properties.xml ändern..."
+options_section_appearance = "Sprache und Darstellung"
+options_language_label = "Sprache:"
+options_theme_label = "Design:"
+options_browse = "Durchsuchen..."
+options_save = "Speichern"
+options_close = "Schließen"
+
+# --- Haupt-Symbolleiste ---
+toolbar_new = "NEUER TAB"
+toolbar_new_tooltip = "Öffnet einen neuen, leeren Tab"
+toolbar_open = "ÖFFNEN..."
+toolbar_open_tooltip = "Öffnet eine oder mehrere .dat-Dateien, jede in einem eigenen neuen Tab"
+toolbar_save = "SPEICHERN"
+toolbar_save_as = "SPEICHERN UNTER..."
+toolbar_export_entry = "EINTRAG EXPORTIEREN..."
+toolbar_import_entry = "IN EINTRAG IMPORTIEREN..."
+toolbar_export_all = "ALLES EXPORTIEREN..."
+toolbar_options = "OPTIONEN..."
+toolbar_mcp_server = "MCP-SERVER..."
+external_tools_header = "EXTERNE TOOLS"
+
+# --- Symbolleiste der MDI-Shell (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAVIGATOR"
+shell_compare = "DAT-DATEIEN VERGLEICHEN..."
+shell_compare_tooltip = "Vergleicht zwei .dat-Dateien Eintrag für Eintrag und zeigt die abweichenden Bytes an"
+shell_merge = "DAT-DATEIEN ZUSAMMENFÜHREN..."
+shell_merge_tooltip = "Führt mehrere .dat-Dateien in einer neuen Datei zusammen, oder im aktiven Tab"
+shell_directory_sync = "VERZEICHNIS ABGLEICHEN..."
+shell_directory_sync_tooltip = "Vergleicht die Directory-Subdatei (DIR) des aktiven Tabs mit den tatsächlichen Einträgen und springt zu einem ausgewählten Eintrag"
+shell_close_tab_tooltip = "Diesen Tab schließen"
+
+# HINWEIS: Absichtlich kein Schlüssel "toolbar_property_db" hier - die frühere,
+# eigenständige Schaltfläche "PROPERTY DATABASE..." in der Symbolleiste wurde durch
+# "Quelle für new_properties.xml ändern..." in den Optionen ersetzt (siehe
+# options_change_property_source oben, verknüpft mit
+# OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- LUA-Editor ---
+lua_compile = "KOMPILIEREN"
+lua_run = "▶ AUSFÜHREN"
+lua_clear_output = "AUSGABE LÖSCHEN"
+lua_save = "SPEICHERN"
+
+# --- T21-Editor (Views/DbpfWorkspaceView.axaml, Modus "T21 Editor") ---
+t21_apply_iid = "IID ANWENDEN"
+t21_add = "HINZUFÜGEN"
+t21_duplicate = "DUPLIZIEREN"
+t21_remove = "ENTFERNEN"
+t21_up = "▲ HOCH"
+t21_down = "▼ RUNTER"
+t21_save = "T21 SPEICHERN"
+t21_rhd_to_lhd = "RHD → LHD KONVERTIEREN..."
+
+# --- LTEXT-Editor (Views/DbpfWorkspaceView.axaml, Modus "LTEXT Editor") ---
+ltext_save_file = "DATEI SPEICHERN"
+ltext_save_all_for_language = "GANZE DATEI FÜR SPRACHE SPEICHERN"
+ltext_export_poedit = "POEDIT EXPORTIEREN..."
+ltext_import_poedit = "POEDIT IMPORTIEREN..."
+ltext_translations = "ÜBERSETZUNGEN..."
+
+# --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
+# and the generic text fallback) ---
+structured_save_text = "TEXT SPEICHERN"
+structured_save_trk = "TRK SPEICHERN"
+structured_save = "SPEICHERN"
+
+# --- SC4 Editor: Exemplar/Cohort properties panel ---
+properties_add = "HINZUFÜGEN..."
+properties_edit = "BEARBEITEN..."
+properties_remove = "ENTFERNEN"
