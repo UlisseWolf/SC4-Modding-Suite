@@ -24,7 +24,9 @@ artifacts/
 Thumbs.db
 
 # --- Third-party binary dependency (see README's "Third-party components") ---
-src/SC4ModdingSuite/Libs/csDBPF.dll
+# Note: src/SC4ModdingSuite/Libs/csDBPF.dll is intentionally NOT excluded here - it's
+# committed to the repo (MIT licensed, no NuGet package or GitHub release exists to
+# restore it from instead - see the app README's "Third-party components" section).
 
 # --- User-machine local settings (Options/Localization/Themes are seeded to
 #     %APPDATA%/LocalAppData at runtime, not written into the repo checkout, but

@@ -2,7 +2,7 @@
 
 A desktop tool for inspecting and editing **SimCity 4** (SC4) DBPF package files
 (`.dat`, `.sc4lot`, `.sc4desc`, `.sc4model`) — built with **.NET 10** and **Avalonia UI**,
-on top of the [csDBPF](https://github.com/NAMTeam) library, with several routines ported
+on top of the [csDBPF](https://github.com/noah-severyn/csDBPF) library, with several routines ported
 directly from **Ilive Reader**'s C++ source. The same app also has a built-in
 **[Model Context Protocol](https://modelcontextprotocol.io) server**, started/stopped from
 its own toolbar button, that exposes the same package-reading/writing logic as tools an AI
@@ -28,9 +28,6 @@ LICENSE                     MIT - covers original source code in this repository
 git clone <this-repository-url>
 cd SC4ModdingSuite
 
-# Place csDBPF.dll (not included - see "Third-party components" in
-# src/SC4ModdingSuite/README.md) at src/SC4ModdingSuite/Libs/csDBPF.dll
-
 dotnet restore SC4ModdingSuite.slnx
 dotnet build SC4ModdingSuite.slnx
 dotnet run --project src/SC4ModdingSuite
@@ -46,15 +43,16 @@ build/troubleshooting notes, see
 
 ## Third-party components
 
-`csDBPF.dll` isn't bundled - see
+`Libs/csDBPF.dll` ([noah-severyn/csDBPF](https://github.com/noah-severyn/csDBPF), MIT
+license) is committed directly in this repository rather than restored via NuGet or a
+release download - see
 [src/SC4ModdingSuite/README.md](src/SC4ModdingSuite/README.md#third-party-components) for
-where to obtain it and its own license terms. Several file-format and save-routine details
-were derived by reading the publicly available C++ source of **Ilive Reader** and
-**DarkMatter's DatGen 4** (documentation, not copied verbatim as code). The MCP server is a
-from-scratch C# implementation covering the same ground as
-[dbpf-mcp](https://github.com/caspervg/dbpf-mcp) (a separate, Kotlin/JVM project by a
-different author) - it just runs in-process, inside this same app, rather than as its own
-program.
+why. Several file-format and save-routine details were derived by reading the publicly
+available C++ source of **Ilive Reader** and **DarkMatter's DatGen 4** (documentation, not
+copied verbatim as code). The MCP server is a from-scratch C# implementation covering the
+same ground as [dbpf-mcp](https://github.com/caspervg/dbpf-mcp) (a separate, Kotlin/JVM
+project by a different author) - it just runs in-process, inside this same app, rather
+than as its own program.
 
 ## Contributing
 
@@ -67,6 +65,6 @@ sample `.dat` file are especially valuable.
 
 Original source code in this repository is licensed under the [MIT License](LICENSE).
 
-This does **not** extend to third-party components referenced above (notably
-`csDBPF.dll`, which is not distributed with this repository) — confirm their own license
-terms independently before redistributing a built copy of this app.
+This does **not** extend to third-party components referenced above (`csDBPF.dll` is
+separately MIT-licensed by its own author) — confirm their license terms independently
+before redistributing a built copy of this app.

@@ -88,9 +88,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- csDBPF is shipped as a bare DLL (no NuGet package), stored under Libs\. -->
+    <!-- csDBPF (noah-severyn/csDBPF, MIT) has no NuGet package or GitHub release, so the
+         compiled DLL is committed directly under Libs/ (see the README's own "Third-party
+         components" section) rather than restored - forward slash, not backslash, so this
+         resolves identically on every platform the CI matrix builds on (Windows/Linux/macOS),
+         not just Windows. -->
     <Reference Include="csDBPF">
-      <HintPath>Libs\csDBPF.dll</HintPath>
+      <HintPath>Libs/csDBPF.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
