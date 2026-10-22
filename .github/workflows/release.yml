@@ -132,34 +132,47 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: (cd release-artifacts && sha256sum *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
       - name: Write release notes
         shell: bash
         run: |
           cat > release-notes.md << 'EOF'
-          ## Windows
+          ## Download
 
-          Unzip and run `SC4ModdingSuite.exe`. Single self-contained executable, no other
-          files needed.
+          | Platform | Archive | Status |
+          |---|---|---|
+          | Windows x64 | `SC4ModdingSuite-<version>-windows-x64.zip` | Primary platform |
+          | Linux x64 | `SC4ModdingSuite-<version>-linux-x64.zip` | Experimental |
+          | macOS arm64 | `SC4ModdingSuite-<version>-macos-arm64.zip` | Experimental |
 
-          ## Linux
+          Every archive is a single self-contained executable: no installer and no separate
+          .NET installation needed. Verify downloads against `SHA256SUMS.txt`.
 
-          Unzip and run `./SC4ModdingSuite` (executable bit already set in the archive).
-          Single self-contained executable, no other files needed.
+          ## Installation
 
-          ## macOS
+          **Windows:** unzip and run `SC4ModdingSuite.exe`.
 
-          Apple Silicon (arm64) only, ad-hoc signed and unnotarized. After unzipping, clear the
-          quarantine flag before launching:
+          **Linux:** unzip and run `./SC4ModdingSuite` (executable bit already set in the archive).
+
+          **macOS:** Apple Silicon (arm64) only, ad-hoc signed and unnotarized. After unzipping,
+          clear the quarantine flag before launching:
 
           ```sh
           xattr -rd com.apple.quarantine SC4ModdingSuite
           ```
 
+          Keep a backup of any plugin before saving over it.
+
           ## MCP server
 
-          This build includes a built-in Model Context Protocol server (HTTP), started/stopped
-          from its own toolbar button inside the app - no separate install or process. See the
-          "MCP Server Mode" section of the README for client setup.
+          This build includes a built-in Model Context Protocol server (HTTP, `127.0.0.1` only),
+          started/stopped from its own toolbar button inside the app - no separate install or
+          process. See the "MCP Server Mode" section of the application README for client setup.
+
+          ## What's changed
           EOF
 
       - name: Replace rolling release
@@ -180,5 +193,6 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "${{ needs.prepare.outputs.release_tag == 'latest' && 'Latest (master)' || needs.prepare.outputs.release_tag }}" \
             --notes-file release-notes.md \
+            --generate-notes \
             --target "${{ github.sha }}" \
             "${PRERELEASE_FLAG[@]}"
