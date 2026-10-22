@@ -70,9 +70,12 @@ public sealed class DirectoryDialogViewModel : ViewModelBase
         var dirEntry = file.ListOfEntries.FirstOrDefault(e => SameTgi(e.TGI, DbpfWriter.DirectoryTgi));
         var declared = dirEntry is null ? new List<(TGI Tgi, uint Size)>() : ParseDirectory(dirEntry);
 
+        // A package can legitimately contain the same TGI twice (e.g. duplicated LTEXT
+        // records), so group instead of ToDictionary, which would throw on a duplicate key.
         var actualByTgi = file.ListOfEntries
             .Where(e => !SameTgi(e.TGI, DbpfWriter.DirectoryTgi))
-            .ToDictionary(e => Key(e.TGI));
+            .GroupBy(e => Key(e.TGI))
+            .ToDictionary(g => g.Key, g => g.First());
 
         var declaredKeys = new HashSet<(uint, uint, uint)>();
 
