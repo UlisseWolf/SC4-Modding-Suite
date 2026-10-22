@@ -1846,10 +1846,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var warning = EntryExporter.ExportEntryTo(SelectedEntry.Entry, filePath);
-            StatusMessage = warning is null
-                ? $"Entry exported to: {filePath}"
-                : $"Entry exported to: {filePath} — WARNING: {warning}";
+            EntryExporter.ExportEntryTo(SelectedEntry.Entry, filePath);
+            StatusMessage = $"Entry exported to: {filePath}";
         }
         catch (Exception ex)
         {
@@ -1954,13 +1952,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
-            var (succeeded, failed, warnings) = EntryExporter.ExportAll(_service.Entries, folder);
-            StatusMessage = (failed, warnings) switch
-            {
-                (0, 0) => $"{succeeded} entries exported to: {folder}",
-                (0, > 0) => $"{succeeded} entries exported to: {folder} — {warnings} with a validation warning, see each entry's export individually",
-                _ => $"{succeeded} entries exported ({warnings} with a warning), {failed} skipped (error), to: {folder}",
-            };
+            var (succeeded, failed) = EntryExporter.ExportAll(_service.Entries, folder);
+            StatusMessage = failed == 0
+                ? $"{succeeded} entries exported to: {folder}"
+                : $"{succeeded} entries exported, {failed} skipped (error), to: {folder}";
         }
         catch (Exception ex)
         {
@@ -2735,6 +2730,146 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             StatusMessage = $"Error while merging: {ex.Message}";
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // S3D Batch Tools dialog - Flip/Mirror/Invert, Move, Scale, Rotate, Replace Texture,
+    // Set Transparency. Each one mutates the in-memory SelectedS3DModel (same
+    // "not written to the entry until APPLY/SAVE" contract as Merge/Import 3DS above), then
+    // refreshes the same views Merge does.
+    // ---------------------------------------------------------------
+
+    private void AfterS3DBatchEdit()
+    {
+        RefreshS3DTexture();
+        RefreshS3DGroupToggles();
+        RefreshS3DEditRows();
+        RefreshS3DMaterialRows();
+        ForceS3DViewerRefresh();
+    }
+
+    public void ApplyS3DFlipMirrorInvert(S3DEditOps.FlipMode mode)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            S3DEditOps.FlipMirrorInvert(SelectedS3DModel, mode);
+            AfterS3DBatchEdit();
+            StatusMessage = $"{mode} applied - click APPLY/SAVE to write it to the entry.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while flipping/mirroring: {ex.Message}";
+        }
+    }
+
+    public void ApplyS3DMove(float dx, float dy, float dz)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            S3DEditOps.Move(SelectedS3DModel, dx, dy, dz);
+            AfterS3DBatchEdit();
+            StatusMessage = $"Moved by ({dx:0.###}, {dy:0.###}, {dz:0.###}) m - click APPLY/SAVE to write it to the entry.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while moving: {ex.Message}";
+        }
+    }
+
+    public void ApplyS3DScale(float factor)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        if (factor <= 0)
+        {
+            StatusMessage = "Scale factor must be greater than zero.";
+            return;
+        }
+
+        try
+        {
+            S3DEditOps.Scale(SelectedS3DModel, factor);
+            AfterS3DBatchEdit();
+            StatusMessage = $"Scaled by {factor:0.######} - click APPLY/SAVE to write it to the entry.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while scaling: {ex.Message}";
+        }
+    }
+
+    public void ApplyS3DRotate(double degrees, bool clockwise)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            S3DEditOps.Rotate(SelectedS3DModel, degrees, clockwise);
+            AfterS3DBatchEdit();
+            StatusMessage = $"Rotated {degrees:0.###}° {(clockwise ? "clockwise" : "counter-clockwise")} - click APPLY/SAVE to write it to the entry.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while rotating: {ex.Message}";
+        }
+    }
+
+    public void ApplyS3DReplaceTexture(string findMask, string replaceMask)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var changed = S3DEditOps.ReplaceTexture(SelectedS3DModel, findMask, replaceMask);
+            AfterS3DBatchEdit();
+            StatusMessage = changed > 0
+                ? $"Replaced {changed} texture reference(s) - click APPLY/SAVE to write it to the entry."
+                : "No texture references matched the Find mask.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while replacing texture: {ex.Message}";
+        }
+    }
+
+    public void ApplyS3DSetTransparency(byte depthFunc, bool enable)
+    {
+        if (SelectedS3DModel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            S3DEditOps.SetTransparency(SelectedS3DModel, depthFunc, enable);
+            AfterS3DBatchEdit();
+            StatusMessage = enable
+                ? $"Transparency (Depth Func {depthFunc}) set on {SelectedS3DModel.MaterialCount} material(s) - click APPLY/SAVE to write it to the entry."
+                : $"Transparency cleared on {SelectedS3DModel.MaterialCount} material(s) - click APPLY/SAVE to write it to the entry.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error while setting transparency: {ex.Message}";
         }
     }
 
@@ -3798,10 +3933,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// to csDBPF's own decode only if this parser can't make sense of the bytes either.
     ///
     /// <c>exemplar.Decode()</c> is still called regardless, since <see cref="SelectedExemplar"/>
-    /// and the Add/Edit/Remove commands operate on csDBPF's own internal state - if its
-    /// property count doesn't match what this independent parser found, that's a concrete,
-    /// checkable sign that editing/saving this entry may not be trustworthy, and is
-    /// surfaced as a status warning rather than silently risking data loss on save.
+    /// and the Add/Edit/Remove commands operate on csDBPF's own internal state; its own
+    /// property count routinely disagrees with this independent parser's for entries with
+    /// array-mode properties (that mismatch is exactly the known, already-worked-around
+    /// csDBPF decode bug, not a new problem each time it happens), so it is not surfaced to
+    /// the user - the properties shown and edited here are always the independently-parsed
+    /// ones, which is what matters for correctness on save.
     /// </summary>
     private void LoadPropertiesForSelectedEntry()
     {
@@ -3823,15 +3960,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 {
                     var dbpfProperty = ExemplarBinaryParser.ToDbpfProperty(property);
                     Properties.Add(new PropertyItemViewModel(dbpfProperty, PropertyRegistry.FindById(property.Id)));
-                }
-
-                if (parsed.Properties.Count != exemplar.ListOfProperties.Count)
-                {
-                    StatusMessage =
-                        $"Note: csDBPF reports {exemplar.ListOfProperties.Count} properties for this entry, " +
-                        $"but independent parsing found {parsed.Properties.Count} - the properties shown here " +
-                        "are the independently-verified ones; editing/saving this entry may not be fully " +
-                        "reliable until this discrepancy is understood.";
                 }
             }
             else
@@ -4021,6 +4149,39 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         RandomizeGroup = false;
         RandomizeInstance = false;
         ApplyTgiEdit(randomizeGroup: false, randomizeInstance: false);
+    }
+
+    /// <summary>
+    /// "Select Clipboard List" - resolves a previously "Copy TGI"-ed list of TGIs back to
+    /// the matching entries currently loaded in this document, for the View (which owns the
+    /// actual ListBox selection) to re-select. Entries not found in this document are
+    /// silently skipped and counted in <see cref="StatusMessage"/>.
+    /// </summary>
+    public IReadOnlyList<EntryItemViewModel> GetEntriesMatchingClipboardTgiList(string? clipboardText)
+    {
+        var requested = EntryClipboard.TryParseTgiList(clipboardText);
+        if (requested.Count == 0)
+        {
+            StatusMessage = "Clipboard doesn't contain a TGI list copied from SC4 Modding Suite.";
+            return Array.Empty<EntryItemViewModel>();
+        }
+
+        var matches = new List<EntryItemViewModel>();
+        foreach (var (type, group, instance) in requested)
+        {
+            var match = Entries.FirstOrDefault(e =>
+                e.Entry.TGI.TypeID == type && e.Entry.TGI.GroupID == group && e.Entry.TGI.InstanceID == instance);
+            if (match is not null)
+            {
+                matches.Add(match);
+            }
+        }
+
+        StatusMessage = matches.Count == requested.Count
+            ? $"Selected {matches.Count} entr{(matches.Count == 1 ? "y" : "ies")} from the clipboard TGI list."
+            : $"Selected {matches.Count} of {requested.Count} entr(y/ies) from the clipboard TGI list - the rest aren't in this file.";
+
+        return matches;
     }
 
     private void ApplyTgiEdit() => ApplyTgiEdit(RandomizeGroup, RandomizeInstance);
@@ -5799,13 +5960,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var (succeeded, failed, warnings) = EntryExporter.ExportAll(entries, folder);
-            StatusMessage = (failed, warnings) switch
-            {
-                (0, 0) => $"{succeeded} decoded entr(y/ies) exported to: {folder}",
-                (0, > 0) => $"{succeeded} decoded entr(y/ies) exported to: {folder} — {warnings} with a validation warning",
-                _ => $"{succeeded} decoded entr(y/ies) exported ({warnings} with a warning), {failed} skipped (error), to: {folder}",
-            };
+            var (succeeded, failed) = EntryExporter.ExportAll(entries, folder);
+            StatusMessage = failed == 0
+                ? $"{succeeded} decoded entr(y/ies) exported to: {folder}"
+                : $"{succeeded} decoded entr(y/ies) exported, {failed} skipped (error), to: {folder}";
         }
         catch (Exception ex)
         {

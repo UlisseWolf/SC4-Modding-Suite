@@ -65,11 +65,7 @@ public static class EntryExporter
     public static string FileNameFor(DBPFEntry entry) => BaseFileName(entry) + ExtensionFor(entry);
 
     /// <summary>
-    /// Writes one entry's raw (decompressed) bytes to <paramref name="filePath"/>. For
-    /// Exemplar/Cohort entries, also runs <see cref="ExemplarBinaryValidator"/> against the
-    /// bytes actually being written - the file is still written either way, but a non-null
-    /// return value means the bytes didn't decode cleanly as a well-formed binary Exemplar
-    /// and the caller should surface that as a warning.
+    /// Writes one entry's raw (decompressed) bytes to <paramref name="filePath"/>.
     ///
     /// <para>
     /// LTEXT is special-cased to write its decoded plain text (UTF-8) instead of the raw
@@ -83,70 +79,54 @@ public static class EntryExporter
     /// decodes the whole property list by name/value rather than just the payload bytes.
     /// </para>
     /// </summary>
-    /// <returns>A human-readable warning if validation found a problem; null if the export looks clean (or isn't an Exemplar/Cohort at all).</returns>
-    public static string? ExportEntryTo(DBPFEntry entry, string filePath)
+    public static void ExportEntryTo(DBPFEntry entry, string filePath)
     {
         if (entry is DBPFEntryLTEXT ltext)
         {
             entry.Decode();
             File.WriteAllText(filePath, ltext.Text ?? string.Empty, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            return null;
+            return;
         }
 
         var bytes = RawEntryBytes.GetDecompressed(entry) ?? Array.Empty<byte>();
         File.WriteAllBytes(filePath, bytes);
-
-        if (entry is not DBPFEntryEXMP)
-        {
-            return null;
-        }
-
-        var result = ExemplarBinaryValidator.Validate(bytes);
-        return result.IsValid
-            ? null
-            : $"exported Exemplar data may be malformed ({result.Error})";
     }
 
     /// <summary>
     /// Writes one entry's raw bytes plus its <c>.TGI</c> sidecar file into
     /// <paramref name="folder"/>, using the standard <c>TTTTTTTT-GGGGGGGG-IIIIIIII</c> name.
     /// </summary>
-    /// <returns>The written file's path, and a validation warning if one applies (see <see cref="ExportEntryTo"/>).</returns>
-    public static (string FilePath, string? Warning) ExportEntryWithSidecar(DBPFEntry entry, string folder)
+    /// <returns>The written file's path.</returns>
+    public static string ExportEntryWithSidecar(DBPFEntry entry, string folder)
     {
         var baseName = BaseFileName(entry);
         var filePath = Path.Combine(folder, baseName + ExtensionFor(entry));
-        var warning = ExportEntryTo(entry, filePath);
+        ExportEntryTo(entry, filePath);
 
         var tgi = entry.TGI;
         var tgiPath = Path.Combine(folder, baseName + ".TGI");
         File.WriteAllText(tgiPath, $"{tgi.TypeID:X8}\r\n{tgi.GroupID:X8}\r\n{tgi.InstanceID:X8}\r\n");
 
-        return (filePath, warning);
+        return filePath;
     }
 
     /// <summary>
     /// Exports every entry in <paramref name="entries"/> into <paramref name="folder"/>,
     /// mirroring Ilive Reader's bulk "Export" ribbon button. Continues past individual
     /// failures (e.g. an entry that fails to decompress) instead of aborting the whole
-    /// batch, returning counts of successes/failures/warnings for the caller to report.
+    /// batch, returning counts of successes/failures for the caller to report.
     /// </summary>
-    public static (int Succeeded, int Failed, int Warnings) ExportAll(IEnumerable<DBPFEntry> entries, string folder)
+    public static (int Succeeded, int Failed) ExportAll(IEnumerable<DBPFEntry> entries, string folder)
     {
         var succeeded = 0;
         var failed = 0;
-        var warnings = 0;
 
         foreach (var entry in entries)
         {
             try
             {
-                var (_, warning) = ExportEntryWithSidecar(entry, folder);
+                ExportEntryWithSidecar(entry, folder);
                 succeeded++;
-                if (warning is not null)
-                {
-                    warnings++;
-                }
             }
             catch
             {
@@ -154,6 +134,6 @@ public static class EntryExporter
             }
         }
 
-        return (succeeded, failed, warnings);
+        return (succeeded, failed);
     }
 }

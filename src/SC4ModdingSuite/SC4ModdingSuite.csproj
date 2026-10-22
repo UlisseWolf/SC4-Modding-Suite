@@ -43,7 +43,13 @@
     <PackageReference Include="Avalonia.Diagnostics" Version="11.2.3" Condition="'$(Configuration)' == 'Debug'" />
 
     <!-- csDBPF's only transitive dependency, per csDBPF.deps.json -->
+    <!-- Pinned to 3.1.x on purpose: 4.x (the only line with the fixes) needs a paid Six Labors
+         license key (Release builds fail without one) and csDBPF.dll is built against 3.x.
+         The advisories below affect image decoding of untrusted files; this app only opens
+         the user's own local DBPF/PNG/FSH data. Revisit when csDBPF moves off ImageSharp 3.x. -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-gwg2-r3hj-4w44" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-wmxv-xphr-5c9g" />
 
     <!-- S3D Editor's VERT/INDX/PRIM grid editors (Tab3DMVert/Indx/Prim equivalents): the
          official first-party Avalonia grid control - not shipped in the Avalonia base

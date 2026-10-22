@@ -129,6 +129,50 @@ public static class EntryClipboard
         }
     }
 
+    /// <summary>
+    /// Parses every "TGI: 0xT-0xG-0xI" line found in the clipboard text (one produced by
+    /// <see cref="SerializeTgiOnly"/>'s multi-entry "Copy TGI" output), for the "Select
+    /// Clipboard List" feature: re-select, in whichever file is currently open, every
+    /// entry whose TGI appears in a previously copied list. Unlike <see cref="TryParseSingleTgi"/>
+    /// (used by "Paste TGI", a single-entry TGI-rename), this returns every match, in order,
+    /// skipping lines that don't parse instead of failing the whole list.
+    /// </summary>
+    public static List<(uint Type, uint Group, uint Instance)> TryParseTgiList(string? text)
+    {
+        var result = new List<(uint Type, uint Group, uint Instance)>();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return result;
+        }
+
+        foreach (var rawLine in text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!rawLine.Contains("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var cleaned = rawLine.Replace("TGI:", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
+            var parts = cleaned.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length != 3)
+            {
+                continue;
+            }
+
+            try
+            {
+                result.Add((ParseHex(parts[0]), ParseHex(parts[1]), ParseHex(parts[2])));
+            }
+            catch (FormatException)
+            {
+                // Skip malformed lines - a partially-garbled clipboard shouldn't block the
+                // lines that do parse correctly.
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>Parses a hex string (optionally "0x"-prefixed); an empty string parses as 0. Shared by the TGI-editing and property-editing dialogs.</summary>
     public static uint ParseHex(string text)
     {

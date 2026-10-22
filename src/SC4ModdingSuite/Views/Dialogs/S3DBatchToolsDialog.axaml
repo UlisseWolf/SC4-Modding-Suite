@@ -1,0 +1,96 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:conv="using:SC4ModdingSuite.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="420"
+        x:Class="SC4ModdingSuite.Views.S3DBatchToolsDialog"
+        x:DataType="vm:S3DBatchToolsDialogViewModel"
+        Title="S3D Batch Tools"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="420" Height="420"
+        MinWidth="380" MinHeight="380"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Clean-room reimplementation of a well-known, now-abandoned third-party SC4 model
+         editing utility's batch tools, written from documented/observed behavior only.
+         Acts on the S3D Editor's currently selected model; use APPLY/SAVE there afterwards
+         to persist the change into the entry. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="Choose an operation, set its parameters, then APPLY. Use the S3D Editor's own APPLY/SAVE afterwards to write the change into the entry."
+                   FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+        <ComboBox Grid.Row="1" ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" Margin="0,0,0,10" HorizontalAlignment="Stretch" />
+
+        <Grid Grid.Row="2">
+            <!-- Flip / Mirror / Invert -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=FlipMirrorInvert}">
+                <TextBlock Text="Mirrors every vertex across one plane: Flip negates Y, Mirror negates X, Invert negates Z. Only meaningful for 1-Zoom/Rotation models." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding FlipModes}" SelectedItem="{Binding SelectedFlipMode}" HorizontalAlignment="Stretch" />
+                <Button Content="APPLY" Command="{Binding ApplyFlipMirrorInvertCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Move -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=Move}">
+                <TextBlock Text="Offsets every vertex by a fixed amount, in meters." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" Margin="0,0,8,6" />
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding MoveXText}" Margin="0,0,0,6" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Y:" VerticalAlignment="Center" Margin="0,0,8,6" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MoveYText}" Margin="0,0,0,6" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Z:" VerticalAlignment="Center" Margin="0,0,8,6" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding MoveZText}" Margin="0,0,0,6" />
+                </Grid>
+                <Button Content="APPLY" Command="{Binding ApplyMoveCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Scale -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=Scale}">
+                <TextBlock Text="Multiplies every vertex coordinate by a factor (e.g. 0.5 for half size, 2 for double)." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Text="Factor:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Column="1" Text="{Binding ScaleFactorText}" />
+                </Grid>
+                <Button Content="APPLY" Command="{Binding ApplyScaleCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Rotate -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=Rotate}">
+                <TextBlock Text="Rotates every vertex around the Z (up) axis by the given angle." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Text="Degrees:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Column="1" Text="{Binding RotateDegreesText}" />
+                </Grid>
+                <CheckBox Content="Clockwise" IsChecked="{Binding RotateClockwise}" />
+                <Button Content="APPLY" Command="{Binding ApplyRotateCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Replace Texture -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=ReplaceTexture}">
+                <TextBlock Text="Find/replace on material texture IDs. Both masks are 8 hex digits; 'x' is a wildcard that keeps that digit of the original ID unchanged." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Find:" VerticalAlignment="Center" Margin="0,0,8,6" />
+                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding FindMask}" FontFamily="Consolas,Menlo,monospace" Margin="0,0,0,6" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Replace:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ReplaceMask}" FontFamily="Consolas,Menlo,monospace" />
+                </Grid>
+                <Button Content="APPLY" Command="{Binding ApplyReplaceTextureCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <!-- Set Transparency -->
+            <StackPanel Spacing="8" IsVisible="{Binding SelectedMode, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter=SetTransparency}">
+                <TextBlock Text="Sets or clears the Depth Func (transparency) flag on every material of the model." FontSize="11" Classes="status" TextWrapping="Wrap" />
+                <CheckBox Content="Enable transparency" IsChecked="{Binding TransparencyEnabled}" />
+                <Grid ColumnDefinitions="Auto,*" IsEnabled="{Binding TransparencyEnabled}">
+                    <TextBlock Grid.Column="0" Text="Depth Func:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox Grid.Column="1" Text="{Binding DepthFuncText}" />
+                </Grid>
+                <Button Content="APPLY" Command="{Binding ApplySetTransparencyCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,10,0,0" />
+    </Grid>
+
+</Window>
