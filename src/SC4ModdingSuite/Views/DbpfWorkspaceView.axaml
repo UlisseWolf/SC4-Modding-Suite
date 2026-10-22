@@ -170,6 +170,12 @@
                 <Button Content="CLONE..." Click="OnCloneClick" Margin="0,0,6,4"
                         IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
                         ToolTip.Tip="Duplicate the selected entr(y/ies), with an optional T/G/I increment per copy" />
+                <Button Content="RHD&#x2192;LHD (S3D)..." Click="OnRhdLhdS3DClick" Margin="0,0,6,4"
+                        IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Convert the selected 20-view S3D set from RHD to LHD (per-view offset + rename)" />
+                <Button Content="REORIENT..." Click="OnReorientClick" Margin="0,0,6,4"
+                        IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Reassign which rotation slot each selected S3D model's content occupies (20 Zoom/Rotation sets) - TGIs and geometry untouched" />
                 <Button Content="TGI EDITOR..." Click="OnTgiEditorClick" Margin="0,0,6,4"
                         ToolTip.Tip="Apply a masked hex pattern to Type/Group/Instance across several entries at once" />
                 <Button Content="CHANGE INSTANCE..." Click="OnChangeInstanceClick" Margin="0,0,6,4"
@@ -200,7 +206,7 @@
         </Border>
 
         <!-- Main content: entry list | TGI editor + details/preview | properties -->
-        <Grid Grid.Row="5" ColumnDefinitions="340,*,380" Margin="6">
+        <Grid Grid.Row="5" ColumnDefinitions="340,*,Auto" Margin="6">
 
             <!-- Entry list -->
             <Border Grid.Column="0" BorderThickness="1">
@@ -258,7 +264,8 @@
                         <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" Margin="0,0,4,4" />
                         <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" Margin="0,0,4,4" />
                         <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" Margin="0,0,4,4" />
-                        <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" Margin="0,0,0,4" />
+                        <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" Margin="0,0,4,4" />
+                        <Button Content="SELECT FROM LIST" Click="OnSelectFromTgiListClick" ToolTip.Tip="Re-select every entry whose TGI appears in a previously &quot;Copy TGI&quot;-ed list" Margin="0,0,0,4" />
                     </WrapPanel>
                 </Grid>
             </Border>
@@ -356,6 +363,12 @@
                                 </ComboBox>
                                 <Button Content="MERGE" Command="{Binding MergeS3DCommand}" Margin="0,0,6,4"
                                         ToolTip.Tip="Append the selected model's groups into this one (Apply/Save afterwards to persist it)" />
+                                <Button Content="BATCH TOOLS..." Click="OnS3DBatchToolsClick" Margin="0,0,6,4"
+                                        ToolTip.Tip="Flip/Mirror/Invert, Move, Scale, Rotate, Replace Texture, Set Transparency (Apply/Save afterwards to persist it)" />
+                                <Button Content="RHD&#x2192;LHD (S3D)..." Click="OnRhdLhdS3DClick" Margin="0,0,6,4"
+                                        ToolTip.Tip="Convert the selected 20-view S3D set from RHD to LHD (per-view offset + rename). Select all 20 views in the entry list first" />
+                                <Button Content="REORIENT..." Click="OnReorientClick" Margin="0,0,6,4"
+                                        ToolTip.Tip="Reassign which rotation slot each selected S3D model's content occupies - TGIs and geometry untouched" />
                                 <Button Content="IMPORT 3DS..." Click="OnImportS3DClick" Margin="0,0,6,4"
                                         ToolTip.Tip="Replace this model's geometry from a .3ds file (Apply/Save afterwards to persist it)" />
                                 <Button Content="EXPORT 3DS..." Click="OnExportS3DClick" Margin="0,0,6,4"
@@ -1055,7 +1068,7 @@
 
             <!-- S3D Editor: opens the geometry/material editors in their own windows, only
                  while "S3D Editor" mode is selected above (see IsS3DEditorMode). -->
-            <Border Grid.Column="2" BorderThickness="1" Padding="8" VerticalAlignment="Top"
+            <Border Grid.Column="2" Width="380" BorderThickness="1" Padding="8" VerticalAlignment="Top"
                     IsVisible="{Binding IsS3DEditorMode}">
                 <StackPanel Spacing="6">
                     <Button Content="GEOMETRY EDITOR..." Click="OnOpenS3DGeometryEditorClick" HorizontalAlignment="Stretch"
@@ -1090,7 +1103,7 @@
                  from the SC4Devotion "LTEXT - Language Text Files" tutorial - then saves),
                  and Export/Import Poedit for round-tripping the whole file's strings
                  through a translator's .po/.pot workflow. -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsVisible="{Binding ShowLtextEditor}">
+            <Grid Grid.Column="2" Width="380" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsVisible="{Binding ShowLtextEditor}">
                 <TextBlock Grid.Row="0" Text="LTEXT EDITOR" FontWeight="Bold" FontSize="11" Classes="status" Margin="0,0,0,4" />
 
                 <!-- Language pickers: Source = the language the on-screen/exported text is

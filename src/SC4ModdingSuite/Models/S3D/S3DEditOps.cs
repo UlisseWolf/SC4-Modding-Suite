@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -183,5 +184,192 @@ public static class S3DEditOps
         list.Sort();
         list.Reverse();
         return list;
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Batch model tools - clean-room reimplementations of the operations a well-known
+    // (now-abandoned) third-party SC4 modding utility offers for S3D models, written from
+    // their observed/documented behavior only (no decompilation, no access to or use of
+    // that tool's own code). Each one mutates every group of the given S3DModel in place;
+    // callers use the same "mutate SelectedS3DModel, then APPLY/SAVE" flow as Merge/Import.
+    // -----------------------------------------------------------------------------------
+
+    /// <summary>Which axis-plane to mirror a model's vertices across.</summary>
+    public enum FlipMode
+    {
+        /// <summary>Mirror across the XZ plane: negate every vertex's Y.</summary>
+        Flip,
+
+        /// <summary>Mirror across the YZ plane: negate every vertex's X.</summary>
+        Mirror,
+
+        /// <summary>Mirror across the XY plane: negate every vertex's Z.</summary>
+        Invert,
+    }
+
+    /// <summary>Negates one coordinate (X/Y/Z depending on <paramref name="mode"/>) of every vertex in every group - a true mirror, as opposed to <see cref="FlipAxes"/>'s axis swap.</summary>
+    public static void FlipMirrorInvert(S3DModel model, FlipMode mode)
+    {
+        foreach (var block in model.VertexBlocks)
+        {
+            for (var i = 0; i < block.Positions.Count; i++)
+            {
+                var p = block.Positions[i];
+                block.Positions[i] = mode switch
+                {
+                    FlipMode.Flip => new Vector3(p.X, -p.Y, p.Z),
+                    FlipMode.Mirror => new Vector3(-p.X, p.Y, p.Z),
+                    _ => new Vector3(p.X, p.Y, -p.Z),
+                };
+            }
+        }
+
+        ReverseTriangleWinding(model);
+    }
+
+    /// <summary>
+    /// Negating one axis turns the model inside-out (every triangle's front face now points
+    /// the wrong way, so backface culling would hide the outside and show the inside), so a
+    /// real mirror must also reverse each triangle's vertex order. Only GL_TRIANGLES
+    /// primitives (type 4, the type this app's own Add Primitive row defaults to) are
+    /// touched; other primitive types are left alone.
+    /// </summary>
+    private static void ReverseTriangleWinding(S3DModel model)
+    {
+        for (var g = 0; g < model.IndexBlocks.Count && g < model.PrimBlocks.Count; g++)
+        {
+            var indices = model.IndexBlocks[g].Indices;
+            foreach (var prim in model.PrimBlocks[g].Primitives)
+            {
+                if (prim.Type != 4)
+                {
+                    continue;
+                }
+
+                var end = (int)Math.Min((long)prim.First + prim.Count, indices.Count);
+                for (var i = (int)prim.First; i + 2 < end; i += 3)
+                {
+                    (indices[i + 1], indices[i + 2]) = (indices[i + 2], indices[i + 1]);
+                }
+            }
+        }
+    }
+
+    /// <summary>Offsets every vertex in every group by a fixed amount (meters, SC4's own unit) in each axis.</summary>
+    public static void Move(S3DModel model, float dx, float dy, float dz)
+    {
+        var offset = new Vector3(dx, dy, dz);
+        foreach (var block in model.VertexBlocks)
+        {
+            for (var i = 0; i < block.Positions.Count; i++)
+            {
+                block.Positions[i] += offset;
+            }
+        }
+    }
+
+    /// <summary>Multiplies every vertex's coordinates in every group by <paramref name="factor"/>, uniformly in all three axes.</summary>
+    public static void Scale(S3DModel model, float factor)
+    {
+        foreach (var block in model.VertexBlocks)
+        {
+            for (var i = 0; i < block.Positions.Count; i++)
+            {
+                block.Positions[i] *= factor;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rotates every vertex in every group by <paramref name="degrees"/> around the Z axis
+    /// (SC4's "up" axis), in the given direction. For the common case of an exact multiple
+    /// of 90 degrees, the sine/cosine terms round to exactly -1/0/1, so this already behaves
+    /// like a clean axis swap/negation with no floating-point drift, without needing a
+    /// separate code path for that case.
+    /// </summary>
+    public static void Rotate(S3DModel model, double degrees, bool clockwise)
+    {
+        var signedDegrees = clockwise ? -degrees : degrees;
+        var radians = signedDegrees * Math.PI / 180.0;
+        var cos = (float)Math.Round(Math.Cos(radians), 6);
+        var sin = (float)Math.Round(Math.Sin(radians), 6);
+
+        foreach (var block in model.VertexBlocks)
+        {
+            for (var i = 0; i < block.Positions.Count; i++)
+            {
+                var p = block.Positions[i];
+                block.Positions[i] = new Vector3(
+                    p.X * cos - p.Y * sin,
+                    p.X * sin + p.Y * cos,
+                    p.Z);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds every material texture whose ID matches <paramref name="findMask"/> and
+    /// replaces it with <paramref name="replaceMask"/>. Both are 8-hex-digit masks where
+    /// 'x'/'X' is a wildcard that passes the corresponding hex digit of the original ID
+    /// through unchanged, so e.g. find "5AD0E8xx"/replace "5AD0E8FF" only rewrites the low
+    /// byte, keeping the rest of the ID whatever it already was. Returns how many texture
+    /// references were changed.
+    /// </summary>
+    public static int ReplaceTexture(S3DModel model, string findMask, string replaceMask)
+    {
+        var changed = 0;
+        foreach (var material in model.Materials)
+        {
+            foreach (var texture in material.Textures)
+            {
+                var newId = TryApplyIdMask(texture.TextureId, findMask, replaceMask);
+                if (newId is { } id && id != texture.TextureId)
+                {
+                    texture.TextureId = id;
+                    changed++;
+                }
+            }
+        }
+
+        return changed;
+    }
+
+    /// <summary>Returns the replaced ID if <paramref name="id"/> matches <paramref name="findMask"/>, otherwise <see langword="null"/>.</summary>
+    private static uint? TryApplyIdMask(uint id, string findMask, string replaceMask)
+    {
+        if (findMask.Length != 8 || replaceMask.Length != 8)
+        {
+            return null;
+        }
+
+        var idHex = id.ToString("x8");
+        var resultHex = new char[8];
+
+        for (var i = 0; i < 8; i++)
+        {
+            var findDigit = char.ToLowerInvariant(findMask[i]);
+            if (findDigit != 'x' && findDigit != idHex[i])
+            {
+                return null;
+            }
+
+            var replaceDigit = char.ToLowerInvariant(replaceMask[i]);
+            resultHex[i] = replaceDigit == 'x' ? idHex[i] : replaceDigit;
+        }
+
+        return uint.Parse(new string(resultHex), System.Globalization.NumberStyles.HexNumber);
+    }
+
+    /// <summary>
+    /// Sets (or clears) the "Depth Func for transparent models" flag on every material in
+    /// the model - the flag SC4 checks both ways: to decide whether to render a model as
+    /// transparent, and (when clearing) to remove that transparency again.
+    /// </summary>
+    public static void SetTransparency(S3DModel model, byte depthFunc, bool enable)
+    {
+        foreach (var material in model.Materials)
+        {
+            material.DepthFunc = enable ? depthFunc : (byte)0;
+        }
     }
 }

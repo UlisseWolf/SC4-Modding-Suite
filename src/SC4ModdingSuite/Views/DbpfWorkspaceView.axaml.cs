@@ -133,6 +133,12 @@ public partial class DbpfWorkspaceView : UserControl
         Patterns = new[] { "*.3ds" },
     };
 
+    private async void OnS3DBatchToolsClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new S3DBatchToolsDialog(new S3DBatchToolsDialogViewModel(ViewModel));
+        await dialog.ShowDialog(OwnerWindow);
+    }
+
     private async void OnImportS3DClick(object? sender, RoutedEventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -337,6 +343,24 @@ public partial class DbpfWorkspaceView : UserControl
 
     private async void OnPasteTgiClick(object? sender, RoutedEventArgs e) => await PasteTgiAsync();
 
+    private async void OnSelectFromTgiListClick(object? sender, RoutedEventArgs e)
+    {
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            return;
+        }
+
+        var text = await clipboard.GetTextAsync();
+        var matches = ViewModel.GetEntriesMatchingClipboardTgiList(text);
+
+        EntriesListBox.SelectedItems?.Clear();
+        foreach (var match in matches)
+        {
+            EntriesListBox.SelectedItems?.Add(match);
+        }
+    }
+
     private async void OnWindowKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
     {
         var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
@@ -433,6 +457,30 @@ public partial class DbpfWorkspaceView : UserControl
         }
 
         var dialog = new CloneDialog(new CloneDialogViewModel(ViewModel, sourceEntries));
+        await dialog.ShowDialog(OwnerWindow);
+    }
+
+    private async void OnRhdLhdS3DClick(object? sender, RoutedEventArgs e)
+    {
+        var entries = GetSelectedEntries().Select(vm => vm.Entry).ToList();
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var dialog = new S3DRhdLhdDialog(new S3DRhdLhdDialogViewModel(ViewModel, entries));
+        await dialog.ShowDialog(OwnerWindow);
+    }
+
+    private async void OnReorientClick(object? sender, RoutedEventArgs e)
+    {
+        var entries = GetSelectedEntries().Select(vm => vm.Entry).ToList();
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var dialog = new S3DReorientDialog(new S3DReorientDialogViewModel(ViewModel, entries));
         await dialog.ShowDialog(OwnerWindow);
     }
 

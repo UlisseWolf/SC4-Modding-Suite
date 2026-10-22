@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="380"
+        x:Class="SC4ModdingSuite.Views.S3DReorientDialog"
+        x:DataType="vm:S3DReorientDialogViewModel"
+        Title="Reorient"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="440" Height="380"
+        MinWidth="400" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <!-- Clean-room reimplementation of a well-known, now-abandoned third-party SC4 model
+         editing utility's "Reorient" command, written from documented/observed behavior
+         only. Reassigns which rotation slot each selected S3D entry's content occupies,
+         without touching any entry's TGI or geometry - see S3DReorientDialogViewModel's
+         own remarks for why this works on raw content swaps instead of an assumed
+         Instance ID encoding. -->
+    <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto,Auto">
+        <TextBlock Grid.Row="0" Text="Reassigns which rotation slot each selected S3D entry's content occupies - geometry and TGIs are left untouched, only the content-to-slot mapping shifts."
+                   FontSize="11" Classes="status" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+        <TextBlock Grid.Row="1" Text="{Binding EntryCount, StringFormat='{}{0} entries selected, in ascending-Instance-ID order:'}"
+                   FontWeight="Bold" FontSize="12" Margin="0,0,0,6" />
+
+        <ListBox Grid.Row="2" ItemsSource="{Binding EntryInstanceHexInOrder}" Margin="0,0,0,10">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <TextBlock Text="{Binding}" FontFamily="Consolas,Menlo,monospace" FontSize="11" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="Steps:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <NumericUpDown Grid.Column="1" Value="{Binding Steps}" Minimum="1" Increment="1" FormatString="0" />
+        </Grid>
+        <StackPanel Grid.Row="4" Spacing="8">
+            <CheckBox Content="Clockwise" IsChecked="{Binding Clockwise}" />
+            <Button Content="REORIENT" Command="{Binding ReorientCommand}" FontWeight="Bold" HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+
+</Window>

@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SC4ModdingSuite.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="340"
+        x:Class="SC4ModdingSuite.Views.S3DRhdLhdDialog"
+        x:DataType="vm:S3DRhdLhdDialogViewModel"
+        Title="RHD to LHD (S3D)"
+        Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
+        Width="440" Height="340"
+        MinWidth="400" MinHeight="320"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <TextBlock Grid.Row="0" TextWrapping="Wrap" FontSize="11" Classes="status" Margin="0,0,0,10"
+                   Text="Moves every vertex of the selected 20-view S3D models by one offset, entered for the South view (meters). Each rotation view gets it rotated automatically. Select the whole set (all 20 views) first." />
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Offset X:" VerticalAlignment="Center" Margin="0,0,8,6" />
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding OffsetXText}" Margin="0,0,0,6" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Offset Z:" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding OffsetZText}" />
+        </Grid>
+
+        <CheckBox Grid.Row="2" Content="Rename RHD to LHD in texture/mesh names" IsChecked="{Binding RenameRhdToLhd}" Margin="0,0,0,10" />
+        <Button Grid.Row="3" Content="CONVERT" Command="{Binding ConvertCommand}" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,10" />
+        <TextBlock Grid.Row="4" Text="{Binding StatusMessage}" FontSize="11" Classes="status" TextWrapping="Wrap" />
+    </Grid>
+
+</Window>
