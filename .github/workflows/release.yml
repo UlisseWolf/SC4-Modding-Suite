@@ -11,7 +11,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.set.outputs.version }}
       file_version: ${{ steps.set.outputs.file_version }}
@@ -56,7 +56,7 @@ jobs:
             suffix: windows-x64
             experimental: false
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-26.04
             rid: linux-x64
             suffix: linux-x64
             experimental: true
@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
 
@@ -121,7 +121,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [prepare, package]
 
     steps:
