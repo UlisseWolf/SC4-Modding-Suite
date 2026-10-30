@@ -9,7 +9,7 @@
         x:DataType="vm:LtextTranslationDialogViewModel"
         Title="LTEXT Translation Grid"
         Icon="avares://SC4ModdingSuite/Assets/sc4msicon.ico"
-        Width="900" Height="600"
+        Width="1100" Height="760"
         MinWidth="560" MinHeight="360"
         WindowStartupLocation="CenterOwner">
 
@@ -40,7 +40,11 @@
             <TextBlock Grid.Column="2" Text="{Binding AiStatusText}" FontSize="11" Classes="status" Margin="12,0,0,0" VerticalAlignment="Center" />
         </Grid>
 
-        <ScrollViewer Grid.Row="2">
+        <!-- BringIntoViewOnFocusChange="False": by default the ScrollViewer scrolls the focused
+             control into view on every focus change, which made the list jump up/down as soon
+             as a (tall) edit box was clicked. The TextBox still keeps its own caret visible
+             while typing. -->
+        <ScrollViewer Grid.Row="2" BringIntoViewOnFocusChange="False" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Rows}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:LtextTranslationRowViewModel">
@@ -59,16 +63,22 @@
                                 <ItemsControl ItemsSource="{Binding Cells}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <WrapPanel />
+                                            <!-- Equal-width columns filling the whole row (up to 3 languages
+                                                 side by side, then wrapping) - no fixed cell width, so wide
+                                                 windows aren't left mostly empty. -->
+                                            <UniformGrid Columns="{Binding CellColumns}" />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:LtextTranslationCellViewModel">
-                                            <Border BorderThickness="1" Padding="6" Margin="0,0,8,8" Width="260">
+                                            <Border BorderThickness="1" Padding="6" Margin="0,0,8,8">
                                                 <StackPanel Spacing="4">
                                                     <TextBlock Text="{Binding LanguageLabel}" FontWeight="Bold" FontSize="11" Classes="status" />
+                                                    <!-- No MaxHeight: the box grows with its text, so a long
+                                                         description is fully visible without a second scroll area
+                                                         inside the list's own scrolling. -->
                                                     <TextBox Text="{Binding Text}" AcceptsReturn="True" TextWrapping="Wrap"
-                                                             MinHeight="60" MaxHeight="140" FontSize="12"
+                                                             MinHeight="150" FontSize="13"
                                                              IsEnabled="{Binding !IsTranslating}" />
                                                     <TextBlock Text="translating..." FontSize="10" Classes="status"
                                                                IsVisible="{Binding IsTranslating}" />

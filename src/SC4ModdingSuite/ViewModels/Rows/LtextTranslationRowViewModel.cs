@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using csDBPF;
 
@@ -40,15 +41,26 @@ public sealed class LtextTranslationCellViewModel : ViewModelBase
 }
 
 /// <summary>One LTEXT "family" (same Type + Instance ID, only Group differs by language offset - see LtextTgiLanguage) - one row of the Translation Grid, one cell per language currently present.</summary>
-public sealed class LtextTranslationRowViewModel
+public sealed class LtextTranslationRowViewModel : ViewModelBase
 {
+    /// <summary>Most language cells shown side by side in one row; further languages wrap onto a new line instead of squeezing every box narrower.</summary>
+    private const int MaxCellColumns = 3;
+
     public LtextTranslationRowViewModel(string rowLabel, TGI baseTgi)
     {
         RowLabel = rowLabel;
         BaseTgi = baseTgi;
+        Cells.CollectionChanged += (_, _) => OnPropertyChanged(nameof(CellColumns));
     }
 
     public string RowLabel { get; }
     public TGI BaseTgi { get; }
     public ObservableCollection<LtextTranslationCellViewModel> Cells { get; } = new();
+
+    /// <summary>
+    /// Columns of the row's cell grid: one per language up to <see cref="MaxCellColumns"/>, so
+    /// the edit boxes share the full available width (a single language gets the whole row)
+    /// instead of staying a fixed narrow width with the rest of the window empty.
+    /// </summary>
+    public int CellColumns => Math.Clamp(Cells.Count, 1, MaxCellColumns);
 }
