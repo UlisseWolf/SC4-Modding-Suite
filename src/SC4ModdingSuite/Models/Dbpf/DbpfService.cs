@@ -532,6 +532,7 @@ public sealed class DbpfService
     /// </summary>
     public void AddOrUpdateProperty(DBPFEntryEXMP exemplar, DBPFProperty property)
     {
+        ResyncPropertiesFromBytes(exemplar);
         exemplar.AddOrUpdateProperty(property);
         ReencodePreservingCompression(exemplar);
         RecordedEntries.Add(exemplar);
@@ -540,9 +541,41 @@ public sealed class DbpfService
     /// <summary>Removes a property (if present) from an exemplar/cohort and rebuilds its raw bytes.</summary>
     public void RemoveProperty(DBPFEntryEXMP exemplar, uint propertyId)
     {
+        ResyncPropertiesFromBytes(exemplar);
         exemplar.RemoveProperty(propertyId);
         ReencodePreservingCompression(exemplar);
         RecordedEntries.Add(exemplar);
+    }
+
+    /// <summary>
+    /// Rebuilds csDBPF's in-memory <see cref="DBPFEntryEXMP.ListOfProperties"/> from the
+    /// entry's current raw bytes using <see cref="ExemplarBinaryParser"/> (the same parser
+    /// the Properties panel displays), before any edit is applied to it.
+    ///
+    /// csDBPF's own Decode() desyncs on "array-mode" properties (bogus IDs such as
+    /// 0x00008003, unknown type, value 0) and every property after the first one it
+    /// mishandles. Add/Edit/Remove used to mutate that corrupted list and re-encode it, so
+    /// adding a single property (e.g. Building Submenus) silently blanked other, perfectly
+    /// valid properties on save. Starting every edit from the correctly parsed properties
+    /// guarantees only the edited property changes. If the independent parser can't make
+    /// sense of the bytes, falls back to csDBPF's own decode (previous behavior).
+    /// </summary>
+    private static void ResyncPropertiesFromBytes(DBPFEntryEXMP exemplar)
+    {
+        var rawBytes = RawEntryBytes.GetDecompressed(exemplar);
+        exemplar.Decode();
+
+        var parsed = ExemplarBinaryParser.Parse(rawBytes);
+        if (!parsed.IsWellFormed)
+        {
+            return;
+        }
+
+        exemplar.RemoveAllProperties();
+        foreach (var parsedProperty in parsed.Properties)
+        {
+            exemplar.AddOrUpdateProperty(ExemplarBinaryParser.ToDbpfProperty(parsedProperty));
+        }
     }
 
     private static void ReencodePreservingCompression(DBPFEntryEXMP exemplar)
