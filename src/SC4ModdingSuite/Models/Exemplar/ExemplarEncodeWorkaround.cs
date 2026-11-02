@@ -6,7 +6,7 @@ using csDBPF;
 namespace SC4ModdingSuite.Models;
 
 /// <summary>
-/// Replaces <c>DBPFEntryEXMP.Encode(bool compress)</c>, which has two bugs in this csDBPF
+/// Replaces <c>DBPFEntryEXMP.Encode(bool compress)</c>, which has three bugs in this csDBPF
 /// build:
 ///
 /// <list type="number">
@@ -15,6 +15,10 @@ namespace SC4ModdingSuite.Models;
 /// <c>QfsCompression.Compress</c> returns <see langword="null"/> for any payload under 50
 /// bytes (<c>UncompressedDataMinSize</c>), so <c>Encode()</c> throws a bare
 /// <see cref="NullReferenceException"/> for any small/near-empty Exemplar.</description></item>
+/// <item><description><c>DBPFEntryEXMP.ParentCohort</c> is never read from the file and
+/// defaults to a random Group/Instance, which <c>Encode()</c> then writes into the header
+/// as a (non-existent) parent cohort - making SC4 reject the exemplar. See
+/// <see cref="ReadParentCohort"/>.</description></item>
 /// <item><description><c>DBPFPropertyString.ToBytes()</c> writes a STRING property's
 /// characters as UTF-16 while its length field is measured in characters, not bytes -
 /// desynchronizing the property from the single-byte-ANSI, length-in-bytes layout real
@@ -26,7 +30,7 @@ namespace SC4ModdingSuite.Models;
 ///
 /// <para>
 /// Otherwise reproduces <c>Encode()</c>'s real logic (same id string, same
-/// ParentCohort/property-count/property-bytes framing) for the
+/// parent-cohort/property-count/property-bytes framing) for the
 /// <see cref="DBPF.Encoding.Binary"/> case this app uses.
 /// </para>
 /// </summary>
@@ -58,11 +62,21 @@ public static class ExemplarEncodeWorkaround
         // Same id string Encode() itself builds: "E"/"C" + "QZB1###".
         var id = (exemplar.IsCohort ? "C" : "E") + "QZB1###";
 
+        // NOT exemplar.ParentCohort: csDBPF never reads the parent cohort out of the file, and
+        // its TGI constructor replaces any zero Group/Instance with a fresh random value - so
+        // every Exemplar/Cohort re-saved through it silently gained a bogus, random parent
+        // cohort reference (e.g. 00000000/EE862B54/D7EFEE0F) where the original said
+        // 00000000/00000000/00000000 (= no parent). SC4 then tries to resolve that
+        // non-existent cohort, rejects the exemplar, and the lot vanishes from the game -
+        // even after the edit that triggered the save is undone. The entry's own existing
+        // bytes are the only reliable source for the real value.
+        var parent = ReadParentCohort(exemplar);
+
         var bytes = new List<byte>();
         bytes.AddRange(id.ToBytes(true));
-        bytes.AddRange(BitConverter.GetBytes(exemplar.ParentCohort.TypeID));
-        bytes.AddRange(BitConverter.GetBytes(exemplar.ParentCohort.GroupID));
-        bytes.AddRange(BitConverter.GetBytes(exemplar.ParentCohort.InstanceID));
+        bytes.AddRange(BitConverter.GetBytes(parent.Type));
+        bytes.AddRange(BitConverter.GetBytes(parent.Group));
+        bytes.AddRange(BitConverter.GetBytes(parent.Instance));
         bytes.AddRange(BitConverter.GetBytes(exemplar.ListOfProperties.Count));
         foreach (var property in exemplar.ListOfProperties.Values)
         {
@@ -82,6 +96,32 @@ public static class ExemplarEncodeWorkaround
         // Encode() itself starts with "if (!_isDecoded) return;" - set unconditionally so a
         // later real Encode() call on this same object doesn't silently no-op.
         IsDecodedField?.SetValue(exemplar, true);
+    }
+
+    /// <summary>
+    /// The parent cohort TGI stored at bytes 8..19 of the entry's current (decompressed)
+    /// binary Exemplar/Cohort header, or all zeros ("no parent cohort", what the vast
+    /// majority of building/lot exemplars use) if the entry has no existing bytes yet - e.g.
+    /// a brand-new exemplar built from scratch - or they aren't a binary EQZB/CQZB header.
+    /// </summary>
+    private static (uint Type, uint Group, uint Instance) ReadParentCohort(DBPFEntryEXMP exemplar)
+    {
+        try
+        {
+            var raw = RawEntryBytes.GetDecompressed(exemplar);
+            if (raw is { Length: >= 20 }
+                && (raw[0] == (byte)'E' || raw[0] == (byte)'C')
+                && raw[1] == (byte)'Q' && raw[2] == (byte)'Z' && raw[3] == (byte)'B')
+            {
+                return (BitConverter.ToUInt32(raw, 8), BitConverter.ToUInt32(raw, 12), BitConverter.ToUInt32(raw, 16));
+            }
+        }
+        catch
+        {
+            // Unreadable/corrupt existing bytes: fall through to "no parent" rather than fail the save.
+        }
+
+        return (0u, 0u, 0u);
     }
 
     /// <summary>
