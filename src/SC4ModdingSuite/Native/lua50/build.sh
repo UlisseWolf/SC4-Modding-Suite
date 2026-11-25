@@ -38,10 +38,13 @@ case "$(uname -s)" in
     ;;
   Darwin)
     mkdir -p runtimes/osx-x64/native runtimes/osx-arm64/native
-    gcc -O2 -fPIC -DLUA_USE_MACOSX -dynamiclib -o runtimes/osx-x64/native/liblua50.dylib $SOURCES -lm
-    echo "Built runtimes/osx-x64/native/liblua50.dylib (current arch only - build again on"
-    echo "Apple Silicon, or use 'clang -arch arm64 ... -arch x86_64' for a universal binary,"
-    echo "for runtimes/osx-arm64)"
+    # One universal (arm64 + x86_64) dylib for both RIDs: a plain build only targets the
+    # runner's own CPU, and CI's macos-latest is Apple Silicon - that used to put an arm64
+    # library in osx-x64 (broken on Intel Macs) and leave osx-arm64 empty.
+    clang -O2 -fPIC -DLUA_USE_MACOSX -dynamiclib -arch arm64 -arch x86_64 \
+      -o runtimes/osx-arm64/native/liblua50.dylib $SOURCES -lm
+    cp runtimes/osx-arm64/native/liblua50.dylib runtimes/osx-x64/native/liblua50.dylib
+    echo "Built runtimes/osx-arm64 + osx-x64/native/liblua50.dylib (universal arm64/x86_64)"
     ;;
   *)
     echo "Unrecognized platform ($(uname -s)). On Windows, use build.bat (MSVC 'cl') instead."
