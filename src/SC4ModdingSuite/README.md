@@ -109,8 +109,8 @@ files you can edit or extend — "Bloomberg Terminal" (black/amber), "Ilive Clas
 "Synthwave — Miami 1984" (Outrun neon), "IBM 3270" (green phosphor terminal), "Windows 95",
 and four color-vision-deficiency themes (protanopia, deuteranopia, tritanopia,
 achromatopsia) designed around the Okabe-Ito accessible color palette. A language selector
-uses the same approach (English, Italian, German, Spanish, French, Portuguese (Portugal),
-Portuguese (Brazil) and Japanese for the main toolbar and top-level editor actions - see
+uses the same approach (English, Italian, German, Spanish, French, Polish, Portuguese
+(Portugal), Portuguese (Brazil) and Japanese for the main toolbar and top-level editor actions - see
 that panel's own scope note in
 `Models/LocalizationService.cs`).
 

@@ -63,7 +63,7 @@ and write packages.
   rotation-slot reassignment.
 - **Analysis mode** for searching and auditing entire Plugins folders.
 - **Built-in MCP server** exposing the same logic to AI assistants over local HTTP.
-- **Ten themes, eight languages**, all defined in plain TOML.
+- **Ten themes, nine languages**, all defined in plain TOML.
 
 ## Download
 
@@ -220,7 +220,8 @@ Full details are in the [application README](src/SC4ModdingSuite/README.md#mcp-s
 - **Ten built-in themes** as editable TOML files: Bloomberg Terminal, Ilive Classic,
   Corporatewave, Synthwave Miami 1984, IBM 3270, Windows 95, and four color-vision-deficiency
   themes (protanopia, deuteranopia, tritanopia, achromatopsia) based on the Okabe-Ito palette.
-- **Eight interface languages:** English, Italian, German, Spanish, French, Portuguese (Portugal), Portuguese (Brazil) and Japanese.
+- **Nine interface languages:** English, Italian, German, Spanish, French, Polish, Portuguese (Portugal), Portuguese (Brazil) and Japanese.
+- **Keyboard shortcuts:** Ctrl+O open, Ctrl+S save, Ctrl+Shift+S or Ctrl+Alt+S save as (Cmd on macOS); in the entry list Ctrl+C/Ctrl+V copy/paste, Ctrl+Shift+C/V copy/paste TGI, DEL delete.
 - **External tool launcher** for SC4 PIM-X, DataNode, Mapper, Terraformer and SC4pac Editor.
 
 ## Build from source
