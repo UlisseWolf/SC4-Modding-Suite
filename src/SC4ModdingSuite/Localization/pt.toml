@@ -1,15 +1,15 @@
-# SC4 Modding Suite - textos em português
-# Arquivo de texto simples (TOML): pode ser editado e recarregado sem recompilar.
-# Cada entrada é "chave = "valor"". Linhas que começam com # são comentários.
+# SC4 Modding Suite - textos em português europeu
+# Ficheiro de texto simples (TOML): pode ser editado e recarregado sem recompilar.
+# Cada entrada é "chave = "valor"". As linhas que começam por # são comentários.
 
-language_name = "Português"
+language_name = "Português (Portugal)"
 
 # --- Janela de Opções ---
 options_title = "Opções"
-options_section_protected_files = "Arquivos de sistema do SC4 (protegidos)"
+options_section_protected_files = "Ficheiros de sistema do SC4 (protegidos)"
 options_simcitylocale_label = "Caminho do SimCityLocale.DAT:"
 options_sc4_install_folder_label = "Pasta de instalação do SC4:"
-options_plugins_folder_label = "Pasta de Plugins (usada por padrão ao abrir arquivos):"
+options_plugins_folder_label = "Pasta de Plugins (usada por predefinição ao abrir ficheiros):"
 options_section_external_tools = "Ferramentas externas"
 options_pimx_label = "SC4 PIM-X:"
 options_datanode_label = "SC4 DataNode:"
@@ -18,26 +18,26 @@ options_terraformer_label = "SC4 Terraformer:"
 options_sc4pac_editor_label = "SC4pac Editor:"
 options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
 options_nam_development_suite_label = "NAM Development Suite:"
-options_protected_files_note = "Abrir esses arquivos é sempre possível; o salvamento direto é bloqueado automaticamente independentemente dos caminhos abaixo - eles estão aqui apenas para conveniência/referência."
-options_appearance_note = "O idioma e o tema são aplicados imediatamente assim que você os escolhe."
-options_section_properties = "Banco de dados de propriedades Exemplar"
+options_protected_files_note = "É sempre possível abrir estes ficheiros; a gravação direta é bloqueada automaticamente, independentemente dos caminhos abaixo - estes estão aqui apenas por conveniência/referência."
+options_appearance_note = "O idioma e o tema são aplicados imediatamente assim que os escolher."
+options_section_properties = "Base de dados de propriedades Exemplar"
 options_change_property_source = "Alterar a origem do new_properties.xml..."
-options_section_appearance = "Idioma e aparência"
+options_section_appearance = "Idioma e aspeto"
 options_language_label = "Idioma:"
 options_theme_label = "Tema:"
 options_browse = "Procurar..."
-options_save = "Salvar"
+options_save = "Guardar"
 options_close = "Fechar"
 
 # --- Barra de ferramentas principal ---
-toolbar_new = "NOVA ABA"
-toolbar_new_tooltip = "Abre uma nova aba vazia"
+toolbar_new = "NOVO SEPARADOR"
+toolbar_new_tooltip = "Abre um novo separador vazio"
 toolbar_open = "ABRIR..."
-toolbar_open_tooltip = "Abre um ou mais arquivos .dat, cada um em sua própria aba nova"
-toolbar_save = "SALVAR"
-toolbar_save_as = "SALVAR COMO..."
+toolbar_open_tooltip = "Abre um ou mais ficheiros .dat, cada um no seu próprio separador novo"
+toolbar_save = "GUARDAR"
+toolbar_save_as = "GUARDAR COMO..."
 toolbar_export_entry = "EXPORTAR ENTRADA..."
-toolbar_import_entry = "IMPORTAR NA ENTRADA..."
+toolbar_import_entry = "IMPORTAR PARA A ENTRADA..."
 toolbar_export_all = "EXPORTAR TUDO..."
 toolbar_options = "OPÇÕES..."
 toolbar_mcp_server = "SERVIDOR MCP..."
@@ -46,16 +46,16 @@ external_tools_header = "FERRAMENTAS EXTERNAS"
 # --- Barra de ferramentas da shell MDI (Views/MainWindow.axaml) ---
 shell_navigator_header = "NAVEGADOR"
 shell_compare = "COMPARAR DATs..."
-shell_compare_tooltip = "Compara dois arquivos .dat entrada por entrada e inspeciona os bytes diferentes"
-shell_merge = "MESCLAR DATs..."
-shell_merge_tooltip = "Mescla vários arquivos .dat em um novo arquivo, ou na aba ativa"
+shell_compare_tooltip = "Compara dois ficheiros .dat entrada a entrada e examina os bytes diferentes"
+shell_merge = "UNIR DATs..."
+shell_merge_tooltip = "Une vários ficheiros .dat num ficheiro novo, ou no separador ativo"
 shell_directory_sync = "SINCRONIZAR DIRETÓRIO..."
-shell_directory_sync_tooltip = "Compara o subarquivo Directory (DIR) da aba ativa com suas entradas reais e permite pular para a selecionada"
-shell_close_tab_tooltip = "Fechar esta aba"
+shell_directory_sync_tooltip = "Compara o subficheiro Directory (DIR) do separador ativo com as suas entradas reais e permite saltar para a selecionada"
+shell_close_tab_tooltip = "Fechar este separador"
 
-# NOTA: propositalmente sem a chave "toolbar_property_db" aqui - o antigo botão
+# NOTA: propositadamente sem a chave "toolbar_property_db" aqui - o antigo botão
 # independente "PROPERTY DATABASE..." da barra de ferramentas foi substituído por
-# "Alterar a origem do new_properties.xml..." dentro de Opções (veja
+# "Alterar a origem do new_properties.xml..." dentro de Opções (ver
 # options_change_property_source acima, ligado a
 # OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
 
@@ -63,7 +63,7 @@ shell_close_tab_tooltip = "Fechar esta aba"
 lua_compile = "COMPILAR"
 lua_run = "▶ EXECUTAR"
 lua_clear_output = "LIMPAR SAÍDA"
-lua_save = "SALVAR"
+lua_save = "GUARDAR"
 
 # --- Editor T21 (Views/DbpfWorkspaceView.axaml, modo "T21 Editor") ---
 t21_apply_iid = "APLICAR IID"
@@ -72,25 +72,25 @@ t21_duplicate = "DUPLICAR"
 t21_remove = "REMOVER"
 t21_up = "▲ SUBIR"
 t21_down = "▼ DESCER"
-t21_save = "SALVAR T21"
+t21_save = "GUARDAR T21"
 t21_rhd_to_lhd = "CONVERTER RHD → LHD..."
 
 # --- Editor LTEXT (Views/DbpfWorkspaceView.axaml, modo "LTEXT Editor") ---
-ltext_save_file = "SALVAR ARQUIVO"
-ltext_save_all_for_language = "SALVAR TODO O ARQUIVO PARA O IDIOMA"
+ltext_save_file = "GUARDAR FICHEIRO"
+ltext_save_all_for_language = "GUARDAR TODO O FICHEIRO PARA O IDIOMA"
 ltext_export_poedit = "EXPORTAR POEDIT..."
 ltext_import_poedit = "IMPORTAR POEDIT..."
 ltext_translations = "TRADUÇÕES..."
 
 # --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
 # and the generic text fallback) ---
-structured_save_text = "SALVAR TEXTO"
-structured_save_trk = "SALVAR TRK"
-structured_save = "SALVAR"
+structured_save_text = "GUARDAR TEXTO"
+structured_save_trk = "GUARDAR TRK"
+structured_save = "GUARDAR"
 
 # --- SC4 Editor: Exemplar/Cohort properties panel ---
 properties_add = "ADICIONAR..."
 properties_edit = "EDITAR..."
 properties_remove = "REMOVER"
 properties_readable_values = "Valores legíveis"
-properties_readable_values_tooltip = "Mostra os valores como nomes de opção (ex. 'Low') ou números decimais em vez de hexadecimal. Os IDs continuam em hexadecimal. Apenas visualização - a edição continua em hexadecimal."
+properties_readable_values_tooltip = "Mostra os valores como nomes de opção (p. ex. 'Low') ou números decimais em vez de hexadecimal. Os IDs continuam em hexadecimal. Apenas visualização - a edição continua a usar hexadecimal."
