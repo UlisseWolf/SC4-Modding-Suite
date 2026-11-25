@@ -24,6 +24,15 @@ public static class PropertyValueFormatter
             return string.Empty;
         }
 
+        // FLOAT32 (Occupant Size, ...) always with a '.' decimal point, whatever the Windows
+        // locale: with the current culture a German/Italian PC showed "16,5, 12,5, 16" -
+        // decimal commas mixed up with the ", " between values - and the edit dialog
+        // (which parses with InvariantCulture) then rejected its own pre-filled text.
+        if (value is float or double)
+        {
+            return ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture);
+        }
+
         try
         {
             var number = Convert.ToInt64(value);
