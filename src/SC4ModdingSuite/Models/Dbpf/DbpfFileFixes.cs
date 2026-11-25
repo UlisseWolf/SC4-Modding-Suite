@@ -68,12 +68,21 @@ public static class DbpfFileFixes
     /// *is* already present, this actually replaces it in place instead of silently
     /// discarding <paramref name="entry"/> the way csDBPF's own <c>UpdateEntry</c> stub does.
     /// </summary>
-    public static void AddOrUpdateEntry(DBPFFile file, DBPFEntry entry)
+    /// <param name="insertAfter">
+    /// Optional: when the TGI is new, place it right after this entry instead of at the end
+    /// of the file (so a paste lands next to the entry the user had selected). Ignored when
+    /// the TGI already exists (that entry is replaced in place) or the anchor isn't found.
+    /// </param>
+    public static void AddOrUpdateEntry(DBPFFile file, DBPFEntry entry, DBPFEntry? insertAfter = null)
     {
         var index = file.ListOfEntries.FindIndex(e => e.TGI.Matches(entry.TGI));
         if (index < 0)
         {
             file.AddEntry(entry);
+            if (insertAfter is not null)
+            {
+                MoveLastEntryAfter(file, insertAfter);
+            }
             return;
         }
 
@@ -84,6 +93,35 @@ public static class DbpfFileFixes
         file.ListOfTGIs[index] = entry.TGI;
 
         AdjustDataSize(file, newSize - oldSize);
+    }
+
+    /// <summary>
+    /// Moves the entry csDBPF's own <c>AddEntry</c> just appended (always the last one) to
+    /// the slot right after <paramref name="anchor"/>, keeping <c>ListOfTGIs</c> parallel.
+    /// Only reorders the two lists - <see cref="DbpfWriter"/> recomputes every offset from
+    /// <c>ListOfEntries</c> order on save, so nothing else needs touching.
+    /// </summary>
+    private static void MoveLastEntryAfter(DBPFFile file, DBPFEntry anchor)
+    {
+        var entries = file.ListOfEntries;
+        var last = entries.Count - 1;
+        var target = entries.IndexOf(anchor) + 1;
+        if (target <= 0 || target >= last)
+        {
+            return; // anchor missing, or already the slot right before the new entry
+        }
+
+        var moved = entries[last];
+        entries.RemoveAt(last);
+        entries.Insert(target, moved);
+
+        var tgis = file.ListOfTGIs;
+        if (tgis.Count == entries.Count && tgis[last].Matches(moved.TGI))
+        {
+            var movedTgi = tgis[last];
+            tgis.RemoveAt(last);
+            tgis.Insert(target, movedTgi);
+        }
     }
 
     private static void AdjustDataSize(DBPFFile file, long delta)

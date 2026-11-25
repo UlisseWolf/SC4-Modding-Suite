@@ -4040,17 +4040,44 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void RemoveSelected()
     {
-        if (SelectedEntry is null)
+        if (SelectedEntry is not null)
         {
-            return;
+            RemoveEntries(new[] { SelectedEntry });
+        }
+    }
+
+    /// <summary>
+    /// Deletes every given entry from the open package (entry list DELETE button, Delete
+    /// key and right-click menu, plus the TGI Editor's DELETE ENTRY). Afterwards the row
+    /// that took the first deleted row's place is selected, so repeated deletes walk down
+    /// the list the way they do in a file manager.
+    /// </summary>
+    /// <returns>The entry now selected, or null if the list is empty.</returns>
+    public EntryItemViewModel? RemoveEntries(IReadOnlyCollection<EntryItemViewModel> toRemove)
+    {
+        if (toRemove.Count == 0 || !HasOpenFile)
+        {
+            return SelectedEntry;
         }
 
-        var toRemove = SelectedEntry;
-        _service.RemoveEntry(toRemove.Entry);
-        Entries.Remove(toRemove);
+        var firstDisplayIndex = toRemove
+            .Select(vm => DisplayedEntries.IndexOf(vm))
+            .Where(i => i >= 0)
+            .DefaultIfEmpty(0)
+            .Min();
+
+        foreach (var vm in toRemove.ToList())
+        {
+            _service.RemoveEntry(vm.Entry);
+            Entries.Remove(vm);
+        }
+
         RefreshDisplayedEntries();
-        SelectedEntry = null;
-        StatusMessage = "Entry removed (remember to save to make the change permanent).";
+        SelectedEntry = DisplayedEntries.Count == 0
+            ? null
+            : DisplayedEntries[Math.Min(firstDisplayIndex, DisplayedEntries.Count - 1)];
+        StatusMessage = $"Deleted {toRemove.Count} entr{(toRemove.Count == 1 ? "y" : "ies")} (remember to save to make the change permanent).";
+        return SelectedEntry;
     }
 
     // ---------------------------------------------------------------
@@ -4074,25 +4101,30 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     /// opened in another session) into the currently open package as new entries, keeping
     /// their original TGI and content. Entries whose concrete type can no longer be
     /// resolved/constructed are skipped and counted separately rather than aborting the
-    /// whole paste.
+    /// whole paste. New entries go right after <paramref name="insertAfter"/> (the
+    /// selected entry), keeping their copied order, or at the end when nothing is selected.
+    /// A pasted TGI that already exists in this package replaces that entry where it is.
     /// </summary>
-    public void PasteEntriesFromClipboardText(string? clipboardText)
+    /// <returns>The pasted entries, so the view can select them.</returns>
+    public IReadOnlyList<EntryItemViewModel> PasteEntriesFromClipboardText(string? clipboardText, EntryItemViewModel? insertAfter = null)
     {
+        var pasted = new List<EntryItemViewModel>();
         var payloads = EntryClipboard.TryDeserializeEntries(clipboardText);
         if (payloads is null)
         {
             StatusMessage = "Clipboard doesn't contain entries copied from SC4 Modding Suite.";
-            return;
+            return pasted;
         }
 
         if (!HasOpenFile)
         {
             StatusMessage = "Open or create a package before pasting entries into it.";
-            return;
+            return pasted;
         }
 
         var succeeded = 0;
         var failed = 0;
+        var anchor = insertAfter is not null && Entries.Contains(insertAfter) ? insertAfter : null;
 
         foreach (var payload in payloads)
         {
@@ -4100,7 +4132,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 var tgi = new TGI(EntryClipboard.ParseHex(payload.TypeHex), EntryClipboard.ParseHex(payload.GroupHex), EntryClipboard.ParseHex(payload.InstanceHex));
                 var bytes = Convert.FromBase64String(payload.DataBase64);
-                var newEntry = _service.AddEntryFromClipboard(payload.TypeName, tgi, bytes);
+                var existing = Entries.FirstOrDefault(vm => vm.Entry.TGI.Matches(tgi));
+                var newEntry = _service.AddEntryFromClipboard(payload.TypeName, tgi, bytes, anchor?.Entry);
 
                 if (newEntry is null)
                 {
@@ -4108,7 +4141,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     continue;
                 }
 
-                Entries.Add(new EntryItemViewModel(newEntry));
+                var newVm = new EntryItemViewModel(newEntry);
+                if (existing is not null)
+                {
+                    // Same TGI already in this package: the service replaced it in place,
+                    // so swap the row in place too instead of leaving a stale duplicate.
+                    Entries[Entries.IndexOf(existing)] = newVm;
+                    if (ReferenceEquals(anchor, existing))
+                    {
+                        anchor = newVm;
+                    }
+                }
+                else if (anchor is not null)
+                {
+                    Entries.Insert(Entries.IndexOf(anchor) + 1, newVm);
+                    anchor = newVm; // next pasted entry goes after this one, keeping copy order
+                }
+                else
+                {
+                    Entries.Add(newVm);
+                }
+
+                pasted.Add(newVm);
                 succeeded++;
             }
             catch
@@ -4121,6 +4175,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         StatusMessage = failed == 0
             ? $"Pasted {succeeded} entry(ies) (remember to save)."
             : $"Pasted {succeeded} entry(ies), {failed} skipped (remember to save).";
+        return pasted;
     }
 
     /// <summary>

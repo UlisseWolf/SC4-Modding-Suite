@@ -244,6 +244,19 @@
                              SelectionMode="Multiple"
                              SelectionChanged="OnEntriesListBoxSelectionChanged"
                              Margin="2">
+                        <!-- Right-click menu: same actions as the buttons below. Right-clicking
+                             an unselected row selects it first (standard Avalonia ListBox
+                             behavior), so these always act on what the user just clicked. -->
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy" InputGesture="Ctrl+C" Click="OnCopyEntriesClick" />
+                                <MenuItem Header="Paste after selected" InputGesture="Ctrl+V" Click="OnPasteEntriesClick" />
+                                <MenuItem Header="Copy TGI" InputGesture="Ctrl+Shift+C" Click="OnCopyTgiClick" />
+                                <MenuItem Header="Paste TGI" InputGesture="Ctrl+Shift+V" Click="OnPasteTgiClick" />
+                                <Separator />
+                                <MenuItem Header="Delete" InputGesture="Delete" Click="OnDeleteEntriesClick" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:EntryItemViewModel">
                                 <StackPanel Margin="2">
@@ -262,10 +275,13 @@
                     </ListBox>
                     <WrapPanel Grid.Row="3" Margin="4">
                         <Button Content="COPY" Click="OnCopyEntriesClick" ToolTip.Tip="Copy selected entries (Ctrl+C) - click, Shift+click, Ctrl+click to select several" Margin="0,0,4,4" />
-                        <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste entries copied from another file (Ctrl+V)" Margin="0,0,4,4" />
+                        <Button Content="PASTE" Click="OnPasteEntriesClick" ToolTip.Tip="Paste copied entries right after the selected entry, or at the end if nothing is selected (Ctrl+V)" Margin="0,0,4,4" />
                         <Button Content="COPY TGI" Click="OnCopyTgiClick" ToolTip.Tip="Copy only the TGI of the selected entries (Ctrl+Shift+C)" Margin="0,0,4,4" />
                         <Button Content="PASTE TGI" Click="OnPasteTgiClick" ToolTip.Tip="Apply a copied TGI to the selected entry (Ctrl+Shift+V)" Margin="0,0,4,4" />
-                        <Button Content="SELECT FROM LIST" Click="OnSelectFromTgiListClick" ToolTip.Tip="Re-select every entry whose TGI appears in a previously &quot;Copy TGI&quot;-ed list" Margin="0,0,0,4" />
+                        <Button Content="SELECT FROM LIST" Click="OnSelectFromTgiListClick" ToolTip.Tip="Re-select every entry whose TGI appears in a previously &quot;Copy TGI&quot;-ed list" Margin="0,0,4,4" />
+                        <Button Content="DELETE" Click="OnDeleteEntriesClick" Classes="danger"
+                                IsEnabled="{Binding SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                ToolTip.Tip="Delete the selected entr(y/ies) - Exemplars, PNGs, anything (Delete key, or right-click). Not written to disk until you save." Margin="0,0,0,4" />
                     </WrapPanel>
                 </Grid>
             </Border>

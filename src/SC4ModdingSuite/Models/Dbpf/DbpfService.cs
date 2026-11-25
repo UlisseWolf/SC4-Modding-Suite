@@ -175,8 +175,9 @@ public sealed class DbpfService
     /// so the pasted entry gets exactly the same structured behavior (image decode,
     /// LTEXT text, Exemplar properties, ...) it had in its source package.
     /// </summary>
+    /// <param name="insertAfter">Optional entry to place the pasted one right after (instead of at the end of the file).</param>
     /// <returns>The new entry, or null if the type couldn't be resolved/constructed (the caller should skip it).</returns>
-    public DBPFEntry? AddEntryFromClipboard(string concreteTypeName, TGI tgi, byte[] bytes)
+    public DBPFEntry? AddEntryFromClipboard(string concreteTypeName, TGI tgi, byte[] bytes, DBPFEntry? insertAfter = null)
     {
         if (CurrentFile is null)
         {
@@ -198,7 +199,7 @@ public sealed class DbpfService
         object[] args = { tgi, 0u, (uint)bytes.Length, 0u, bytes };
         var newEntry = (DBPFEntry)ctor.Invoke(args);
 
-        DbpfFileFixes.AddOrUpdateEntry(CurrentFile, newEntry);
+        DbpfFileFixes.AddOrUpdateEntry(CurrentFile, newEntry, insertAfter);
         RecordedEntries.Add(newEntry);
         return newEntry;
     }
