@@ -90,7 +90,6 @@ jobs:
           -p:Version=${{ needs.prepare.outputs.version }}
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:IncludeAllContentForSelfExtract=true
           -p:DebugType=None
           -o publish/${{ matrix.platform.rid }}
 
