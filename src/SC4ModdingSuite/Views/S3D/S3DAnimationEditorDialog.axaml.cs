@@ -10,6 +10,8 @@ public partial class S3DAnimationEditorDialog : Window
     public S3DAnimationEditorDialog()
     {
         InitializeComponent();
+
+        DeleteKey.Attach(FrameGrid, () => OnDeleteAnimFramesClick(this, new RoutedEventArgs()));
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;

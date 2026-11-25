@@ -5,7 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Avalonia.VisualTree;
 using SC4ModdingSuite.Models;
 using SC4ModdingSuite.ViewModels;
 
@@ -23,6 +22,12 @@ public partial class DbpfWorkspaceView : UserControl
     public DbpfWorkspaceView()
     {
         InitializeComponent();
+
+        // DEL = the list's own delete/remove button (see DeleteKey).
+        DeleteKey.Attach(EntriesListBox, () => _ = DeleteEntriesAsync());
+        DeleteKey.Attach(PropertiesListBox, () => ViewModel.RemoveSelectedPropertyCommand);
+        DeleteKey.Attach(UiTreeView, () => ViewModel.RemoveUiNodeCommand);
+        DeleteKey.Attach(SavedFiltersListBox, () => ViewModel.DeleteFilterCommand);
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;
@@ -368,17 +373,6 @@ public partial class DbpfWorkspaceView : UserControl
     {
         var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
         var shift = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Shift);
-
-        // Delete only while the entry list itself has focus - this handler sits on the whole
-        // view, and Delete in any text box (TGI fields, Lua editor...) must keep editing text.
-        if (e.Key == Avalonia.Input.Key.Delete && e.KeyModifiers == Avalonia.Input.KeyModifiers.None
-            && e.Source is Avalonia.Visual source
-            && (ReferenceEquals(source, EntriesListBox) || EntriesListBox.IsVisualAncestorOf(source)))
-        {
-            e.Handled = true;
-            await DeleteEntriesAsync();
-            return;
-        }
 
         if (!ctrl)
         {

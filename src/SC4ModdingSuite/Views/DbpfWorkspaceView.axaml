@@ -542,7 +542,8 @@
                      same OnEditPropertyClick the EDIT... button already ran. -->
                 <Grid Grid.Row="1" RowDefinitions="*,Auto" IsVisible="{Binding ShowExemplarPropertiesPanel}">
                     <Border Grid.Row="0" BorderThickness="1">
-                        <ListBox ItemsSource="{Binding Properties}"
+                        <ListBox x:Name="PropertiesListBox"
+                                 ItemsSource="{Binding Properties}"
                                  SelectedItem="{Binding SelectedProperty}"
                                  DoubleTapped="OnPropertyDoubleTapped"
                                  Margin="2">
@@ -564,7 +565,8 @@
                         <Button Content="{Binding LocalizationService.PropertiesAdd}" Click="OnAddPropertyClick" Margin="0,0,8,4" />
                         <Button Content="{Binding LocalizationService.PropertiesEdit}" Click="OnEditPropertyClick"
                                 IsEnabled="{Binding SelectedProperty, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,4" />
-                        <Button Content="{Binding LocalizationService.PropertiesRemove}" Command="{Binding RemoveSelectedPropertyCommand}" Classes="danger" Margin="0,0,0,4" />
+                        <Button Content="{Binding LocalizationService.PropertiesRemove}" Command="{Binding RemoveSelectedPropertyCommand}" Classes="danger" Margin="0,0,0,4"
+                                ToolTip.Tip="Remove the selected property (or press DEL in the list)" />
                     </WrapPanel>
                 </Grid>
             </Grid>
@@ -887,7 +889,7 @@
 
                             <Separator Margin="0,4" />
                             <TextBlock Text="SAVED FILTERS (Ilive Reader's DlgFilters)" FontWeight="Bold" FontSize="11" />
-                            <ListBox ItemsSource="{Binding SavedFilters}" SelectedItem="{Binding SelectedSavedFilter}" Height="90">
+                            <ListBox x:Name="SavedFiltersListBox" ItemsSource="{Binding SavedFilters}" SelectedItem="{Binding SelectedSavedFilter}" Height="90">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="models:SavedAnalysisFilter">
                                         <TextBlock Text="{Binding Name}" FontSize="12" />
@@ -1038,7 +1040,7 @@
                              line and stays fully readable, rather than being cut off with no
                              way to see the rest. The GridSplitter to the right also lets you
                              widen the whole panel if two-line rows still feel cramped. -->
-                        <TreeView Grid.Row="1" ItemsSource="{Binding UiRootNodes}"
+                        <TreeView x:Name="UiTreeView" Grid.Row="1" ItemsSource="{Binding UiRootNodes}"
                                   SelectedItem="{Binding SelectedUiNode}"
                                   DoubleTapped="OnUiTreeDoubleTapped"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">

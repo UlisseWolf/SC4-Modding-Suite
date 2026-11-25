@@ -10,6 +10,9 @@ public partial class UiNodePropertiesDialog : Window
     public UiNodePropertiesDialog()
     {
         InitializeComponent();
+
+        // DEL = REMOVE (selected property) - not while a cell is being edited, see DeleteKey.
+        DeleteKey.Attach(PropertiesGrid, () => ViewModel.RemovePropertyCommand);
     }
 
     public UiNodePropertiesDialog(UiNodePropertiesDialogViewModel viewModel) : this()

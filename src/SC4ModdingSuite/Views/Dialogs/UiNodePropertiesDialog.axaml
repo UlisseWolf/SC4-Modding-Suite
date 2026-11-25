@@ -42,7 +42,7 @@
              saved. Everything else (plain strings, and the few genuinely enum-like props -
              font/align/blttype/direction - this app doesn't have a verified complete list
              of legal values for) still shows as plain text, same as before. -->
-        <DataGrid Grid.Row="2" ItemsSource="{Binding Properties}" SelectedItem="{Binding SelectedProperty}"
+        <DataGrid x:Name="PropertiesGrid" Grid.Row="2" ItemsSource="{Binding Properties}" SelectedItem="{Binding SelectedProperty}"
                   AutoGenerateColumns="False" GridLinesVisibility="All" FontSize="11"
                   CellEditEnded="OnPropertyCellEditEnded">
             <DataGrid.Columns>
