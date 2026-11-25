@@ -147,8 +147,10 @@ jobs:
           | Linux x64 | `SC4ModdingSuite-<version>-linux-x64.zip` | Experimental |
           | macOS arm64 | `SC4ModdingSuite-<version>-macos-arm64.zip` | Experimental |
 
-          Every archive is a single self-contained executable: no installer and no separate
-          .NET installation needed. Verify downloads against `SHA256SUMS.txt`.
+          Every archive is a self-contained executable plus the Lua 5.0 library for the LUA
+          Editor (`lua50.dll` / `liblua50.so` / `liblua50.dylib`) - keep the two files in the
+          same folder. No installer and no separate .NET installation needed. Verify downloads
+          against `SHA256SUMS.txt`.
 
           ## Installation
 
