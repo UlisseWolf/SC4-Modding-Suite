@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using csDBPF;
 
 namespace SC4ModdingSuite.Models;
@@ -18,6 +20,9 @@ public sealed class ParsedExemplarProperty
 public sealed record ParsedExemplar
 {
     public bool IsWellFormed { get; init; }
+
+    /// <summary>Parent cohort TGI from the header (all zeros = no parent).</summary>
+    public (uint Type, uint Group, uint Instance) ParentCohort { get; init; }
     public string? Error { get; init; }
     public List<ParsedExemplarProperty> Properties { get; init; } = new();
 }
@@ -40,6 +45,14 @@ public sealed record ParsedExemplar
 /// parser for the Properties panel instead, falling back to csDBPF's own decode only if
 /// this parser can't make sense of the bytes either.
 /// </para>
+///
+/// <para>
+/// Also reads the text format ("EQZT1###"/"CQZT1###", one <c>0xID:{"Name"}=Type:Count:{values}</c>
+/// line per property - common in growable building exemplars). csDBPF's own text decode
+/// parses floats with the PC's regional settings, so on a German/Italian Windows
+/// <c>Occupant Size=Float32:3:{15.997,43.539001,20.351999}</c> came out as 15997, ...;
+/// everything here is parsed with <see cref="CultureInfo.InvariantCulture"/>.
+/// </para>
 /// </summary>
 public static class ExemplarBinaryParser
 {
@@ -50,13 +63,20 @@ public static class ExemplarBinaryParser
             return new ParsedExemplar { Error = "File is too short to contain a valid Exemplar header." };
         }
 
-        if (!(Matches(data, "EQZB") || Matches(data, "CQZB")))
+        if (Matches(data, "EQZT") || Matches(data, "CQZT"))
         {
-            // Not binary-encoded (e.g. rare EQZT text format) - nothing this parser can read.
-            return new ParsedExemplar { Error = "Not a binary-encoded (EQZB) Exemplar." };
+            return ParseText(data);
         }
 
-        var result = new ParsedExemplar();
+        if (!(Matches(data, "EQZB") || Matches(data, "CQZB")))
+        {
+            return new ParsedExemplar { Error = "Not an Exemplar/Cohort (no EQZB/EQZT header)." };
+        }
+
+        var result = new ParsedExemplar
+        {
+            ParentCohort = (BitConverter.ToUInt32(data, 8), BitConverter.ToUInt32(data, 12), BitConverter.ToUInt32(data, 16)),
+        };
 
         try
         {
@@ -105,6 +125,15 @@ public static class ExemplarBinaryParser
                         if (!TryReadNumeric(data, ref offset, arrayFlag, 4, b => BitConverter.ToSingle(b), out values, out var e3))
                         {
                             return result with { Error = $"Property {i} (ID 0x{id:X8}): {e3}" };
+                        }
+
+                        break;
+
+                    case 0x200: // Uint16
+                        dataType = DBPFProperty.PropertyDataType.UINT16;
+                        if (!TryReadNumeric(data, ref offset, arrayFlag, 2, b => BitConverter.ToUInt16(b), out values, out var e7))
+                        {
+                            return result with { Error = $"Property {i} (ID 0x{id:X8}): {e7}" };
                         }
 
                         break;
@@ -241,6 +270,143 @@ public static class ExemplarBinaryParser
         offset += elementSize;
         return true;
     }
+
+    // 0x27812810:{"Occupant Size"}=Float32:3:{15.997,43.539001,20.351999}
+    private static readonly Regex TextPropertyLine = new(
+        @"^0x(?<id>[0-9a-fA-F]{1,8}):\{""(?<name>.*?)""\}=(?<type>\w+):(?<count>\d+):\{(?<values>.*)\}$",
+        RegexOptions.CultureInvariant);
+
+    private static readonly Regex TextParentCohort = new(
+        @"^ParentCohort=Key:\{0x(?<t>[0-9a-fA-F]+),0x(?<g>[0-9a-fA-F]+),0x(?<i>[0-9a-fA-F]+)\}$",
+        RegexOptions.CultureInvariant);
+
+    /// <summary>Text-format (EQZT/CQZT) Exemplar/Cohort - see the class remarks.</summary>
+    private static ParsedExemplar ParseText(byte[] data)
+    {
+        var result = new ParsedExemplar();
+        var lines = Encoding.Latin1.GetString(data).Split('\n');
+        int? expectedCount = null;
+
+        try
+        {
+            for (var n = 1; n < lines.Length; n++) // line 0 = "EQZT1###"
+            {
+                var line = lines[n].Trim();
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                var parent = TextParentCohort.Match(line);
+                if (parent.Success)
+                {
+                    result = result with { ParentCohort = (ParseHexU32(parent.Groups["t"].Value), ParseHexU32(parent.Groups["g"].Value), ParseHexU32(parent.Groups["i"].Value)) };
+                    continue;
+                }
+
+                if (line.StartsWith("PropCount=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var countText = line["PropCount=".Length..].Trim();
+                    expectedCount = countText.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                        ? (int)ParseHexU32(countText[2..])
+                        : int.Parse(countText, CultureInfo.InvariantCulture);
+                    continue;
+                }
+
+                var match = TextPropertyLine.Match(line);
+                if (!match.Success)
+                {
+                    return result with { Error = $"Line {n + 1}: not a property line: {line}" };
+                }
+
+                var id = ParseHexU32(match.Groups["id"].Value);
+                var typeName = match.Groups["type"].Value;
+                var valuesText = match.Groups["values"].Value;
+
+                if (typeName.Equals("String", StringComparison.OrdinalIgnoreCase))
+                {
+                    var text = valuesText.Length >= 2 && valuesText[0] == '"' && valuesText[^1] == '"'
+                        ? valuesText[1..^1]
+                        : valuesText;
+                    result.Properties.Add(new ParsedExemplarProperty { Id = id, DataType = DBPFProperty.PropertyDataType.STRING, Values = new object[] { text } });
+                    continue;
+                }
+
+                if (!TryMapTextType(typeName, out var dataType))
+                {
+                    return result with { Error = $"Line {n + 1} (ID 0x{id:X8}): unrecognized data type '{typeName}'." };
+                }
+
+                var parts = valuesText.Length == 0 ? Array.Empty<string>() : valuesText.Split(',');
+                var values = new object[parts.Length];
+                for (var v = 0; v < parts.Length; v++)
+                {
+                    values[v] = ParseTextValue(parts[v].Trim(), dataType);
+                }
+
+                result.Properties.Add(new ParsedExemplarProperty { Id = id, DataType = dataType, Values = values });
+            }
+        }
+        catch (Exception ex)
+        {
+            return result with { Error = $"Unexpected error while parsing text exemplar: {ex.Message}" };
+        }
+
+        if (expectedCount is { } expected && expected != result.Properties.Count)
+        {
+            return result with { Error = $"PropCount says {expected} properties, but {result.Properties.Count} were found." };
+        }
+
+        return result with { IsWellFormed = true };
+    }
+
+    private static bool TryMapTextType(string name, out DBPFProperty.PropertyDataType type)
+    {
+        type = name.ToLowerInvariant() switch
+        {
+            "uint8" => DBPFProperty.PropertyDataType.UINT8,
+            "uint16" => DBPFProperty.PropertyDataType.UINT16,
+            "uint32" => DBPFProperty.PropertyDataType.UINT32,
+            "sint32" => DBPFProperty.PropertyDataType.SINT32,
+            "sint64" => DBPFProperty.PropertyDataType.SINT64,
+            "float32" => DBPFProperty.PropertyDataType.FLOAT32,
+            "bool" => DBPFProperty.PropertyDataType.BOOL,
+            _ => DBPFProperty.PropertyDataType.UNKNOWN,
+        };
+        return type != DBPFProperty.PropertyDataType.UNKNOWN;
+    }
+
+    /// <summary>Boxed the same way the binary path boxes each type (byte/ushort/uint/int/long/float/bool).</summary>
+    private static object ParseTextValue(string text, DBPFProperty.PropertyDataType type)
+    {
+        if (type == DBPFProperty.PropertyDataType.FLOAT32)
+        {
+            return float.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+        }
+
+        if (type == DBPFProperty.PropertyDataType.BOOL
+            && (text.Equals("true", StringComparison.OrdinalIgnoreCase) || text.Equals("false", StringComparison.OrdinalIgnoreCase)))
+        {
+            return text.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var raw = text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            ? ulong.Parse(text.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture)
+            : unchecked((ulong)long.Parse(text, NumberStyles.Integer, CultureInfo.InvariantCulture));
+
+        return type switch
+        {
+            DBPFProperty.PropertyDataType.UINT8 => (byte)raw,
+            DBPFProperty.PropertyDataType.UINT16 => (ushort)raw,
+            DBPFProperty.PropertyDataType.UINT32 => (uint)raw,
+            DBPFProperty.PropertyDataType.SINT32 => unchecked((int)(uint)raw),
+            DBPFProperty.PropertyDataType.SINT64 => unchecked((long)raw),
+            DBPFProperty.PropertyDataType.BOOL => raw != 0,
+            _ => throw new FormatException($"Unsupported type {type}."),
+        };
+    }
+
+    private static uint ParseHexU32(string hex) => uint.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
 
     private static bool Matches(byte[] data, string tag) =>
         data.Length >= tag.Length && data.AsSpan(0, tag.Length).SequenceEqual(Encoding.ASCII.GetBytes(tag));

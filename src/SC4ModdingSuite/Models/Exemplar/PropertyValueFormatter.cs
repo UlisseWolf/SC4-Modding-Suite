@@ -131,9 +131,11 @@ public static class PropertyValueFormatter
         return parsed == number || (number < 0 && parsed >= 0 && parsed <= uint.MaxValue && (uint)parsed == (uint)number);
     }
 
+    // Word boundaries: separators, plus camelCase joins ("OccupantGroups" -> Occupant, Groups).
+    private static readonly System.Text.RegularExpressions.Regex WordSplit =
+        new(@"[\s/\-_():,]+|(?<=[a-z])(?=[A-Z])", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     private static bool HasIdWord(string? propertyName) =>
         propertyName is not null
-        && propertyName
-            .Split(new[] { ' ', '/', '-', '_', '(', ')', ':', ',' }, StringSplitOptions.RemoveEmptyEntries)
-            .Any(word => IdWords.Contains(word.ToLowerInvariant()));
+        && WordSplit.Split(propertyName).Any(word => IdWords.Contains(word.ToLowerInvariant()));
 }
