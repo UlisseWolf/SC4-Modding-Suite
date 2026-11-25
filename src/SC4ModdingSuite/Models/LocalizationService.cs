@@ -148,6 +148,8 @@ public sealed class LocalizationService : INotifyPropertyChanged
     public string PropertiesAdd => Get("properties_add");
     public string PropertiesEdit => Get("properties_edit");
     public string PropertiesRemove => Get("properties_remove");
+    public string PropertiesReadableValues => Get("properties_readable_values");
+    public string PropertiesReadableValuesTooltip => Get("properties_readable_values_tooltip");
 
     public string OptionsTitle => Get("options_title");
     public string OptionsSectionProtectedFiles => Get("options_section_protected_files");

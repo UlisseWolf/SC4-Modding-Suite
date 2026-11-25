@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Linq;
 using csDBPF;
 
 namespace SC4ModdingSuite.Models;
@@ -41,4 +43,88 @@ public static class PropertyValueFormatter
             return value.ToString() ?? string.Empty;
         }
     }
+
+    // Words in a property name that mean its value is an identifier (TGI part, family,
+    // resource key...) - a decimal rendering of those is meaningless, so they stay hex.
+    private static readonly string[] IdWords =
+    {
+        "id", "ids", "iid", "iids", "key", "keys", "family", "families", "tgi", "instance", "group", "groups",
+        "parent", "resource", "texture", "model", "sound", "ltext", "cohort", "query", "type", "guid",
+    };
+
+    /// <summary>
+    /// "Readable values" mode (see <see cref="AppOptions.ShowReadablePropertyValues"/>): an
+    /// integer value that matches one of the property's named options (new_properties.xml
+    /// OPTION) is shown by that name; otherwise it's shown in decimal, unless it looks like
+    /// an identifier (ID-ish property name, or a UINT32/SINT64 value of 0x01000000 or more,
+    /// which in practice is always a random instance/group ID) - those keep the hex form.
+    /// Non-integer types are formatted exactly as <see cref="Format"/> does.
+    /// </summary>
+    public static string FormatReadable(object? value, DBPFProperty.PropertyDataType dataType, PropertyDefinition? definition)
+    {
+        if (value is null)
+        {
+            return string.Empty;
+        }
+
+        long number;
+        try
+        {
+            var raw = Convert.ToInt64(value);
+            number = dataType switch
+            {
+                DBPFProperty.PropertyDataType.UINT8 => (byte)raw,
+                DBPFProperty.PropertyDataType.UINT16 => (ushort)raw,
+                DBPFProperty.PropertyDataType.UINT32 => (uint)raw,
+                DBPFProperty.PropertyDataType.SINT32 => (int)raw,
+                DBPFProperty.PropertyDataType.SINT64 => raw,
+                _ => throw new FormatException(),
+            };
+        }
+        catch
+        {
+            return Format(value, dataType);
+        }
+
+        var option = definition?.Options.FirstOrDefault(o => OptionMatches(o.Value, number));
+        if (option is not null && !string.IsNullOrWhiteSpace(option.Name))
+        {
+            return option.Name;
+        }
+
+        var bigUnsigned = dataType is DBPFProperty.PropertyDataType.UINT32 or DBPFProperty.PropertyDataType.SINT64
+            && (ulong)number >= 0x01000000UL;
+        if (bigUnsigned || HasIdWord(definition?.Name))
+        {
+            return Format(value, dataType);
+        }
+
+        return number.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static bool OptionMatches(string optionValue, long number)
+    {
+        var text = optionValue.Trim();
+        long parsed;
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!long.TryParse(text.AsSpan(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsed))
+            {
+                return false;
+            }
+        }
+        else if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
+        {
+            return false;
+        }
+
+        // An option written as e.g. 0xFFFFFFFF must still match a SINT32 value of -1.
+        return parsed == number || (number < 0 && parsed >= 0 && parsed <= uint.MaxValue && (uint)parsed == (uint)number);
+    }
+
+    private static bool HasIdWord(string? propertyName) =>
+        propertyName is not null
+        && propertyName
+            .Split(new[] { ' ', '/', '-', '_', '(', ')', ':', ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Any(word => IdWords.Contains(word.ToLowerInvariant()));
 }

@@ -155,6 +155,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public PropertySourceService PropertySourceService { get; }
     public AppOptionsService AppOptionsService { get; }
     public AppOptions AppOptions { get; }
+
+    /// <summary>
+    /// "Readable values" tick box under the Exemplar/Cohort property list - option names /
+    /// decimals instead of hex (see <see cref="PropertyValueFormatter.FormatReadable"/>).
+    /// Saved to options.json right away; shared by every tab (one AppOptions instance).
+    /// </summary>
+    public bool ShowReadablePropertyValues
+    {
+        get => AppOptions.ShowReadablePropertyValues;
+        set
+        {
+            if (AppOptions.ShowReadablePropertyValues == value)
+            {
+                return;
+            }
+
+            AppOptions.ShowReadablePropertyValues = value;
+            AppOptionsService.Save(AppOptions);
+            OnPropertyChanged();
+            foreach (var property in Properties)
+            {
+                property.Refresh();
+            }
+        }
+    }
     public ThemeService ThemeService { get; }
     public LocalizationService LocalizationService { get; }
 
@@ -3959,7 +3984,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 foreach (var property in parsed.Properties.OrderBy(p => p.Id))
                 {
                     var dbpfProperty = ExemplarBinaryParser.ToDbpfProperty(property);
-                    Properties.Add(new PropertyItemViewModel(dbpfProperty, PropertyRegistry.FindById(property.Id)));
+                    Properties.Add(new PropertyItemViewModel(dbpfProperty, PropertyRegistry.FindById(property.Id), AppOptions));
                 }
             }
             else
@@ -3968,7 +3993,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 // csDBPF's own decode rather than showing nothing.
                 foreach (var property in exemplar.ListOfProperties.Values.OrderBy(p => p.ID))
                 {
-                    Properties.Add(new PropertyItemViewModel(property, PropertyRegistry.FindById(property.ID)));
+                    Properties.Add(new PropertyItemViewModel(property, PropertyRegistry.FindById(property.ID), AppOptions));
                 }
             }
         }
