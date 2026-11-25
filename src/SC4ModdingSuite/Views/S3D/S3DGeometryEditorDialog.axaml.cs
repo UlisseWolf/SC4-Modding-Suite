@@ -10,6 +10,10 @@ public partial class S3DGeometryEditorDialog : Window
     public S3DGeometryEditorDialog()
     {
         InitializeComponent();
+
+        DeleteKey.Attach(VertexGrid, () => OnDeleteS3DVertexRowsClick(this, new RoutedEventArgs()));
+        DeleteKey.Attach(IndexGrid, () => OnDeleteS3DIndexRowsClick(this, new RoutedEventArgs()));
+        DeleteKey.Attach(PrimGrid, () => OnDeleteS3DPrimRowsClick(this, new RoutedEventArgs()));
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;

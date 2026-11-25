@@ -29,6 +29,12 @@ public partial class App : Application
             themeService.Apply(appOptions.Theme);
 
             var localizationService = new LocalizationService();
+            if (localizationService.MigratedLegacyPortuguese && appOptions.Language == "pt")
+            {
+                // The old "pt" texts were Brazilian Portuguese, now pt-BR (see LocalizationService).
+                appOptions.Language = "pt-BR";
+                appOptionsService.Save(appOptions);
+            }
             localizationService.SetLanguage(appOptions.Language);
 
             // Automatically indexes every UI element and image entry across the SC4
@@ -94,7 +100,7 @@ public partial class App : Application
                     uiElementIndex,
                     openDocumentInNewTab: path => shellViewModel!.OpenDocument(path));
 
-                shellViewModel = new MainWindowShellViewModel(CreateDocument, appOptions, localizationService);
+                shellViewModel = new MainWindowShellViewModel(CreateDocument, appOptions, appOptionsService, localizationService);
 
                 var mainWindow = new MainWindow
                 {

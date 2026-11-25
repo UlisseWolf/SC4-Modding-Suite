@@ -53,7 +53,38 @@ public sealed class LocalizationService : INotifyPropertyChanged
     {
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         _folder = Path.Combine(appData, "SC4ModdingSuite", "Localization");
+        MigrateLegacyPortuguese();
         EmbeddedResourceSeeder.SeedFolder(_folder, "Localization");
+    }
+
+    /// <summary>
+    /// True when this run found the old pt.toml (which was actually Brazilian Portuguese,
+    /// labelled just "Português") and replaced it - App then moves a saved "pt" language
+    /// choice to "pt-BR", so those users keep exactly the texts they had.
+    /// </summary>
+    public bool MigratedLegacyPortuguese { get; private set; }
+
+    /// <summary>
+    /// pt.toml is now European Portuguese and the old Brazilian texts moved to pt-BR.toml.
+    /// The seeder never overwrites an existing file (only appends missing keys), so an
+    /// already-seeded old pt.toml - recognizable by its old "Português" label - is deleted
+    /// here and re-seeded fresh as the European version.
+    /// </summary>
+    private void MigrateLegacyPortuguese()
+    {
+        try
+        {
+            var oldPath = Path.Combine(_folder, "pt.toml");
+            if (File.Exists(oldPath) && TryReadLanguageName(oldPath) == "Português")
+            {
+                File.Delete(oldPath);
+                MigratedLegacyPortuguese = true;
+            }
+        }
+        catch
+        {
+            // Locked/unreadable file: keep it, the language list just shows the old label.
+        }
     }
 
     public string CurrentLanguageCode { get; private set; } = "en";
@@ -148,6 +179,8 @@ public sealed class LocalizationService : INotifyPropertyChanged
     public string PropertiesAdd => Get("properties_add");
     public string PropertiesEdit => Get("properties_edit");
     public string PropertiesRemove => Get("properties_remove");
+    public string PropertiesReadableValues => Get("properties_readable_values");
+    public string PropertiesReadableValuesTooltip => Get("properties_readable_values_tooltip");
 
     public string OptionsTitle => Get("options_title");
     public string OptionsSectionProtectedFiles => Get("options_section_protected_files");

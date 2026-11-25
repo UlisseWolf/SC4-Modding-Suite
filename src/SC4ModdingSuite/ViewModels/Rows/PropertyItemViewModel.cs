@@ -10,10 +10,14 @@ namespace SC4ModdingSuite.ViewModels;
 /// </summary>
 public sealed class PropertyItemViewModel : ViewModelBase
 {
-    public PropertyItemViewModel(DBPFProperty property, PropertyDefinition? definition)
+    private readonly AppOptions? _options;
+
+    /// <param name="options">Shared app options, read for <see cref="AppOptions.ShowReadablePropertyValues"/>; null = always hex.</param>
+    public PropertyItemViewModel(DBPFProperty property, PropertyDefinition? definition, AppOptions? options = null)
     {
         Property = property;
         Definition = definition;
+        _options = options;
         Refresh();
     }
 
@@ -66,7 +70,9 @@ public sealed class PropertyItemViewModel : ViewModelBase
             var data = Property.GetTypedData();
             values = data is char[] chars
                 ? new string(chars)
-                : string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, Property.DataType)));
+                : _options?.ShowReadablePropertyValues == true
+                    ? string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.FormatReadable(v, Property.DataType, Definition)))
+                    : string.Join(", ", data.Cast<object>().Select(v => PropertyValueFormatter.Format(v, Property.DataType)));
         }
         catch
         {

@@ -1,0 +1,95 @@
+# SC4 Modding Suite - teksty w języku polskim
+# Zwykły plik tekstowy (TOML): można go edytować i przeładować bez ponownej kompilacji.
+# Każdy wpis ma postać "klucz = "wartość"". Wiersze zaczynające się od # to komentarze.
+
+language_name = "Polski"
+
+# --- Okno opcji ---
+options_title = "Opcje"
+options_section_protected_files = "Pliki systemowe SC4 (chronione)"
+options_simcitylocale_label = "Ścieżka do SimCityLocale.DAT:"
+options_sc4_install_folder_label = "Folder instalacyjny SC4:"
+options_plugins_folder_label = "Folder Plugins (domyślny przy otwieraniu plików):"
+options_section_external_tools = "Narzędzia zewnętrzne"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "Te pliki zawsze można otworzyć; zapis w miejscu jest automatycznie blokowany niezależnie od poniższych ścieżek - są one tu tylko dla wygody/informacji."
+options_appearance_note = "Język i motyw są stosowane natychmiast po ich wybraniu."
+options_section_properties = "Baza danych właściwości Exemplar"
+options_change_property_source = "Zmień źródło new_properties.xml..."
+options_section_appearance = "Język i wygląd"
+options_language_label = "Język:"
+options_theme_label = "Motyw:"
+options_browse = "Przeglądaj..."
+options_save = "Zapisz"
+options_close = "Zamknij"
+
+# --- Główny pasek narzędzi ---
+toolbar_new = "NOWA KARTA"
+toolbar_new_tooltip = "Otwiera nową, pustą kartę"
+toolbar_open = "OTWÓRZ..."
+toolbar_open_tooltip = "Otwiera jeden lub więcej plików .dat, każdy w osobnej nowej karcie (Ctrl+O)"
+toolbar_save = "ZAPISZ"
+toolbar_save_as = "ZAPISZ JAKO..."
+toolbar_export_entry = "EKSPORTUJ WPIS..."
+toolbar_import_entry = "IMPORTUJ DO WPISU..."
+toolbar_export_all = "EKSPORTUJ WSZYSTKO..."
+toolbar_options = "OPCJE..."
+toolbar_mcp_server = "SERWER MCP..."
+external_tools_header = "NARZĘDZIA ZEWNĘTRZNE"
+
+# --- Pasek narzędzi powłoki MDI (Views/MainWindow.axaml) ---
+shell_navigator_header = "NAWIGATOR"
+shell_compare = "PORÓWNAJ DAT..."
+shell_compare_tooltip = "Porównuje dwa pliki .dat wpis po wpisie i pokazuje różniące się bajty"
+shell_merge = "SCAL DAT..."
+shell_merge_tooltip = "Scala kilka plików .dat w nowy plik lub w aktywną kartę"
+shell_directory_sync = "SYNCHRONIZUJ KATALOG..."
+shell_directory_sync_tooltip = "Porównuje podplik Directory (DIR) aktywnej karty z jej faktycznymi wpisami i pozwala przejść do wybranego"
+shell_close_tab_tooltip = "Zamknij tę kartę"
+
+# UWAGA: celowo brak klucza "toolbar_property_db" - dawny osobny przycisk paska
+# narzędzi "PROPERTY DATABASE..." zastąpiono opcją "Zmień źródło new_properties.xml..."
+# w oknie Opcje (zob. options_change_property_source powyżej, podpięte do
+# OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog).
+
+# --- Edytor LUA ---
+lua_compile = "KOMPILUJ"
+lua_run = "▶ URUCHOM"
+lua_clear_output = "WYCZYŚĆ WYJŚCIE"
+lua_save = "ZAPISZ"
+
+# --- Edytor T21 (Views/DbpfWorkspaceView.axaml, tryb "T21 Editor") ---
+t21_apply_iid = "ZASTOSUJ IID"
+t21_add = "DODAJ"
+t21_duplicate = "DUPLIKUJ"
+t21_remove = "USUŃ"
+t21_up = "▲ W GÓRĘ"
+t21_down = "▼ W DÓŁ"
+t21_save = "ZAPISZ T21"
+t21_rhd_to_lhd = "KONWERTUJ RHD → LHD..."
+
+# --- Edytor LTEXT (Views/DbpfWorkspaceView.axaml, tryb "LTEXT Editor") ---
+ltext_save_file = "ZAPISZ PLIK"
+ltext_save_all_for_language = "ZAPISZ WSZYSTKIE PLIKI DLA JĘZYKA"
+ltext_export_poedit = "EKSPORTUJ POEDIT..."
+ltext_import_poedit = "IMPORTUJ POEDIT..."
+ltext_translations = "TŁUMACZENIA..."
+
+# --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
+# and the generic text fallback) ---
+structured_save_text = "ZAPISZ TEKST"
+structured_save_trk = "ZAPISZ TRK"
+structured_save = "ZAPISZ"
+
+# --- SC4 Editor: Exemplar/Cohort properties panel ---
+properties_add = "DODAJ..."
+properties_edit = "EDYTUJ..."
+properties_remove = "USUŃ"
+properties_readable_values = "Czytelne wartości"
+properties_readable_values_tooltip = "Pokazuje wartości jako nazwy opcji (np. 'Low') lub liczby dziesiętne zamiast szesnastkowych. Identyfikatory (ID) pozostają szesnastkowe. Tylko wyświetlanie - edycja nadal używa wartości szesnastkowych."

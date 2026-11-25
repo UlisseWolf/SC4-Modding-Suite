@@ -10,6 +10,8 @@ public partial class S3DPropEditorDialog : Window
     public S3DPropEditorDialog()
     {
         InitializeComponent();
+
+        DeleteKey.Attach(PropGrid, () => OnDeletePropsClick(this, new RoutedEventArgs()));
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;

@@ -20,6 +20,21 @@ public sealed class AppOptions
     /// </summary>
     public string? PluginsFolder { get; set; }
 
+    /// <summary>
+    /// Folder the last file was opened from with the Open dialog - the dialog starts there
+    /// next time (if it still exists), falling back to <see cref="PluginsFolder"/>, then
+    /// <see cref="Sc4InstallFolder"/>, then Documents. Saved automatically, no UI.
+    /// </summary>
+    public string? LastOpenFolder { get; set; }
+
+    /// <summary>
+    /// Exemplar/Cohort property list shows integer values as their option name (e.g.
+    /// "Low" for Wealth = 0x01) or as a decimal number instead of hex, keeping hex only for
+    /// ID-like values - see <see cref="PropertyValueFormatter.FormatReadable"/>. Display
+    /// only: editing and exports still use hex. Off by default (hex is the SC4 convention).
+    /// </summary>
+    public bool ShowReadablePropertyValues { get; set; }
+
     public string? PimXPath { get; set; }
     public string? DataNodePath { get; set; }
     public string? MapperPath { get; set; }

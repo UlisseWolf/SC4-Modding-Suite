@@ -1,0 +1,95 @@
+# SC4 Modding Suite - 日本語テキスト
+# プレーンテキストファイル (TOML): 再ビルドせずに編集・再読み込みできます。
+# 各エントリは "key = "value"" 形式です。# で始まる行はコメントです。
+
+language_name = "日本語"
+
+# --- オプションウィンドウ ---
+options_title = "オプション"
+options_section_protected_files = "SC4 システムファイル (保護)"
+options_simcitylocale_label = "SimCityLocale.DAT のパス:"
+options_sc4_install_folder_label = "SC4 インストールフォルダー:"
+options_plugins_folder_label = "Plugins フォルダー (ファイルを開くときの既定の場所):"
+options_section_external_tools = "外部ツール"
+options_pimx_label = "SC4 PIM-X:"
+options_datanode_label = "SC4 DataNode:"
+options_mapper_label = "SC4 Mapper:"
+options_terraformer_label = "SC4 Terraformer:"
+options_sc4pac_editor_label = "SC4pac Editor:"
+options_nam_development_suite_header = "NAM DEVELOPMENT SUITE"
+options_nam_development_suite_label = "NAM Development Suite:"
+options_protected_files_note = "これらのファイルはいつでも開けます。上書き保存は以下のパスに関係なく自動的にブロックされます - これらのパスは参照・利便性のためだけのものです。"
+options_appearance_note = "言語とテーマは選択するとすぐに適用されます。"
+options_section_properties = "Exemplar プロパティデータベース"
+options_change_property_source = "new_properties.xml の取得元を変更..."
+options_section_appearance = "言語と外観"
+options_language_label = "言語:"
+options_theme_label = "テーマ:"
+options_browse = "参照..."
+options_save = "保存"
+options_close = "閉じる"
+
+# --- メインツールバー ---
+toolbar_new = "新しいタブ"
+toolbar_new_tooltip = "空の新しいタブを開きます"
+toolbar_open = "開く..."
+toolbar_open_tooltip = "1 つ以上の .dat ファイルを、それぞれ新しいタブで開きます (Ctrl+O)"
+toolbar_save = "保存"
+toolbar_save_as = "名前を付けて保存..."
+toolbar_export_entry = "エントリをエクスポート..."
+toolbar_import_entry = "エントリにインポート..."
+toolbar_export_all = "すべてエクスポート..."
+toolbar_options = "オプション..."
+toolbar_mcp_server = "MCP サーバー..."
+external_tools_header = "外部ツール"
+
+# --- MDI シェルのツールバー (Views/MainWindow.axaml) ---
+shell_navigator_header = "ナビゲーター"
+shell_compare = "DAT を比較..."
+shell_compare_tooltip = "2 つの .dat ファイルをエントリごとに比較し、異なるバイトを確認します"
+shell_merge = "DAT を結合..."
+shell_merge_tooltip = "複数の .dat ファイルを新しいファイル、またはアクティブなタブに結合します"
+shell_directory_sync = "ディレクトリ同期..."
+shell_directory_sync_tooltip = "アクティブなタブの Directory (DIR) サブファイルを実際のエントリと照合し、選択したエントリへ移動します"
+shell_close_tab_tooltip = "このタブを閉じる"
+
+# 注意: "toolbar_property_db" キーは意図的にありません - 以前のツールバーの
+# "PROPERTY DATABASE..." ボタンは、オプション内の "new_properties.xml の取得元を変更..."
+# に置き換えられました (上の options_change_property_source を参照。
+# OptionsDialogViewModel.ChangePropertySourceCommand / PropertySourceDialog に接続)。
+
+# --- LUA エディター ---
+lua_compile = "コンパイル"
+lua_run = "▶ 実行"
+lua_clear_output = "出力をクリア"
+lua_save = "保存"
+
+# --- T21 エディター (Views/DbpfWorkspaceView.axaml, "T21 Editor" モード) ---
+t21_apply_iid = "IID を適用"
+t21_add = "追加"
+t21_duplicate = "複製"
+t21_remove = "削除"
+t21_up = "▲ 上へ"
+t21_down = "▼ 下へ"
+t21_save = "T21 を保存"
+t21_rhd_to_lhd = "RHD → LHD に変換..."
+
+# --- LTEXT エディター (Views/DbpfWorkspaceView.axaml, "LTEXT Editor" モード) ---
+ltext_save_file = "ファイルを保存"
+ltext_save_all_for_language = "言語のファイルをすべて保存"
+ltext_export_poedit = "POEDIT にエクスポート..."
+ltext_import_poedit = "POEDIT からインポート..."
+ltext_translations = "翻訳..."
+
+# --- SC4 Editor: structured format panels (TRK/MCO/LDAT/HLS/AVP/SC4Path/LEV
+# and the generic text fallback) ---
+structured_save_text = "テキストを保存"
+structured_save_trk = "TRK を保存"
+structured_save = "保存"
+
+# --- SC4 Editor: Exemplar/Cohort properties panel ---
+properties_add = "追加..."
+properties_edit = "編集..."
+properties_remove = "削除"
+properties_readable_values = "読みやすい値"
+properties_readable_values_tooltip = "値を 16 進数ではなく、オプション名 (例: 'Low') または 10 進数で表示します。ID は 16 進数のままです。表示のみ - 編集には引き続き 16 進数を使用します。"

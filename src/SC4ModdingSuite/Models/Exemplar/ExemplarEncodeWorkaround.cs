@@ -48,16 +48,22 @@ public static class ExemplarEncodeWorkaround
 
     public static void Encode(DBPFEntryEXMP exemplar, bool compress)
     {
-        if (exemplar.Encoding == DBPF.Encoding.Text)
+        var existing = ExemplarBinaryParser.Parse(RawEntryBytes.GetDecompressed(exemplar));
+
+        if (exemplar.Encoding == DBPF.Encoding.Text && !existing.IsWellFormed)
         {
-            // Text-encoded Exemplars/Cohorts are rare (this app only ever builds Binary-
-            // encoded properties - see BuildProperty in DbpfTools.cs/
-            // PropertyEditDialogViewModel.cs). Falls back to the original Encode() here
-            // rather than reimplementing an untested path.
+            // A text exemplar our own parser can't read: nothing better to start from than
+            // csDBPF's original Encode() (previous behavior).
             IsDecodedField?.SetValue(exemplar, true);
             exemplar.Encode(compress);
             return;
         }
+
+        // Text-format (EQZT) exemplars are written back as binary (EQZB) - SC4 reads both,
+        // and the properties were already re-read correctly by ExemplarBinaryParser
+        // (DbpfService.ResyncPropertiesFromBytes). csDBPF's own text Encode() would write a
+        // random parent cohort (lot vanishes in game) and floats mis-read with the PC's
+        // regional settings (Occupant Size 15.997 -> 15997 on a German/Italian Windows).
 
         // Same id string Encode() itself builds: "E"/"C" + "QZB1###".
         var id = (exemplar.IsCohort ? "C" : "E") + "QZB1###";
@@ -70,7 +76,7 @@ public static class ExemplarEncodeWorkaround
         // non-existent cohort, rejects the exemplar, and the lot vanishes from the game -
         // even after the edit that triggered the save is undone. The entry's own existing
         // bytes are the only reliable source for the real value.
-        var parent = ReadParentCohort(exemplar);
+        var parent = existing.IsWellFormed ? existing.ParentCohort : ReadParentCohort(exemplar);
 
         var bytes = new List<byte>();
         bytes.AddRange(id.ToBytes(true));

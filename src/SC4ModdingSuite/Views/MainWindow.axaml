@@ -38,9 +38,11 @@
                         ToolTip.Tip="{Binding LocalizationService.ShellDirectorySyncTooltip}" />
                 <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
                 <Button Content="{Binding LocalizationService.ToolbarSave}" Click="OnSaveClick"
-                        IsEnabled="{Binding SelectedDocument.CanSaveInPlace}" Margin="0,0,6,0" />
+                        IsEnabled="{Binding SelectedDocument.CanSaveInPlace}" Margin="0,0,6,0"
+                        ToolTip.Tip="Ctrl+S" />
                 <Button Content="{Binding LocalizationService.ToolbarSaveAs}" Click="OnSaveAsClick"
-                        IsEnabled="{Binding SelectedDocument.HasOpenFile}" Margin="0,0,6,0" />
+                        IsEnabled="{Binding SelectedDocument.HasOpenFile}" Margin="0,0,6,0"
+                        ToolTip.Tip="Ctrl+Shift+S / Ctrl+Alt+S" />
                 <Rectangle Width="1" Height="24" Margin="0,2,6,2" />
                 <Button Content="{Binding LocalizationService.ToolbarExportEntry}" Click="OnExportSelectedClick"
                         IsEnabled="{Binding SelectedDocument.SelectedEntry, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,6,0" />

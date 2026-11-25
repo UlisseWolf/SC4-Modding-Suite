@@ -22,6 +22,12 @@ public partial class DbpfWorkspaceView : UserControl
     public DbpfWorkspaceView()
     {
         InitializeComponent();
+
+        // DEL = the list's own delete/remove button (see DeleteKey).
+        DeleteKey.Attach(EntriesListBox, () => _ = DeleteEntriesAsync());
+        DeleteKey.Attach(PropertiesListBox, () => ViewModel.RemoveSelectedPropertyCommand);
+        DeleteKey.Attach(UiTreeView, () => ViewModel.RemoveUiNodeCommand);
+        DeleteKey.Attach(SavedFiltersListBox, () => ViewModel.DeleteFilterCommand);
     }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;
@@ -361,6 +367,8 @@ public partial class DbpfWorkspaceView : UserControl
         }
     }
 
+    private async void OnDeleteEntriesClick(object? sender, RoutedEventArgs e) => await DeleteEntriesAsync();
+
     private async void OnWindowKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
     {
         var ctrl = e.KeyModifiers.HasFlag(Avalonia.Input.KeyModifiers.Control);
@@ -413,7 +421,90 @@ public partial class DbpfWorkspaceView : UserControl
         }
 
         var text = await clipboard.GetTextAsync();
-        ViewModel.PasteEntriesFromClipboardText(text);
+        var pasted = ViewModel.PasteEntriesFromClipboardText(text, GetLastSelectedEntry());
+        if (pasted.Count == 0)
+        {
+            return;
+        }
+
+        // Select what was just pasted so it's obvious where it landed (and ready to move on).
+        EntriesListBox.SelectedItems?.Clear();
+        foreach (var vm in pasted)
+        {
+            EntriesListBox.SelectedItems?.Add(vm);
+        }
+        EntriesListBox.ScrollIntoView(pasted[0]);
+    }
+
+    /// <summary>
+    /// The paste anchor: the lowest selected row as shown in the list (with a multi-select,
+    /// "after the selection" means after its bottom row), or null when nothing is selected.
+    /// </summary>
+    private EntryItemViewModel? GetLastSelectedEntry() =>
+        GetSelectedEntries()
+            .OrderBy(vm => ViewModel.DisplayedEntries.IndexOf(vm))
+            .LastOrDefault();
+
+    private async System.Threading.Tasks.Task DeleteEntriesAsync()
+    {
+        var selected = GetSelectedEntries();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var message = selected.Count == 1
+            ? $"Delete {selected.First().EntryType} entry (I: {selected.First().InstanceHex})?"
+            : $"Delete {selected.Count} selected entries?";
+        if (!await ConfirmAsync("Delete entries", message + "\n\nThe file on disk only changes when you save."))
+        {
+            return;
+        }
+
+        var next = ViewModel.RemoveEntries(selected);
+        if (next is not null)
+        {
+            EntriesListBox.ScrollIntoView(next);
+        }
+        EntriesListBox.Focus();
+    }
+
+    /// <summary>Small Yes/No dialog built in code - the app has no generic message box of its own.</summary>
+    private async System.Threading.Tasks.Task<bool> ConfirmAsync(string title, string message)
+    {
+        var result = false;
+        var dialog = new Window
+        {
+            Title = title,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        var yes = new Button { Content = "DELETE", Margin = new Avalonia.Thickness(0, 0, 8, 0), IsDefault = true };
+        yes.Classes.Add("danger");
+        var no = new Button { Content = "CANCEL", IsCancel = true };
+        yes.Click += (_, _) => { result = true; dialog.Close(); };
+        no.Click += (_, _) => dialog.Close();
+
+        dialog.Content = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(16),
+            MaxWidth = 420,
+            Children =
+            {
+                new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Avalonia.Thickness(0, 0, 0, 12) },
+                new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                    Children = { yes, no },
+                },
+            },
+        };
+
+        await dialog.ShowDialog(OwnerWindow);
+        return result;
     }
 
     private async System.Threading.Tasks.Task CopyTgiAsync()

@@ -16,11 +16,13 @@ public sealed class MainWindowShellViewModel : ViewModelBase
 {
     private readonly Func<MainWindowViewModel> _documentFactory;
     private readonly AppOptions _appOptions;
+    private readonly AppOptionsService _appOptionsService;
 
-    public MainWindowShellViewModel(Func<MainWindowViewModel> documentFactory, AppOptions appOptions, LocalizationService localizationService)
+    public MainWindowShellViewModel(Func<MainWindowViewModel> documentFactory, AppOptions appOptions, AppOptionsService appOptionsService, LocalizationService localizationService)
     {
         _documentFactory = documentFactory;
         _appOptions = appOptions;
+        _appOptionsService = appOptionsService;
         LocalizationService = localizationService;
 
         PluginsRoot = new NavigatorNodeViewModel("PLUGINS");
@@ -35,6 +37,32 @@ public sealed class MainWindowShellViewModel : ViewModelBase
     }
 
     public LocalizationService LocalizationService { get; }
+
+    /// <summary>
+    /// Where the Open dialog should start: the folder the last file was opened from, if it
+    /// still exists, otherwise the Plugins folder, the SC4 install folder, then Documents.
+    /// </summary>
+    public string? GetOpenDialogStartFolder() =>
+        new[]
+        {
+            _appOptions.LastOpenFolder,
+            _appOptions.PluginsFolder,
+            _appOptions.Sc4InstallFolder,
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        }.FirstOrDefault(folder => !string.IsNullOrWhiteSpace(folder) && System.IO.Directory.Exists(folder));
+
+    /// <summary>Remembers (and persists right away) the folder a file was just opened from via the Open dialog.</summary>
+    public void RememberOpenFolder(string openedFilePath)
+    {
+        var folder = System.IO.Path.GetDirectoryName(openedFilePath);
+        if (string.IsNullOrEmpty(folder) || folder == _appOptions.LastOpenFolder)
+        {
+            return;
+        }
+
+        _appOptions.LastOpenFolder = folder;
+        _appOptionsService.Save(_appOptions);
+    }
 
     /// <summary>Every currently open document (one per MDI tab).</summary>
     public ObservableCollection<MainWindowViewModel> Documents { get; } = new();

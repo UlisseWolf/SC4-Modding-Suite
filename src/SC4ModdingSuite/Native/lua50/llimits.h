@@ -69,7 +69,9 @@ typedef unsigned char lu_byte;
 ** this is for hashing only; there is no problem if the integer
 ** cannot hold the whole pointer value
 */
-#define IntPoint(p)  ((lu_hash)(p))
+/* via size_t first: on 64-bit the pointer is deliberately truncated to its low 32 bits
+   for hashing (same values as before), without clang/gcc -W(void-)pointer-to-int-cast */
+#define IntPoint(p)  ((lu_hash)(size_t)(p))
 
 
 

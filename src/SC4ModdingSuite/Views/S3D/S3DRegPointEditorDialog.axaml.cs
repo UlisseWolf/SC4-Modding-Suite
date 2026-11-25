@@ -10,6 +10,8 @@ public partial class S3DRegPointEditorDialog : Window
     public S3DRegPointEditorDialog()
     {
         InitializeComponent();
+
+        DeleteKey.Attach(TransformGrid, () => OnDeleteTransformsClick(this, new RoutedEventArgs()));
     }
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;

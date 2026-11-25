@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using SC4ModdingSuite.ViewModels;
 
 namespace SC4ModdingSuite.Views;
@@ -20,6 +21,55 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        // Tunnel = seen before any focused control (text boxes, grids, the Lua editor...)
+        // gets a chance to swallow the key.
+        AddHandler(KeyDownEvent, OnShortcutKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>
+    /// Global shortcuts (tester request): Ctrl+O open, Ctrl+S save, Ctrl+Shift+S and
+    /// Ctrl+Alt+S save as. Each one only does something when its toolbar button is enabled.
+    /// Ctrl+Alt+S is skipped inside text fields: on Windows Ctrl+Alt is how AltGr arrives,
+    /// and AltGr+S types a character on several keyboard layouts (e.g. "ś" on Polish).
+    /// </summary>
+    private void OnShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.S && e.Key != Key.O)
+        {
+            return;
+        }
+
+        // macOS users expect Cmd (Meta) where Windows/Linux use Ctrl.
+        var cmd = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+        var mods = e.KeyModifiers;
+        var document = ViewModel.SelectedDocument;
+        var inTextField = e.Source is TextBox
+            || (e.Source as Avalonia.Visual)?.FindAncestorOfType<TextBox>() is not null;
+
+        if (e.Key == Key.O && mods == cmd)
+        {
+            e.Handled = true;
+            OnOpenClick(this, new RoutedEventArgs());
+        }
+        else if (e.Key == Key.S && mods == cmd)
+        {
+            e.Handled = true;
+            if (document?.CanSaveInPlace == true)
+            {
+                OnSaveClick(this, new RoutedEventArgs());
+            }
+        }
+        else if (e.Key == Key.S
+                 && (mods == (cmd | KeyModifiers.Shift)
+                     || (mods == (cmd | KeyModifiers.Alt) && !inTextField)))
+        {
+            e.Handled = true;
+            if (document?.HasOpenFile == true)
+            {
+                OnSaveAsClick(this, new RoutedEventArgs());
+            }
+        }
     }
 
     private MainWindowShellViewModel ViewModel => (MainWindowShellViewModel)DataContext!;
@@ -40,13 +90,9 @@ public partial class MainWindow : Window
             FileTypeFilter = new List<FilePickerFileType> { Sc4PackageFileType, FilePickerFileTypes.All },
         };
 
-        var startFolder = ViewModel.SelectedDocument?.AppOptions.PluginsFolder;
-        if (string.IsNullOrWhiteSpace(startFolder))
-        {
-            startFolder = ViewModel.SelectedDocument?.AppOptions.Sc4InstallFolder;
-        }
-
-        if (!string.IsNullOrWhiteSpace(startFolder))
+        // Last folder a file was opened from, else Plugins / SC4 install / Documents.
+        var startFolder = ViewModel.GetOpenDialogStartFolder();
+        if (startFolder is not null)
         {
             try
             {
@@ -64,6 +110,7 @@ public partial class MainWindow : Window
             var path = file.TryGetLocalPath();
             if (path is not null)
             {
+                ViewModel.RememberOpenFolder(path);
                 ViewModel.OpenDocument(path);
             }
         }
