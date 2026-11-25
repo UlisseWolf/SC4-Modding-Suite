@@ -75,19 +75,23 @@
          targets near the end of this file) whenever a compiler is available, so this is
          only "the binary that happens to already be committed", not "the only way to get
          one" - running build.sh/build.bat by hand is never required. -->
-    <None Include="Native/lua50/runtimes/linux-x64/native/liblua50.so" Condition="Exists('Native/lua50/runtimes/linux-x64/native/liblua50.so')">
+    <!-- With a RuntimeIdentifier (dotnet publish -r ..., release.yml) only that platform's
+         library is included: otherwise a Linux/macOS single-file publish also carried
+         Windows's lua50.dll, which the bundler then dropped with warning NETSDK1236. A
+         plain build (no RID) still copies every library that exists, as before. -->
+    <None Include="Native/lua50/runtimes/linux-x64/native/liblua50.so" Condition="Exists('Native/lua50/runtimes/linux-x64/native/liblua50.so') AND ('$(RuntimeIdentifier)' == '' OR $(RuntimeIdentifier.StartsWith('linux')))">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>liblua50.so</Link>
     </None>
-    <None Include="Native/lua50/runtimes/win-x64/native/lua50.dll" Condition="Exists('Native/lua50/runtimes/win-x64/native/lua50.dll')">
+    <None Include="Native/lua50/runtimes/win-x64/native/lua50.dll" Condition="Exists('Native/lua50/runtimes/win-x64/native/lua50.dll') AND ('$(RuntimeIdentifier)' == '' OR $(RuntimeIdentifier.StartsWith('win')))">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>lua50.dll</Link>
     </None>
-    <None Include="Native/lua50/runtimes/osx-x64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-x64/native/liblua50.dylib')">
+    <None Include="Native/lua50/runtimes/osx-x64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-x64/native/liblua50.dylib') AND ('$(RuntimeIdentifier)' == '' OR '$(RuntimeIdentifier)' == 'osx-x64')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>liblua50.dylib</Link>
     </None>
-    <None Include="Native/lua50/runtimes/osx-arm64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-arm64/native/liblua50.dylib')">
+    <None Include="Native/lua50/runtimes/osx-arm64/native/liblua50.dylib" Condition="Exists('Native/lua50/runtimes/osx-arm64/native/liblua50.dylib') AND ('$(RuntimeIdentifier)' == '' OR '$(RuntimeIdentifier)' == 'osx-arm64')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>liblua50.dylib</Link>
     </None>
@@ -175,6 +179,23 @@
       <Lua50FreshNative Include="$(Lua50Dir)/runtimes/osx-x64/native/liblua50.dylib" Condition="Exists('$(Lua50Dir)/runtimes/osx-x64/native/liblua50.dylib') AND $([MSBuild]::IsOSPlatform('OSX'))" />
     </ItemGroup>
     <Copy SourceFiles="@(Lua50FreshNative)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="'@(Lua50FreshNative)' != ''" />
+  </Target>
+
+  <!-- Same safety net for "dotnet publish -r <rid>" (release.yml): the macOS dylib isn't
+       committed, it's built during this very build, so the static <None> items above never
+       saw it and the macOS release archive used to ship without any Lua library (it only
+       had Linux's liblua50.so). Copies the library for the target RID next to the
+       published executable, where DllImport("lua50") looks first. -->
+  <Target Name="PublishLua50Native" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <PropertyGroup>
+      <Lua50PublishNative Condition="$(RuntimeIdentifier.StartsWith('win'))">$(Lua50Dir)/runtimes/win-x64/native/lua50.dll</Lua50PublishNative>
+      <Lua50PublishNative Condition="$(RuntimeIdentifier.StartsWith('linux'))">$(Lua50Dir)/runtimes/linux-x64/native/liblua50.so</Lua50PublishNative>
+      <Lua50PublishNative Condition="$(RuntimeIdentifier.StartsWith('osx'))">$(Lua50Dir)/runtimes/$(RuntimeIdentifier)/native/liblua50.dylib</Lua50PublishNative>
+    </PropertyGroup>
+    <Copy SourceFiles="$(Lua50PublishNative)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true"
+          Condition="'$(Lua50PublishNative)' != '' AND Exists('$(Lua50PublishNative)')" />
+    <Warning Text="Lua 5.0 native library for $(RuntimeIdentifier) not found ($(Lua50PublishNative)): the LUA Editor won't work in this publish."
+             Condition="'$(Lua50PublishNative)' != '' AND !Exists('$(Lua50PublishNative)')" />
   </Target>
 
 </Project>
