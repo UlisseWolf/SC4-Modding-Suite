@@ -94,7 +94,7 @@ public partial class App : Application
                     uiElementIndex,
                     openDocumentInNewTab: path => shellViewModel!.OpenDocument(path));
 
-                shellViewModel = new MainWindowShellViewModel(CreateDocument, appOptions, localizationService);
+                shellViewModel = new MainWindowShellViewModel(CreateDocument, appOptions, appOptionsService, localizationService);
 
                 var mainWindow = new MainWindow
                 {

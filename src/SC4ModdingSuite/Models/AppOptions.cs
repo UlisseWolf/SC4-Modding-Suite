@@ -20,6 +20,13 @@ public sealed class AppOptions
     /// </summary>
     public string? PluginsFolder { get; set; }
 
+    /// <summary>
+    /// Folder the last file was opened from with the Open dialog - the dialog starts there
+    /// next time (if it still exists), falling back to <see cref="PluginsFolder"/>, then
+    /// <see cref="Sc4InstallFolder"/>, then Documents. Saved automatically, no UI.
+    /// </summary>
+    public string? LastOpenFolder { get; set; }
+
     public string? PimXPath { get; set; }
     public string? DataNodePath { get; set; }
     public string? MapperPath { get; set; }

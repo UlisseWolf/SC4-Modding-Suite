@@ -40,13 +40,9 @@ public partial class MainWindow : Window
             FileTypeFilter = new List<FilePickerFileType> { Sc4PackageFileType, FilePickerFileTypes.All },
         };
 
-        var startFolder = ViewModel.SelectedDocument?.AppOptions.PluginsFolder;
-        if (string.IsNullOrWhiteSpace(startFolder))
-        {
-            startFolder = ViewModel.SelectedDocument?.AppOptions.Sc4InstallFolder;
-        }
-
-        if (!string.IsNullOrWhiteSpace(startFolder))
+        // Last folder a file was opened from, else Plugins / SC4 install / Documents.
+        var startFolder = ViewModel.GetOpenDialogStartFolder();
+        if (startFolder is not null)
         {
             try
             {
@@ -64,6 +60,7 @@ public partial class MainWindow : Window
             var path = file.TryGetLocalPath();
             if (path is not null)
             {
+                ViewModel.RememberOpenFolder(path);
                 ViewModel.OpenDocument(path);
             }
         }
