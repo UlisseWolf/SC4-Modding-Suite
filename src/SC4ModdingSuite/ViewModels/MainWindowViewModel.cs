@@ -4505,7 +4505,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 {
                     try
                     {
-                        Scan(path, new DBPFFile(path).ListOfEntries);
+                        Scan(path, DbpfFileReader.Open(path).ListOfEntries);
                     }
                     catch
                     {
@@ -4604,7 +4604,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         {
             try
             {
-                var file = new DBPFFile(path);
+                var file = DbpfFileReader.Open(path);
                 filesScanned++;
                 foreach (var entry in file.ListOfEntries)
                 {
@@ -4689,7 +4689,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             {
                 try
                 {
-                    ScanEntries(new DBPFFile(path).ListOfEntries);
+                    ScanEntries(DbpfFileReader.Open(path).ListOfEntries);
                 }
                 catch
                 {
@@ -4807,7 +4807,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 {
                     try
                     {
-                        Scan(path, new DBPFFile(path).ListOfEntries);
+                        Scan(path, DbpfFileReader.Open(path).ListOfEntries);
                     }
                     catch
                     {

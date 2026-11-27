@@ -38,7 +38,7 @@ public sealed class DbpfService
     public void Open(string path)
     {
         RecordedEntries.Clear();
-        CurrentFile = new DBPFFile(path);
+        CurrentFile = DbpfFileReader.Open(path);
         CurrentPath = path;
     }
 
