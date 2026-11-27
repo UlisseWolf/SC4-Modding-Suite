@@ -101,7 +101,7 @@ public sealed class MergeDialogViewModel : ViewModelBase
 
         try
         {
-            var sourceFiles = SourceFiles.Select(path => new DBPFFile(path)).ToList();
+            var sourceFiles = SourceFiles.Select(path => DbpfFileReader.Open(path)).ToList();
 
             if (MergeIntoOpenDocument && CanMergeIntoOpenDocument)
             {

@@ -125,7 +125,7 @@ public sealed class UiElementIndexService : INotifyPropertyChanged
         {
             try
             {
-                var file = new DBPFFile(path);
+                var file = DbpfFileReader.Open(path);
                 var entry = file.ListOfEntries.FirstOrDefault(e =>
                     e.TGI.TypeID == typeId && e.TGI.GroupID == group && e.TGI.InstanceID == instance);
 
@@ -306,7 +306,7 @@ public sealed class UiElementIndexService : INotifyPropertyChanged
                 {
                     try
                     {
-                        var allEntries = new DBPFFile(path).ListOfEntries;
+                        var allEntries = DbpfFileReader.Open(path).ListOfEntries;
                         entries = allEntries
                             .Where(e => e.TGI.TypeID == 0)
                             .Select(e => new CachedTgi

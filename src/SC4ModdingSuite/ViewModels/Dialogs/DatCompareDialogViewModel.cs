@@ -131,7 +131,7 @@ public sealed class DatCompareDialogViewModel : ViewModelBase
             return new List<DBPFEntry>();
         }
 
-        var file = new DBPFFile(path);
+        var file = DbpfFileReader.Open(path);
         return file.ListOfEntries.Where(e => !IsDirectoryEntry(e)).ToList();
     }
 
